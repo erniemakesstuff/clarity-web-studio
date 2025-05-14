@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Utensils, Search, Soup, Pizza, Salad, Dessert, Coffee } from "lucide-react"; // Example icons
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 
 
 // Mock data - replace with actual data fetching
