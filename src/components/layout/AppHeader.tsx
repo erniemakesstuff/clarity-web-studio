@@ -34,7 +34,7 @@ export function AppHeader() {
             </>
           ) : (
             <Button asChild>
-              <Link href="/auth/signin"><User className="mr-2 h-4 w-4" />Restaurant Portal</Link>
+              <Link href="/signin"><User className="mr-2 h-4 w-4" />Restaurant Portal</Link>
             </Button>
           )}
         </nav>

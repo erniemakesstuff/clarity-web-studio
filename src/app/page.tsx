@@ -25,7 +25,7 @@ export default function HomePage() {
                 <Link href="/menu/demo">View Demo Menu</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/auth/signin">Restaurant Portal</Link>
+                <Link href="/signin">Restaurant Portal</Link>
               </Button>
             </div>
           </div>
