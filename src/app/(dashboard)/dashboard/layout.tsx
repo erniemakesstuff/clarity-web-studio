@@ -19,7 +19,7 @@ import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthRedirect } from "@/hooks/use-auth-redirect";
-import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building } from "lucide-react";
+import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard/menu-management", label: "Menu Management", icon: <Utensils /> },
   { href: "/dashboard/content-generation", label: "Marketing Content", icon: <FileText /> },
   { href: "/dashboard/analytics", label: "Analytics", icon: <BarChart /> },
+  { href: "/dashboard/hypothesis-tests", label: "Hypothesis Tests", icon: <FlaskConical /> },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
