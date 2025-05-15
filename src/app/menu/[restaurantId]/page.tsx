@@ -11,21 +11,21 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Utensils, Search, Soup, Pizza, Salad, Dessert, Coffee, Eye, LayoutGrid } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"; // Added Card imports
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { SwipeFeed } from "@/components/menu/SwipeFeed";
 
 
 // Mock data - replace with actual data fetching
-// Added videoUrl to some items
+// Updated videoUrl to a working placeholder
 const mockMenu: MenuItem[] = [
-  { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: ["vegetarian"], dataAiHint: "pizza food" },
+  { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", dietaryIcons: ["vegetarian"], dataAiHint: "pizza food" },
   { id: "2", name: "Pepperoni Pizza", description: "A classic favorite with rich pepperoni and mozzarella. Perfectly baked to a golden brown.", price: "$14.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: [], dataAiHint: "pizza food" },
   { id: "3", name: "Caesar Salad", description: "Crisp romaine lettuce, parmesan cheese, and crunchy croutons tossed in our signature Caesar dressing.", price: "$9.50", category: "Salads", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"], dataAiHint: "salad food" },
-  { id: "4", name: "Spaghetti Carbonara", description: "Authentic Italian spaghetti with a creamy egg sauce, crispy pancetta, and freshly grated pecorino cheese.", price: "$15.00", category: "Pastas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: [], dataAiHint: "pasta food" },
+  { id: "4", name: "Spaghetti Carbonara", description: "Authentic Italian spaghetti with a creamy egg sauce, crispy pancetta, and freshly grated pecorino cheese.", price: "$15.00", category: "Pastas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", dietaryIcons: [], dataAiHint: "pasta food" },
   { id: "5", name: "Chocolate Lava Cake", description: "Warm, decadent chocolate cake with a gooey molten center, served with a scoop of premium vanilla ice cream.", price: "$8.00", category: "Desserts", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"], dataAiHint: "dessert chocolate" },
   { id: "6", name: "Iced Latte", description: "Chilled espresso blended with smooth milk over ice. The perfect pick-me-up.", price: "$4.50", category: "Drinks", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian", "gluten-free"], dataAiHint: "coffee drink" },
   { id: "7", name: "Spicy Thai Green Curry", description: "Aromatic green curry with tender chicken, crisp bamboo shoots, bell peppers, and fresh basil in a rich coconut milk broth.", price: "$16.50", category: "Main Courses", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["spicy"], dataAiHint: "curry food" },
-  { id: "8", name: "Vegan Burger", description: "Delicious plant-based patty topped with fresh lettuce, ripe tomato, pickles, and our special vegan mayo, all on a toasted gluten-free bun.", price: "$13.00", category: "Burgers", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: ["vegan", "gluten-free"], dataAiHint: "burger food" },
+  { id: "8", name: "Vegan Burger", description: "Delicious plant-based patty topped with fresh lettuce, ripe tomato, pickles, and our special vegan mayo, all on a toasted gluten-free bun.", price: "$13.00", category: "Burgers", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", dietaryIcons: ["vegan", "gluten-free"], dataAiHint: "burger food" },
 ];
 
 
