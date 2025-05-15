@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Leaf, WheatOff, Flame, Zap, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { getUpsellSuggestions, type UpsellSuggestionsInput } from "@/ai/flows/upsell-suggestions";
-import { UpsellCarouselCard } from "./UpsellCarouselCard"; // New import
+import { UpsellCarouselCard } from "./UpsellCarouselCard"; 
 
 interface FeedItemDisplayProps {
   item: MenuItem;
@@ -150,7 +150,11 @@ export function FeedItemDisplay({ item, allMenuItems, onUpsellClick, onUpsellVie
         {/* Upsell Item Cards */}
         {!isLoadingUpsells && upsellSuggestions.map((upsellItem, index) => (
           <div key={`upsell-${upsellItem.id}-${index}`} data-upsell-id={upsellItem.id} className="h-full w-full flex-shrink-0 snap-start bg-gray-900 flex items-center justify-center p-4">
-            <UpsellCarouselCard item={upsellItem} onOrderClick={() => onUpsellClick(upsellItem)} />
+            <UpsellCarouselCard 
+              item={upsellItem} 
+              mainItemName={item.name} 
+              onOrderClick={() => onUpsellClick(upsellItem)} 
+            />
           </div>
         ))}
         {isLoadingUpsells && (
