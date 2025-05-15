@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,13 +21,20 @@ export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, router]);
+
   if (isLoading) {
     return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>;
   }
 
+  // If already authenticated and not loading, the useEffect above will handle redirection.
+  // We can return null here to prevent rendering the signup form if redirection is imminent.
   if (isAuthenticated) {
-    router.replace("/dashboard");
-    return null;
+    return null; 
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,7 +60,7 @@ export default function SignUpPage() {
       variant: "default",
       className: "bg-green-500 text-white"
     });
-    router.push("/dashboard");
+    // No need to router.push here, the useEffect will handle it when isAuthenticated changes.
   };
 
   return (
