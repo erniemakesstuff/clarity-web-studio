@@ -18,14 +18,14 @@ import { SwipeFeed } from "@/components/menu/SwipeFeed";
 // Mock data - replace with actual data fetching
 // Added videoUrl to some items
 const mockMenu: MenuItem[] = [
-  { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: ["vegetarian"] },
-  { id: "2", name: "Pepperoni Pizza", description: "A classic favorite with rich pepperoni and mozzarella. Perfectly baked to a golden brown.", price: "$14.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: [] },
-  { id: "3", name: "Caesar Salad", description: "Crisp romaine lettuce, parmesan cheese, and crunchy croutons tossed in our signature Caesar dressing.", price: "$9.50", category: "Salads", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"] },
-  { id: "4", name: "Spaghetti Carbonara", description: "Authentic Italian spaghetti with a creamy egg sauce, crispy pancetta, and freshly grated pecorino cheese.", price: "$15.00", category: "Pastas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: [] },
-  { id: "5", name: "Chocolate Lava Cake", description: "Warm, decadent chocolate cake with a gooey molten center, served with a scoop of premium vanilla ice cream.", price: "$8.00", category: "Desserts", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"] },
-  { id: "6", name: "Iced Latte", description: "Chilled espresso blended with smooth milk over ice. The perfect pick-me-up.", price: "$4.50", category: "Drinks", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian", "gluten-free"] },
-  { id: "7", name: "Spicy Thai Green Curry", description: "Aromatic green curry with tender chicken, crisp bamboo shoots, bell peppers, and fresh basil in a rich coconut milk broth.", price: "$16.50", category: "Main Courses", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["spicy"] },
-  { id: "8", name: "Vegan Burger", description: "Delicious plant-based patty topped with fresh lettuce, ripe tomato, pickles, and our special vegan mayo, all on a toasted gluten-free bun.", price: "$13.00", category: "Burgers", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: ["vegan", "gluten-free"] },
+  { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: ["vegetarian"], dataAiHint: "pizza food" },
+  { id: "2", name: "Pepperoni Pizza", description: "A classic favorite with rich pepperoni and mozzarella. Perfectly baked to a golden brown.", price: "$14.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: [], dataAiHint: "pizza food" },
+  { id: "3", name: "Caesar Salad", description: "Crisp romaine lettuce, parmesan cheese, and crunchy croutons tossed in our signature Caesar dressing.", price: "$9.50", category: "Salads", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"], dataAiHint: "salad food" },
+  { id: "4", name: "Spaghetti Carbonara", description: "Authentic Italian spaghetti with a creamy egg sauce, crispy pancetta, and freshly grated pecorino cheese.", price: "$15.00", category: "Pastas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: [], dataAiHint: "pasta food" },
+  { id: "5", name: "Chocolate Lava Cake", description: "Warm, decadent chocolate cake with a gooey molten center, served with a scoop of premium vanilla ice cream.", price: "$8.00", category: "Desserts", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"], dataAiHint: "dessert chocolate" },
+  { id: "6", name: "Iced Latte", description: "Chilled espresso blended with smooth milk over ice. The perfect pick-me-up.", price: "$4.50", category: "Drinks", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian", "gluten-free"], dataAiHint: "coffee drink" },
+  { id: "7", name: "Spicy Thai Green Curry", description: "Aromatic green curry with tender chicken, crisp bamboo shoots, bell peppers, and fresh basil in a rich coconut milk broth.", price: "$16.50", category: "Main Courses", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["spicy"], dataAiHint: "curry food" },
+  { id: "8", name: "Vegan Burger", description: "Delicious plant-based patty topped with fresh lettuce, ripe tomato, pickles, and our special vegan mayo, all on a toasted gluten-free bun.", price: "$13.00", category: "Burgers", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", dietaryIcons: ["vegan", "gluten-free"], dataAiHint: "burger food" },
 ];
 
 
@@ -199,12 +199,12 @@ export default function MenuPage({ params }: { params: { restaurantId: string } 
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap justify-start mb-6 bg-muted p-1 rounded-lg shadow-sm">
+            <TabsList className="flex flex-wrap justify-start mb-6 bg-muted p-1 rounded-lg shadow-sm">
               {categories.map(category => (
                 <TabsTrigger 
                   key={category.name} 
                   value={category.name} 
-                  className="flex-1 md:flex-initial data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md px-3 py-2 text-sm sm:text-base"
+                  className="flex-initial data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md px-3 py-2 text-sm sm:text-base"
                 >
                   {categoryIcons[category.name] || <Utensils className="mr-2 h-5 w-5" />}
                   {category.name}
