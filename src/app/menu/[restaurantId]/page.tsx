@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import type { MenuItem, MenuCategory } from "@/lib/types";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { UpsellDialog } from "@/components/menu/UpsellDialog";
@@ -16,7 +16,6 @@ import { SwipeFeed } from "@/components/menu/SwipeFeed";
 
 
 // Mock data - replace with actual data fetching
-// Updated videoUrl to a working placeholder
 const mockMenu: MenuItem[] = [
   { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", dietaryIcons: ["vegetarian"], dataAiHint: "pizza food" },
   { id: "2", name: "Pepperoni Pizza", description: "A classic favorite with rich pepperoni and mozzarella. Perfectly baked to a golden brown.", price: "$14.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: [], dataAiHint: "pizza food" },
@@ -41,7 +40,9 @@ const categoryIcons: Record<string, React.ReactNode> = {
 };
 
 
-export default function MenuPage({ params }: { params: { restaurantId: string } }) {
+export default function MenuPage({ params: paramsAsPromise }: { params: Promise<{ restaurantId: string }> }) {
+  const params = React.use(paramsAsPromise);
+
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
