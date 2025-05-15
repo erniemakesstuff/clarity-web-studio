@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -5,7 +6,7 @@ import type { MenuItem, DietaryIcon } from "@/lib/types";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Leaf, WheatOff, Flame, Info } from "lucide-react"; // Placeholder icons
+import { Leaf, WheatOff, Flame, Info, ShoppingCart } from "lucide-react"; // Placeholder icons
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -28,7 +29,7 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
 
 export function MenuItemCard({ item, onUpsellClick }: MenuItemCardProps) {
   return (
-    <Card className="flex flex-col overflow-hidden h-full shadow-md hover:shadow-lg transition-shadow duration-300 rounded-xl">
+    <Card className="flex flex-col overflow-hidden h-full shadow-md hover:shadow-lg transition-shadow duration-300 rounded-xl bg-card">
       {item.imageUrl && (
         <div className="relative w-full h-48">
           <Image
@@ -41,11 +42,11 @@ export function MenuItemCard({ item, onUpsellClick }: MenuItemCardProps) {
         </div>
       )}
       <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-semibold tracking-tight">{item.name}</CardTitle>
+        <CardTitle className="text-xl font-semibold tracking-tight text-card-foreground">{item.name}</CardTitle>
         {item.dietaryIcons && item.dietaryIcons.length > 0 && (
           <div className="flex space-x-2 mt-1">
             {item.dietaryIcons.map((iconType) => (
-              <Badge key={iconType} variant="outline" className="flex items-center gap-1 py-0.5 px-1.5 text-xs" title={dietaryIconTooltip[iconType]}>
+              <Badge key={iconType} variant="outline" className="flex items-center gap-1 py-0.5 px-1.5 text-xs border-border text-muted-foreground" title={dietaryIconTooltip[iconType]}>
                 {dietaryIconMap[iconType]}
                 <span className="hidden sm:inline">{dietaryIconTooltip[iconType]}</span>
               </Badge>
@@ -58,7 +59,8 @@ export function MenuItemCard({ item, onUpsellClick }: MenuItemCardProps) {
       </CardContent>
       <CardFooter className="flex justify-between items-center pt-0 pb-4 px-4">
         <p className="text-lg font-bold text-primary">{item.price}</p>
-        <Button size="sm" onClick={() => onUpsellClick(item)}>
+        <Button size="sm" onClick={() => onUpsellClick(item)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+          <ShoppingCart className="mr-2 h-4 w-4" />
           Order
         </Button>
       </CardFooter>

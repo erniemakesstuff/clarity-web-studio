@@ -8,6 +8,7 @@ export interface MenuItem extends MenuItemCore {
   id: string;
   category?: string;
   imageUrl?: string;
+  videoUrl?: string; // Added for video content
   dietaryIcons?: DietaryIcon[]; 
 }
 
