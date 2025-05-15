@@ -12,7 +12,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const AbTestHypothesisSchema = z.object({
+const AbTestHypothesisSchema = z.object({
   id: z.string().describe('A unique ID for the test (e.g., "TEST001").'),
   changeDescription: z.string().describe('A concise description of the proposed A/B test change (e.g., "Promote Garlic Bread with all Pasta Dishes").'),
   reasoning: z.string().describe("The AI's reasoning or justification for why this test might be effective in increasing upsells or order value."),
