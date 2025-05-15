@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card"; // Removed CardHeader, CardTitle as they are not used in the loop
+import { Card, CardContent } from "@/components/ui/card"; 
 import { Lightbulb } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getUpsellSuggestions, type UpsellSuggestionsInput } from "@/ai/flows/upsell-suggestions"; 
@@ -43,7 +43,6 @@ export function UpsellDialog({ isOpen, onOpenChange, selectedItem, menuItems }: 
         })
         .catch(error => {
           console.error("Error fetching upsell suggestions:", error);
-          // Fallback suggestions for dialog
           const potentialUpsells = menuItems.filter(mi => mi.id !== selectedItem.id && mi.category !== selectedItem.category).slice(0,2);
           if (potentialUpsells.length > 0) {
             setSuggestions(potentialUpsells.map(mi => `How about our ${mi.name}?`));
@@ -92,10 +91,7 @@ export function UpsellDialog({ isOpen, onOpenChange, selectedItem, menuItems }: 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Maybe Next Time</Button>
-          <Button onClick={() => {
-            alert(`Added ${selectedItem.name} and (mock) suggestions to order!`);
-            onOpenChange(false);
-          }}>Add to Order (Mock)</Button>
+          {/* "Add to Order (Mock)" Button removed as per request */}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -4,13 +4,13 @@
 import Image from "next/image";
 import type { MenuItem, DietaryIcon, MediaObject } from "@/lib/types";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button"; // Button no longer used
 import { Badge } from "@/components/ui/badge";
-import { Leaf, WheatOff, Flame, Info, ShoppingCart, ImageOff } from "lucide-react"; // Added ImageOff
+import { Leaf, WheatOff, Flame, ImageOff } from "lucide-react"; // Removed ShoppingCart, Info
 
 interface MenuItemCardProps {
   item: MenuItem;
-  onUpsellClick: (item: MenuItem) => void;
+  onUpsellClick: (item: MenuItem) => void; // Prop remains, though button is removed
 }
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
@@ -61,12 +61,9 @@ export function MenuItemCard({ item, onUpsellClick }: MenuItemCardProps) {
       <CardContent className="flex-grow pb-3">
         <CardDescription className="text-sm text-muted-foreground line-clamp-3">{item.description}</CardDescription>
       </CardContent>
-      <CardFooter className="flex justify-between items-center pt-0 pb-4 px-4">
+      <CardFooter className="flex justify-start items-center pt-0 pb-4 px-4">
         <p className="text-lg font-bold text-primary">{item.price}</p>
-        <Button size="sm" onClick={() => onUpsellClick(item)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          Order
-        </Button>
+        {/* "Order" Button removed as per request */}
       </CardFooter>
     </Card>
   );

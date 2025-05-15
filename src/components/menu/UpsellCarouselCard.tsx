@@ -3,13 +3,13 @@
 
 import Image from "next/image";
 import type { MenuItem, MediaObject } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+// import { Button } from "@/components/ui/button"; // Button no longer used
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, ImageOff } from "lucide-react";
+import { ImageOff } from "lucide-react"; // Removed ShoppingCart
 
 interface UpsellCarouselCardProps {
   item: MenuItem;
-  onOrderClick: (item: MenuItem) => void;
+  onOrderClick: (item: MenuItem) => void; // Prop remains, though button is removed
 }
 
 export function UpsellCarouselCard({ item, onOrderClick }: UpsellCarouselCardProps) {
@@ -41,14 +41,7 @@ export function UpsellCarouselCard({ item, onOrderClick }: UpsellCarouselCardPro
       </CardContent>
       <CardFooter className="p-4 border-t border-border/20 flex flex-col items-stretch gap-3">
         <p className="text-xl font-bold text-primary self-center">{item.price}</p>
-        <Button 
-          onClick={() => onOrderClick(item)} 
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-          size="lg"
-        >
-          <ShoppingCart className="mr-2 h-5 w-5" />
-          Add to Order
-        </Button>
+        {/* "Add to Order" Button removed as per request */}
       </CardFooter>
     </Card>
   );
