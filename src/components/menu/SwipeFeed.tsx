@@ -7,11 +7,12 @@ import { useRef, useEffect } from "react";
 
 interface SwipeFeedProps {
   items: MenuItem[];
+  allMenuItems: MenuItem[]; // Pass all menu items for upsell context
   onUpsellClick: (item: MenuItem) => void;
   onItemViewed: (itemId: string) => void;
 }
 
-export function SwipeFeed({ items, onUpsellClick, onItemViewed }: SwipeFeedProps) {
+export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: SwipeFeedProps) {
   const observer = useRef<IntersectionObserver | null>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -23,7 +24,7 @@ export function SwipeFeed({ items, onUpsellClick, onItemViewed }: SwipeFeedProps
     observer.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.75) { // Consider viewed if 75% visible
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.75) { 
             const itemId = entry.target.getAttribute("data-item-id");
             if (itemId) {
               onItemViewed(itemId);
@@ -31,7 +32,7 @@ export function SwipeFeed({ items, onUpsellClick, onItemViewed }: SwipeFeedProps
           }
         });
       },
-      { threshold: 0.75 } // Trigger when 75% of the item is visible
+      { threshold: 0.75 } 
     );
 
     itemRefs.current.forEach((ref) => {
@@ -42,6 +43,11 @@ export function SwipeFeed({ items, onUpsellClick, onItemViewed }: SwipeFeedProps
       observer.current?.disconnect();
     };
   }, [items, onItemViewed]);
+
+  const handleUpsellViewed = (itemId: string) => {
+    console.log(`Upsell item ${itemId} became visible in the main feed item's carousel.`);
+    // This is where you'd send engagement data to backend/AI
+  };
 
   if (!items || items.length === 0) {
     return (
@@ -60,7 +66,12 @@ export function SwipeFeed({ items, onUpsellClick, onItemViewed }: SwipeFeedProps
           data-item-id={item.id}
           className="h-screen w-screen snap-start flex-shrink-0"
         >
-          <FeedItemDisplay item={item} onUpsellClick={onUpsellClick} />
+          <FeedItemDisplay 
+            item={item} 
+            allMenuItems={allMenuItems}
+            onUpsellClick={onUpsellClick}
+            onUpsellViewed={handleUpsellViewed} 
+          />
         </div>
       ))}
     </div>

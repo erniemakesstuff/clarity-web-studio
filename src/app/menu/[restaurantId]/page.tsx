@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import type { MenuItem, MenuCategory } from "@/lib/types";
+import type { MenuItem, MenuCategory, MediaObject } from "@/lib/types";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { UpsellDialog } from "@/components/menu/UpsellDialog";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -17,14 +17,47 @@ import { SwipeFeed } from "@/components/menu/SwipeFeed";
 
 // Mock data - replace with actual data fetching
 const mockMenu: MenuItem[] = [
-  { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", dietaryIcons: ["vegetarian"], dataAiHint: "pizza food" },
-  { id: "2", name: "Pepperoni Pizza", description: "A classic favorite with rich pepperoni and mozzarella. Perfectly baked to a golden brown.", price: "$14.99", category: "Pizzas", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: [], dataAiHint: "pizza food" },
-  { id: "3", name: "Caesar Salad", description: "Crisp romaine lettuce, parmesan cheese, and crunchy croutons tossed in our signature Caesar dressing.", price: "$9.50", category: "Salads", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"], dataAiHint: "salad food" },
-  { id: "4", name: "Spaghetti Carbonara", description: "Authentic Italian spaghetti with a creamy egg sauce, crispy pancetta, and freshly grated pecorino cheese.", price: "$15.00", category: "Pastas", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", dietaryIcons: [], dataAiHint: "pasta food" },
-  { id: "5", name: "Chocolate Lava Cake", description: "Warm, decadent chocolate cake with a gooey molten center, served with a scoop of premium vanilla ice cream.", price: "$8.00", category: "Desserts", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian"], dataAiHint: "dessert chocolate" },
-  { id: "6", name: "Iced Latte", description: "Chilled espresso blended with smooth milk over ice. The perfect pick-me-up.", price: "$4.50", category: "Drinks", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["vegetarian", "gluten-free"], dataAiHint: "coffee drink" },
-  { id: "7", name: "Spicy Thai Green Curry", description: "Aromatic green curry with tender chicken, crisp bamboo shoots, bell peppers, and fresh basil in a rich coconut milk broth.", price: "$16.50", category: "Main Courses", imageUrl: "https://placehold.co/1280x720.png", dietaryIcons: ["spicy"], dataAiHint: "curry food" },
-  { id: "8", name: "Vegan Burger", description: "Delicious plant-based patty topped with fresh lettuce, ripe tomato, pickles, and our special vegan mayo, all on a toasted gluten-free bun.", price: "$13.00", category: "Burgers", imageUrl: "https://placehold.co/1280x720.png", videoUrl: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", dietaryIcons: ["vegan", "gluten-free"], dataAiHint: "burger food" },
+  { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", 
+    media: [
+      { type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "pizza food" },
+      { type: "video", url: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" }
+    ], 
+    dietaryIcons: ["vegetarian"] 
+  },
+  { id: "2", name: "Pepperoni Pizza", description: "A classic favorite with rich pepperoni and mozzarella. Perfectly baked to a golden brown.", price: "$14.99", category: "Pizzas", 
+    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "pizza food" }], 
+    dietaryIcons: [] 
+  },
+  { id: "3", name: "Caesar Salad", description: "Crisp romaine lettuce, parmesan cheese, and crunchy croutons tossed in our signature Caesar dressing.", price: "$9.50", category: "Salads", 
+    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "salad food" }], 
+    dietaryIcons: ["vegetarian"] 
+  },
+  { id: "4", name: "Spaghetti Carbonara", description: "Authentic Italian spaghetti with a creamy egg sauce, crispy pancetta, and freshly grated pecorino cheese.", price: "$15.00", category: "Pastas", 
+    media: [
+      { type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "pasta food" },
+      { type: "video", url: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" }
+    ], 
+    dietaryIcons: [] 
+  },
+  { id: "5", name: "Chocolate Lava Cake", description: "Warm, decadent chocolate cake with a gooey molten center, served with a scoop of premium vanilla ice cream.", price: "$8.00", category: "Desserts", 
+    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "dessert chocolate" }], 
+    dietaryIcons: ["vegetarian"] 
+  },
+  { id: "6", name: "Iced Latte", description: "Chilled espresso blended with smooth milk over ice. The perfect pick-me-up.", price: "$4.50", category: "Drinks", 
+    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "coffee drink" }], 
+    dietaryIcons: ["vegetarian", "gluten-free"] 
+  },
+  { id: "7", name: "Spicy Thai Green Curry", description: "Aromatic green curry with tender chicken, crisp bamboo shoots, bell peppers, and fresh basil in a rich coconut milk broth.", price: "$16.50", category: "Main Courses", 
+    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "curry food" }], 
+    dietaryIcons: ["spicy"] 
+  },
+  { id: "8", name: "Vegan Burger", description: "Delicious plant-based patty topped with fresh lettuce, ripe tomato, pickles, and our special vegan mayo, all on a toasted gluten-free bun.", price: "$13.00", category: "Burgers", 
+    media: [
+      { type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "burger food" },
+      { type: "video", url: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" }
+    ], 
+    dietaryIcons: ["vegan", "gluten-free"] 
+  },
 ];
 
 
@@ -58,8 +91,6 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
   useEffect(() => {
     setIsLoading(true);
     setTimeout(() => {
-      // In a real app, fetch data for params.restaurantId and apply A/B test ordering
-      // For now, we shuffle mockMenu to simulate dynamic ordering for the feed
       const shuffledMenu = [...mockMenu].sort(() => Math.random() - 0.5);
       setMenuItems(shuffledMenu);
       setFilteredItems(shuffledMenu); 
@@ -67,7 +98,7 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
       const uniqueCategories = Array.from(new Set(mockMenu.map(item => item.category || "Other")));
       const categorizedMenuData: MenuCategory[] = uniqueCategories.map(catName => ({
         name: catName,
-        items: mockMenu.filter(item => (item.category || "Other") === catName) // Use original mockMenu for categories
+        items: mockMenu.filter(item => (item.category || "Other") === catName)
       }));
       setCategories([{ name: "All", items: mockMenu }, ...categorizedMenuData]);
 
@@ -76,13 +107,13 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
   }, [params.restaurantId]);
 
   useEffect(() => {
-    let itemsToFilter = menuItems; // Base items for filtering (shuffled for feed, original for category consistency)
+    let itemsToFilter = menuItems; 
     
     if (viewMode === 'category') {
         itemsToFilter = activeTab === "All" 
-            ? mockMenu // Use original, stable order for category view 'All'
+            ? mockMenu 
             : categories.find(c => c.name === activeTab)?.items || [];
-    } else { // Feed view uses the potentially A/B test sorted list
+    } else { 
         itemsToFilter = menuItems;
     }
     
@@ -101,16 +132,14 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
   };
   
   const currentCategoryItems = useMemo(() => {
-    if (viewMode === 'feed') return filteredItems; // For feed, filteredItems is already the list to display
+    if (viewMode === 'feed') return filteredItems; 
 
-    // For category view
     if (activeTab === "All") return filteredItems;
     return filteredItems.filter(item => (item.category || "Other") === activeTab);
   }, [viewMode, activeTab, filteredItems]);
 
   const handleItemViewed = (itemId: string) => {
     console.log(`Item viewed (potential skip tracking): ${itemId}`);
-    // Here you would potentially send this data to a backend to inform A/B tests or engagement metrics
   };
 
   if (isLoading) {
@@ -152,9 +181,10 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
       {viewMode === 'feed' ? (
         <>
           <SwipeFeed 
-            items={menuItems} // Pass the A/B test ordered items
+            items={menuItems} 
             onUpsellClick={handleUpsellClick} 
             onItemViewed={handleItemViewed} 
+            allMenuItems={mockMenu} // Pass all menu items for upsell context
           />
           <Button
             variant="outline"
@@ -237,7 +267,7 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
           isOpen={isUpsellDialogOpen}
           onOpenChange={setIsUpsellDialogOpen}
           selectedItem={selectedItemForUpsell}
-          menuItems={menuItems} // Pass all menu items for context
+          menuItems={mockMenu} // Pass all menu items for context
         />
       )}
 

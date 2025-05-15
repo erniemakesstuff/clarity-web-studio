@@ -2,11 +2,11 @@
 "use client";
 
 import Image from "next/image";
-import type { MenuItem, DietaryIcon } from "@/lib/types";
+import type { MenuItem, DietaryIcon, MediaObject } from "@/lib/types";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Leaf, WheatOff, Flame, Info, ShoppingCart } from "lucide-react"; // Placeholder icons
+import { Leaf, WheatOff, Flame, Info, ShoppingCart, ImageOff } from "lucide-react"; // Added ImageOff
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -15,7 +15,7 @@ interface MenuItemCardProps {
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
   vegetarian: <Leaf size={16} className="text-green-600" />,
-  vegan: <Leaf size={16} className="text-green-700" />, // Differentiate slightly if needed
+  vegan: <Leaf size={16} className="text-green-700" />, 
   "gluten-free": <WheatOff size={16} className="text-orange-600" />,
   spicy: <Flame size={16} className="text-red-600" />,
 };
@@ -28,19 +28,23 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
 };
 
 export function MenuItemCard({ item, onUpsellClick }: MenuItemCardProps) {
+  const firstImage: MediaObject | undefined = item.media?.find(m => m.type === 'image');
+
   return (
     <Card className="flex flex-col overflow-hidden h-full shadow-md hover:shadow-lg transition-shadow duration-300 rounded-xl bg-card">
-      {item.imageUrl && (
-        <div className="relative w-full h-48">
+      <div className="relative w-full h-48 bg-secondary flex items-center justify-center">
+        {firstImage ? (
           <Image
-            src={item.imageUrl}
+            src={firstImage.url}
             alt={item.name}
             layout="fill"
             objectFit="cover"
-            data-ai-hint="food item"
+            data-ai-hint={firstImage.dataAiHint || "food item"}
           />
-        </div>
-      )}
+        ) : (
+          <ImageOff className="h-16 w-16 text-muted-foreground" />
+        )}
+      </div>
       <CardHeader className="pb-2">
         <CardTitle className="text-xl font-semibold tracking-tight text-card-foreground">{item.name}</CardTitle>
         {item.dietaryIcons && item.dietaryIcons.length > 0 && (

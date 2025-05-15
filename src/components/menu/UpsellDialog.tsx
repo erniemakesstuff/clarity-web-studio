@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { MenuItem } from "@/lib/types";
@@ -10,37 +11,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card"; // Removed CardHeader, CardTitle as they are not used in the loop
 import { Lightbulb } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getUpsellSuggestions, type UpsellSuggestionsInput } from "@/ai/flows/upsell-suggestions"; // Ensure correct path
+import { getUpsellSuggestions, type UpsellSuggestionsInput } from "@/ai/flows/upsell-suggestions"; 
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface UpsellDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   selectedItem: MenuItem | null;
-  menuItems: MenuItem[]; // Full menu to provide context for AI
+  menuItems: MenuItem[]; 
 }
-
-// Mock function to simulate fetching AI suggestions
-async function fetchMockUpsellSuggestions(item: MenuItem, allItems: MenuItem[]): Promise<string[]> {
-  // In a real scenario, you'd call the AI flow:
-  // const input: UpsellSuggestionsInput = {
-  //   menuDescription: allItems.map(mi => `${mi.name}: ${mi.description}`).join('\n'),
-  //   orderedItem: item.name,
-  // };
-  // const result = await getUpsellSuggestions(input);
-  // return result.upsellSuggestions;
-  
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-  const potentialUpsells = allItems.filter(mi => mi.id !== item.id && mi.category !== item.category).slice(0,3);
-  if (potentialUpsells.length === 0 && allItems.length > 1) {
-     return allItems.filter(mi => mi.id !== item.id).slice(0,1).map(mi => `How about a ${mi.name}?`);
-  }
-  return potentialUpsells.map(mi => `Perhaps a ${mi.name} to go with your ${item.name}?`);
-}
-
 
 export function UpsellDialog({ isOpen, onOpenChange, selectedItem, menuItems }: UpsellDialogProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -49,7 +31,6 @@ export function UpsellDialog({ isOpen, onOpenChange, selectedItem, menuItems }: 
   useEffect(() => {
     if (isOpen && selectedItem) {
       setIsLoading(true);
-      // Generate a simple menu description for the AI
       const menuDescription = menuItems.map(item => `${item.name} - ${item.description} (${item.price})`).join("\n");
       const input: UpsellSuggestionsInput = {
         menuDescription: menuDescription,
@@ -58,15 +39,17 @@ export function UpsellDialog({ isOpen, onOpenChange, selectedItem, menuItems }: 
 
       getUpsellSuggestions(input)
         .then(response => {
-          setSuggestions(response.upsellSuggestions.slice(0, 3)); // Take top 3
+          setSuggestions(response.upsellSuggestions.slice(0, 3)); 
         })
         .catch(error => {
           console.error("Error fetching upsell suggestions:", error);
-          // Fallback suggestions
-          setSuggestions([
-            `A refreshing drink?`,
-            `Our popular side dish?`
-          ]);
+          // Fallback suggestions for dialog
+          const potentialUpsells = menuItems.filter(mi => mi.id !== selectedItem.id && mi.category !== selectedItem.category).slice(0,2);
+          if (potentialUpsells.length > 0) {
+            setSuggestions(potentialUpsells.map(mi => `How about our ${mi.name}?`));
+          } else {
+            setSuggestions([`A refreshing drink?`]);
+          }
         })
         .finally(() => {
           setIsLoading(false);
@@ -109,7 +92,10 @@ export function UpsellDialog({ isOpen, onOpenChange, selectedItem, menuItems }: 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Maybe Next Time</Button>
-          <Button onClick={() => onOpenChange(false)}>Add to Order (Mock)</Button>
+          <Button onClick={() => {
+            alert(`Added ${selectedItem.name} and (mock) suggestions to order!`);
+            onOpenChange(false);
+          }}>Add to Order (Mock)</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

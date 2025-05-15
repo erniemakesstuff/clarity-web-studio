@@ -2,14 +2,22 @@
 export interface MenuItemCore {
   name: string;
   description: string;
-  price: string; 
+  price: string;
 }
+
+export type MediaType = 'image' | 'video';
+
+export interface MediaObject {
+  type: MediaType;
+  url: string;
+  dataAiHint?: string; // For images, to guide Unsplash search or similar
+}
+
 export interface MenuItem extends MenuItemCore {
   id: string;
   category?: string;
-  imageUrl?: string;
-  videoUrl?: string; // Added for video content
-  dietaryIcons?: DietaryIcon[]; 
+  media?: MediaObject[]; // Replaces imageUrl and videoUrl
+  dietaryIcons?: DietaryIcon[];
 }
 
 export type DietaryIcon = "vegetarian" | "vegan" | "gluten-free" | "spicy";
