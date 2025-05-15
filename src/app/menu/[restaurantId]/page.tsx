@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Utensils, Search, Soup, Pizza, Salad, Dessert, Coffee, Eye, LayoutGrid } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"; // Added Card imports
 import { SwipeFeed } from "@/components/menu/SwipeFeed";
 
 
@@ -199,7 +199,7 @@ export default function MenuPage({ params }: { params: { restaurantId: string } 
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-            <TabsList className="flex flex-wrap justify-start mb-6 bg-muted p-1 rounded-lg shadow-sm">
+            <TabsList className="flex flex-wrap justify-start mb-8 bg-muted p-1 rounded-lg shadow-sm">
               {categories.map(category => (
                 <TabsTrigger 
                   key={category.name} 
