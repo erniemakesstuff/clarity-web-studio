@@ -33,11 +33,12 @@ export default function CreateMenuPage() {
     }
 
     setIsLoading(true);
+    let response: Response | undefined;
     try {
       // Mock ownerId, in a real app this would come from the authenticated user's session
       const ownerId = "admin@example.com"; 
 
-      const response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
+      response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,27 +60,36 @@ export default function CreateMenuPage() {
         });
         router.push("/dashboard");
       } else {
-        // Backend call failed
-        let errorMessage = "Failed to create menu on the server.";
+        // Backend call failed but we got a response
+        let errorMessage = `Server responded with ${response.status}: ${response.statusText}.`;
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorData.error || errorMessage;
         } catch (e) {
-          // Failed to parse error JSON
-          console.error("Failed to parse error response from API:", e);
+          // Failed to parse error JSON, use statusText
+          console.error("Failed to parse error response from API as JSON:", e);
         }
         toast({
-          title: "Error Creating Menu",
+          title: "Error Creating Menu (Server)",
           description: errorMessage,
           variant: "destructive",
         });
       }
     } catch (error: any) {
+      // This catch block handles network errors or other issues preventing fetch from completing
+      let detailedErrorMessage = "An unexpected error occurred.";
+      if (error.message === "Failed to fetch") {
+        detailedErrorMessage = "Failed to connect to the server. Please check your network connection or if the server is down.";
+      } else {
+        detailedErrorMessage = error.message || "An unknown network error occurred.";
+      }
+      
       toast({
-        title: "Error Creating Menu",
-        description: error.message || "An unexpected network error occurred.",
+        title: "Error Creating Menu (Network/Client)",
+        description: detailedErrorMessage,
         variant: "destructive",
       });
+      console.error("Full error object:", error);
     } finally {
       setIsLoading(false);
     }
