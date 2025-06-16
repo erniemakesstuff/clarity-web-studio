@@ -9,21 +9,24 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Building, PlusCircle, ArrowLeft, Utensils } from "lucide-react"; // Utensils for Menu
+import { Utensils, PlusCircle, ArrowLeft } from "lucide-react"; // Utensils for Menu
 
-export default function CreateMenuPage() { // Renamed component (conceptual)
-  const [menuName, setMenuName] = useState(""); // Renamed
+const API_BASE_URL = "https://api.bityfan.com";
+
+export default function CreateMenuPage() {
+  const [menuName, setMenuName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { addMenuInstance } = useAuth(); // Renamed
+  const { addMenuInstance } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!menuName.trim()) { // Renamed
+    const trimmedMenuName = menuName.trim();
+    if (!trimmedMenuName) {
       toast({
-        title: "Menu name required", // Updated text
-        description: "Please enter a name for your new menu.", // Updated text
+        title: "Menu name required",
+        description: "Please enter a name for your new menu.",
         variant: "destructive",
       });
       return;
@@ -31,20 +34,53 @@ export default function CreateMenuPage() { // Renamed component (conceptual)
 
     setIsLoading(true);
     try {
-      const newMenu = addMenuInstance(menuName.trim()); // Renamed
-      toast({
-        title: "Menu Created!", // Updated text
-        description: `Successfully created "${newMenu.name}".`,
-        variant: "default",
-        className: "bg-green-500 text-white",
+      // Mock ownerId, in a real app this would come from the authenticated user's session
+      const ownerId = "admin@example.com"; 
+
+      const response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ownerId: ownerId,
+          menuId: trimmedMenuName, // Using menu name as menuId as per backend struct
+        }),
       });
-      router.push("/dashboard"); 
+
+      if (response.ok) {
+        // Backend call successful, now update client-side state
+        const newMenu = addMenuInstance(trimmedMenuName); // This updates client state & local storage
+        toast({
+          title: "Menu Created!",
+          description: `Successfully created "${newMenu.name}" and registered with backend.`,
+          variant: "default",
+          className: "bg-green-500 text-white",
+        });
+        router.push("/dashboard");
+      } else {
+        // Backend call failed
+        let errorMessage = "Failed to create menu on the server.";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          // Failed to parse error JSON
+          console.error("Failed to parse error response from API:", e);
+        }
+        toast({
+          title: "Error Creating Menu",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       toast({
-        title: "Error Creating Menu", // Updated text
-        description: error.message || "An unexpected error occurred.",
+        title: "Error Creating Menu",
+        description: error.message || "An unexpected network error occurred.",
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -54,7 +90,7 @@ export default function CreateMenuPage() { // Renamed component (conceptual)
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader>
           <CardTitle className="flex items-center text-2xl">
-            <Utensils className="mr-3 h-7 w-7 text-primary" /> {/* Icon changed */}
+            <Utensils className="mr-3 h-7 w-7 text-primary" />
             Create New Menu
           </CardTitle>
           <CardDescription>
@@ -64,12 +100,12 @@ export default function CreateMenuPage() { // Renamed component (conceptual)
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="menu-name" className="text-base">Menu Name</Label> {/* Renamed */}
+              <Label htmlFor="menu-name" className="text-base">Menu Name</Label>
               <Input
-                id="menu-name" // Renamed
-                placeholder="e.g., The Gourmet Spot Evening Menu" // Updated placeholder
-                value={menuName} // Renamed
-                onChange={(e) => setMenuName(e.target.value)} // Renamed
+                id="menu-name"
+                placeholder="e.g., The Gourmet Spot Evening Menu"
+                value={menuName}
+                onChange={(e) => setMenuName(e.target.value)}
                 className="mt-2"
                 required
                 disabled={isLoading}
@@ -89,7 +125,7 @@ export default function CreateMenuPage() { // Renamed component (conceptual)
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || !menuName.trim()} // Renamed
+              disabled={isLoading || !menuName.trim()}
               className="w-full sm:w-auto"
             >
               {isLoading ? (
