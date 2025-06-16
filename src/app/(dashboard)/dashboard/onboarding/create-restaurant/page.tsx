@@ -10,12 +10,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Utensils, PlusCircle, ArrowLeft } from "lucide-react";
-import { createMenuOnBackend } from "./actions"; // Import the server action
+import { createMenuOnBackend } from "./actions";
 
 export default function CreateMenuPage() {
   const [menuName, setMenuName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { addMenuInstance } = useAuth();
+  const { addMenuInstance, jwtToken } = useAuth(); // Added jwtToken
   const router = useRouter();
   const { toast } = useToast();
 
@@ -32,15 +32,15 @@ export default function CreateMenuPage() {
     }
 
     setIsLoading(true);
-    
-    // Mock ownerId, in a real app this would come from the authenticated user's session
-    const ownerId = "admin@example.com"; 
 
-    const result = await createMenuOnBackend(ownerId, trimmedMenuName);
+    // Mock ownerId, in a real app this would come from the authenticated user's session
+    const ownerId = "admin@example.com";
+
+    // Pass jwtToken to the server action
+    const result = await createMenuOnBackend(ownerId, trimmedMenuName, jwtToken);
 
     if (result.success && result.menuId) {
-      // Backend call successful, now update client-side state
-      const newMenu = addMenuInstance(trimmedMenuName); // This updates client state & local storage
+      const newMenu = addMenuInstance(trimmedMenuName);
       toast({
         title: "Menu Created!",
         description: `Successfully created "${newMenu.name}" and registered with backend.`,
@@ -49,7 +49,6 @@ export default function CreateMenuPage() {
       });
       router.push("/dashboard");
     } else {
-      // Backend call failed or server action had an issue
       toast({
         title: "Error Creating Menu",
         description: result.message || "An unknown error occurred while trying to create the menu on the backend.",
@@ -88,9 +87,9 @@ export default function CreateMenuPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4 border-t pt-6">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => router.push('/dashboard')}
               disabled={isLoading}
               className="w-full sm:w-auto"
@@ -98,8 +97,8 @@ export default function CreateMenuPage() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isLoading || !menuName.trim()}
               className="w-full sm:w-auto"
             >
@@ -114,7 +113,7 @@ export default function CreateMenuPage() {
               ) : (
                 <>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Create Menu 
+                  Create Menu
                 </>
               )}
             </Button>

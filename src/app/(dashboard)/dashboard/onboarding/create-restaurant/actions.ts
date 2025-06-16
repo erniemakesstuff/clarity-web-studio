@@ -9,13 +9,19 @@ interface CreateMenuOnBackendResult {
   menuId?: string;
 }
 
-export async function createMenuOnBackend(ownerId: string, menuName: string): Promise<CreateMenuOnBackendResult> {
+export async function createMenuOnBackend(
+  ownerId: string,
+  menuName: string,
+  jwtToken: string | null // Added jwtToken parameter
+): Promise<CreateMenuOnBackendResult> {
   try {
+    const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
+
     const response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "password" // Added Authorization header
+        "Authorization": authorizationValue // Updated Authorization header
       },
       body: JSON.stringify({
         ownerId: ownerId,
@@ -24,7 +30,6 @@ export async function createMenuOnBackend(ownerId: string, menuName: string): Pr
     });
 
     if (response.ok) {
-      // const data = await response.json(); // Optionally parse if backend sends data
       return { success: true, menuId: menuName };
     } else {
       let errorMessage = `Backend API Error: ${response.status} ${response.statusText}.`;
@@ -32,7 +37,7 @@ export async function createMenuOnBackend(ownerId: string, menuName: string): Pr
         const errorData = await response.json();
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch (e) {
-        // Failed to parse error JSON from backend, stick with statusText
+        // Failed to parse error JSON from backend
       }
       return { success: false, message: errorMessage };
     }
