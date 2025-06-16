@@ -21,9 +21,11 @@ export function AppHeader() {
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
         <Logo />
         <nav className="flex items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link href="/menu/demo">Demo Menu</Link>
-          </Button>
+          {!isAuthenticated && (
+            <Button variant="ghost" asChild>
+              <Link href="/menu/demo">Demo Menu</Link>
+            </Button>
+          )}
           {isAuthenticated ? (
             <>
               <Button variant="outline" asChild>
