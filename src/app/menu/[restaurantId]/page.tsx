@@ -184,7 +184,7 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
             items={menuItems} 
             onUpsellClick={handleUpsellClick} 
             onItemViewed={handleItemViewed} 
-            allMenuItems={mockMenu} // Pass all menu items for upsell context
+            allMenuItems={mockMenu} 
           />
           <Button
             variant="outline"
@@ -203,7 +203,7 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
               Our Menu
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Explore our delicious offerings. Restaurant ID: {params.restaurantId}
+              Explore our delicious offerings. Menu Configuration ID: {params.restaurantId}
             </p>
           </div>
 
@@ -267,14 +267,14 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
           isOpen={isUpsellDialogOpen}
           onOpenChange={setIsUpsellDialogOpen}
           selectedItem={selectedItemForUpsell}
-          menuItems={mockMenu} // Pass all menu items for context
+          menuItems={mockMenu} 
         />
       )}
 
       {viewMode === 'category' && (
          <footer className="py-6 border-t bg-muted mt-auto">
             <div className="container mx-auto px-6 text-center text-muted-foreground text-sm">
-              Enjoy your meal at {params.restaurantId === 'demo' ? "Our Demo Restaurant" : `Restaurant ${params.restaurantId}`}!
+              Enjoy your meal with {params.restaurantId === 'demo' ? "Our Demo Menu" : `Menu Configuration ${params.restaurantId}`}!
             </div>
           </footer>
       )}

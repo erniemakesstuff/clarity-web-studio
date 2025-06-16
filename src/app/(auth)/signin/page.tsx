@@ -30,6 +30,7 @@ export default function SignInPage() {
   }
 
   if (isAuthenticated) {
+    // router.replace("/dashboard"); // This was moved to useEffect
     return null; 
   }
 
@@ -51,7 +52,7 @@ export default function SignInPage() {
         <div className="mx-auto mb-6">
          <Logo size="lg"/>
         </div>
-        <CardTitle className="text-3xl font-bold">Restaurant Portal</CardTitle>
+        <CardTitle className="text-3xl font-bold">Menu Portal</CardTitle> 
         <CardDescription>Sign in to manage your Clarity Menu.</CardDescription>
       </CardHeader>
       <CardContent>

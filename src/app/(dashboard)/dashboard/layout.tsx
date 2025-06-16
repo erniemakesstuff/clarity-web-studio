@@ -51,16 +51,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     isAuthenticated, 
     isLoading: isAuthLoading, 
     logout,
-    restaurants,
-    selectedRestaurant,
-    selectRestaurant,
-    isLoadingRestaurants
+    menuInstances, // Renamed
+    selectedMenuInstance, // Renamed
+    selectMenuInstance, // Renamed
+    isLoadingMenuInstances // Renamed
   } = useAuth();
   const { isLoading: isRedirecting } = useAuthRedirect(); 
   const pathname = usePathname_();
   const router = useRouter();
 
-  if (isAuthLoading || isRedirecting || isLoadingRestaurants) {
+  if (isAuthLoading || isRedirecting || isLoadingMenuInstances) {
     return <div className="flex h-screen items-center justify-center"><p>Loading dashboard...</p></div>;
   }
 
@@ -109,12 +109,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
             <div className="flex-1">
                 <h1 className="text-xl font-semibold truncate">
-                    {selectedRestaurant ? `${selectedRestaurant.name} - ` : restaurants.length === 0 ? 'No Restaurant - ' : 'Select Restaurant - '} {pageTitle}
+                    {selectedMenuInstance ? `${selectedMenuInstance.name} - ` : menuInstances.length === 0 ? 'No Menu - ' : 'Select Menu - '} {pageTitle}
                 </h1>
             </div>
 
             <div className="flex items-center gap-3">
-              {isLoadingRestaurants ? (
+              {isLoadingMenuInstances ? (
                 <Skeleton className="h-9 w-36 rounded-md" />
               ) : (
                 <DropdownMenu>
@@ -122,29 +122,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     <Button variant="outline" className="flex items-center gap-2">
                       <Building className="h-4 w-4" />
                       <span className="truncate max-w-[150px]">
-                        {selectedRestaurant ? selectedRestaurant.name : restaurants.length === 0 ? "No Restaurants" : "Select Restaurant"}
+                        {selectedMenuInstance ? selectedMenuInstance.name : menuInstances.length === 0 ? "No Menus" : "Select Menu"}
                       </span>
                       <ChevronDown className="h-4 w-4 opacity-70" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>
-                      {restaurants.length > 0 ? "Switch Restaurant" : "No Restaurants Available"}
+                      {menuInstances.length > 0 ? "Switch Menu" : "No Menus Available"}
                     </DropdownMenuLabel>
-                    {restaurants.length > 0 && <DropdownMenuSeparator />}
-                    {restaurants.map((restaurant) => (
+                    {menuInstances.length > 0 && <DropdownMenuSeparator />}
+                    {menuInstances.map((menu) => ( // Renamed restaurant to menu
                       <DropdownMenuItem
-                        key={restaurant.id}
-                        onSelect={() => selectRestaurant(restaurant.id)}
-                        disabled={selectedRestaurant?.id === restaurant.id}
+                        key={menu.id}
+                        onSelect={() => selectMenuInstance(menu.id)} // Renamed
+                        disabled={selectedMenuInstance?.id === menu.id}
                       >
-                        {restaurant.name}
+                        {menu.name}
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => router.push('/dashboard/onboarding/create-restaurant')}>
                       <PlusCircle className="mr-2 h-4 w-4" />
-                      Create New Restaurant
+                      Create New Menu
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

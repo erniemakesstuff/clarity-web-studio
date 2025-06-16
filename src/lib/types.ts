@@ -22,11 +22,11 @@ export interface MenuItem extends MenuItemCore {
 
 export type DietaryIcon = "vegetarian" | "vegan" | "gluten-free" | "spicy";
 
-export interface Restaurant {
+// Renamed from Restaurant to MenuInstance
+export interface MenuInstance {
   id: string;
   name: string;
-  menu: MenuItem[];
-  // Add other restaurant details as needed
+  menu: MenuItem[]; // This 'menu' field refers to the list of MenuItem objects
 }
 
 // For AI extracted items before they are fully processed

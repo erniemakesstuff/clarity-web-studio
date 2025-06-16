@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview AI flow for generating A/B test hypotheses for a restaurant menu.
+ * @fileOverview AI flow for generating A/B test hypotheses for a menu.
  *
  * - generateAbTests - A function that generates A/B test hypotheses.
  * - GenerateAbTestsInput - The input type for the generateAbTests function.
@@ -41,7 +41,7 @@ const generateAbTestsPrompt = ai.definePrompt({
   name: 'generateAbTestsPrompt',
   input: {schema: GenerateAbTestsInputSchema},
   output: {schema: GenerateAbTestsOutputSchema},
-  prompt: `You are an AI assistant specialized in restaurant menu optimization. Your goal is to generate A/B test hypotheses to help increase upsells and average order value.
+  prompt: `You are an AI assistant specialized in menu optimization. Your goal is to generate A/B test hypotheses to help increase upsells and average order value.
 
 Current Menu Summary:
 {{{currentMenuSummary}}}
@@ -71,23 +71,18 @@ const generateAbTestsFlow = ai.defineFlow(
     outputSchema: GenerateAbTestsOutputSchema,
   },
   async (input: GenerateAbTestsInput) => {
-    // Add a default if adminContext is empty to avoid Handlebars issues with empty optional blocks
     const effectiveInput = {
         ...input,
-        adminContext: input.adminContext || null, // Handlebars treats null as false for {{#if}}
+        adminContext: input.adminContext || null, 
     };
     const {output} = await generateAbTestsPrompt(effectiveInput);
     
-    // Ensure unique IDs if the model doesn't provide them consistently for this mock.
-    // In a real scenario, the model should be prompted to do this.
-    // For now, let's ensure some basic uniqueness if needed, or rely on model for distinct IDs.
     if (output && output.hypotheses) {
         output.hypotheses.forEach((hypo, index) => {
             if (!hypo.id || hypo.id.trim() === "") {
                 hypo.id = `HYPO-${Date.now()}-${index}`;
             }
         });
-         // Simple mock if AI returns empty for some reason, helps UI testing.
         if (output.hypotheses.length === 0) {
           output.hypotheses.push({
             id: "MOCK_EMPTY_001",
@@ -96,7 +91,6 @@ const generateAbTestsFlow = ai.defineFlow(
           });
         }
     } else {
-        // Fallback if output is null
         return { hypotheses: [{
             id: "MOCK_FALLBACK_001",
             changeDescription: "Display a 'Chef's Special' prominently.",

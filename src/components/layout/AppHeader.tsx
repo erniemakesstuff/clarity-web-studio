@@ -1,3 +1,4 @@
+
 "use client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export function AppHeader() {
             </>
           ) : (
             <Button asChild>
-              <Link href="/signin"><User className="mr-2 h-4 w-4" />Restaurant Portal</Link>
+              <Link href="/signin"><User className="mr-2 h-4 w-4" />Menu Portal</Link> 
             </Button>
           )}
         </nav>

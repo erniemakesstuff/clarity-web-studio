@@ -9,21 +9,21 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Building, PlusCircle, ArrowLeft } from "lucide-react";
+import { Building, PlusCircle, ArrowLeft, Utensils } from "lucide-react"; // Utensils for Menu
 
-export default function CreateRestaurantPage() {
-  const [restaurantName, setRestaurantName] = useState("");
+export default function CreateMenuPage() { // Renamed component (conceptual)
+  const [menuName, setMenuName] = useState(""); // Renamed
   const [isLoading, setIsLoading] = useState(false);
-  const { addRestaurant } = useAuth();
+  const { addMenuInstance } = useAuth(); // Renamed
   const router = useRouter();
   const { toast } = useToast();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!restaurantName.trim()) {
+    if (!menuName.trim()) { // Renamed
       toast({
-        title: "Restaurant name required",
-        description: "Please enter a name for your new restaurant.",
+        title: "Menu name required", // Updated text
+        description: "Please enter a name for your new menu.", // Updated text
         variant: "destructive",
       });
       return;
@@ -31,23 +31,22 @@ export default function CreateRestaurantPage() {
 
     setIsLoading(true);
     try {
-      const newRestaurant = addRestaurant(restaurantName.trim());
+      const newMenu = addMenuInstance(menuName.trim()); // Renamed
       toast({
-        title: "Restaurant Created!",
-        description: `Successfully created "${newRestaurant.name}".`,
+        title: "Menu Created!", // Updated text
+        description: `Successfully created "${newMenu.name}".`,
         variant: "default",
         className: "bg-green-500 text-white",
       });
-      router.push("/dashboard"); // Redirect to dashboard, which should now show the new restaurant
+      router.push("/dashboard"); 
     } catch (error: any) {
       toast({
-        title: "Error Creating Restaurant",
+        title: "Error Creating Menu", // Updated text
         description: error.message || "An unexpected error occurred.",
         variant: "destructive",
       });
       setIsLoading(false);
     }
-    // setIsLoading(false) will be implicitly handled by navigation or if error occurs
   };
 
   return (
@@ -55,22 +54,22 @@ export default function CreateRestaurantPage() {
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader>
           <CardTitle className="flex items-center text-2xl">
-            <Building className="mr-3 h-7 w-7 text-primary" />
-            Create New Restaurant
+            <Utensils className="mr-3 h-7 w-7 text-primary" /> {/* Icon changed */}
+            Create New Menu
           </CardTitle>
           <CardDescription>
-            Let's get your new restaurant set up on Clarity Menu.
+            Let's get your new menu set up on Clarity Menu.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="restaurant-name" className="text-base">Restaurant Name</Label>
+              <Label htmlFor="menu-name" className="text-base">Menu Name</Label> {/* Renamed */}
               <Input
-                id="restaurant-name"
-                placeholder="e.g., The Gourmet Spot"
-                value={restaurantName}
-                onChange={(e) => setRestaurantName(e.target.value)}
+                id="menu-name" // Renamed
+                placeholder="e.g., The Gourmet Spot Evening Menu" // Updated placeholder
+                value={menuName} // Renamed
+                onChange={(e) => setMenuName(e.target.value)} // Renamed
                 className="mt-2"
                 required
                 disabled={isLoading}
@@ -90,7 +89,7 @@ export default function CreateRestaurantPage() {
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || !restaurantName.trim()}
+              disabled={isLoading || !menuName.trim()} // Renamed
               className="w-full sm:w-auto"
             >
               {isLoading ? (
@@ -104,7 +103,7 @@ export default function CreateRestaurantPage() {
               ) : (
                 <>
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Create Restaurant
+                  Create Menu 
                 </>
               )}
             </Button>

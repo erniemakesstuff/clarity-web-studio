@@ -12,28 +12,28 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 export default function MenuManagementPage() {
-  const { selectedRestaurant, renameRestaurant, isLoadingRestaurants } = useAuth();
+  const { selectedMenuInstance, renameMenuInstance, isLoadingMenuInstances } = useAuth(); // Updated context usage
   const { toast } = useToast();
-  const [newRestaurantName, setNewRestaurantName] = useState("");
+  const [newMenuName, setNewMenuName] = useState(""); // Renamed
   const [isRenaming, setIsRenaming] = useState(false);
 
   useEffect(() => {
-    if (selectedRestaurant) {
-      setNewRestaurantName(selectedRestaurant.name);
+    if (selectedMenuInstance) {
+      setNewMenuName(selectedMenuInstance.name);
     }
-  }, [selectedRestaurant]);
+  }, [selectedMenuInstance]);
 
   const handleRenameSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedRestaurant || !newRestaurantName.trim()) {
+    if (!selectedMenuInstance || !newMenuName.trim()) {
       toast({
         title: "Cannot Rename",
-        description: "Please select a restaurant and provide a valid name.",
+        description: "Please select a menu and provide a valid name.",
         variant: "destructive",
       });
       return;
     }
-    if (newRestaurantName.trim() === selectedRestaurant.name) {
+    if (newMenuName.trim() === selectedMenuInstance.name) {
       toast({
         title: "No Change",
         description: "The new name is the same as the current name.",
@@ -44,18 +44,18 @@ export default function MenuManagementPage() {
 
     setIsRenaming(true);
     try {
-      const success = renameRestaurant(selectedRestaurant.id, newRestaurantName.trim());
+      const success = renameMenuInstance(selectedMenuInstance.id, newMenuName.trim()); // Updated context usage
       if (success) {
         toast({
-          title: "Restaurant Renamed!",
-          description: `"${selectedRestaurant.name}" is now "${newRestaurantName.trim()}".`,
+          title: "Menu Renamed!", // Updated text
+          description: `"${selectedMenuInstance.name}" is now "${newMenuName.trim()}".`,
           variant: "default",
           className: "bg-green-500 text-white",
         });
       } else {
          toast({
           title: "Rename Failed",
-          description: "Could not rename the restaurant. Please try again.",
+          description: "Could not rename the menu. Please try again.", // Updated text
           variant: "destructive",
         });
       }
@@ -100,32 +100,32 @@ export default function MenuManagementPage() {
         </CardContent>
       </Card>
 
-      {selectedRestaurant && !isLoadingRestaurants && (
+      {selectedMenuInstance && !isLoadingMenuInstances && ( // Updated context usage
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl">
               <Edit3 className="mr-3 h-7 w-7 text-primary" />
-              Rename Restaurant
+              Rename Menu 
             </CardTitle>
             <CardDescription>
-              Change the name of your currently selected restaurant: <span className="font-semibold">{selectedRestaurant.name}</span>
+              Change the name of your currently selected menu: <span className="font-semibold">{selectedMenuInstance.name}</span>
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleRenameSubmit}>
             <CardContent>
-              <Label htmlFor="new-restaurant-name" className="text-base">New Restaurant Name</Label>
+              <Label htmlFor="new-menu-name" className="text-base">New Menu Name</Label> 
               <Input
-                id="new-restaurant-name"
-                value={newRestaurantName}
-                onChange={(e) => setNewRestaurantName(e.target.value)}
-                placeholder="Enter new restaurant name"
+                id="new-menu-name" // Renamed id
+                value={newMenuName}
+                onChange={(e) => setNewMenuName(e.target.value)}
+                placeholder="Enter new menu name" // Updated placeholder
                 className="mt-2"
                 disabled={isRenaming}
                 required
               />
             </CardContent>
             <CardFooter className="border-t pt-6">
-              <Button type="submit" disabled={isRenaming || !newRestaurantName.trim() || newRestaurantName.trim() === selectedRestaurant.name}>
+              <Button type="submit" disabled={isRenaming || !newMenuName.trim() || newMenuName.trim() === selectedMenuInstance.name}>
                 {isRenaming ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

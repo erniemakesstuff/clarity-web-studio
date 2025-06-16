@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -31,8 +32,6 @@ export default function SignUpPage() {
     return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>;
   }
 
-  // If already authenticated and not loading, the useEffect above will handle redirection.
-  // We can return null here to prevent rendering the signup form if redirection is imminent.
   if (isAuthenticated) {
     return null; 
   }
@@ -50,9 +49,7 @@ export default function SignUpPage() {
         return;
     }
 
-    // Mock sign-up logic
     console.log("Mock sign up with:", { email, password });
-    // Simulate successful signup & login
     login(); 
     toast({
       title: "Account Created!",
@@ -60,7 +57,6 @@ export default function SignUpPage() {
       variant: "default",
       className: "bg-green-500 text-white"
     });
-    // No need to router.push here, the useEffect will handle it when isAuthenticated changes.
   };
 
   return (
@@ -70,7 +66,7 @@ export default function SignUpPage() {
           <Logo size="lg" />
         </div>
         <CardTitle className="text-3xl font-bold">Create Account</CardTitle>
-        <CardDescription>Join Clarity Menu to manage your restaurant.</CardDescription>
+        <CardDescription>Join Clarity Menu to manage your menu.</CardDescription> 
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
