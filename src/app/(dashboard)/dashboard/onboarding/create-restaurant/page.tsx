@@ -9,9 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Utensils, PlusCircle, ArrowLeft } from "lucide-react"; // Utensils for Menu
-
-const API_BASE_URL = "https://api.bityfan.com";
+import { Utensils, PlusCircle, ArrowLeft } from "lucide-react";
+import { createMenuOnBackend } from "./actions"; // Import the server action
 
 export default function CreateMenuPage() {
   const [menuName, setMenuName] = useState("");
@@ -33,66 +32,32 @@ export default function CreateMenuPage() {
     }
 
     setIsLoading(true);
-    let response: Response | undefined;
-    try {
-      // Mock ownerId, in a real app this would come from the authenticated user's session
-      const ownerId = "admin@example.com"; 
+    
+    // Mock ownerId, in a real app this would come from the authenticated user's session
+    const ownerId = "admin@example.com"; 
 
-      response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ownerId: ownerId,
-          menuId: trimmedMenuName, // Using menu name as menuId as per backend struct
-        }),
-      });
+    const result = await createMenuOnBackend(ownerId, trimmedMenuName);
 
-      if (response.ok) {
-        // Backend call successful, now update client-side state
-        const newMenu = addMenuInstance(trimmedMenuName); // This updates client state & local storage
-        toast({
-          title: "Menu Created!",
-          description: `Successfully created "${newMenu.name}" and registered with backend.`,
-          variant: "default",
-          className: "bg-green-500 text-white",
-        });
-        router.push("/dashboard");
-      } else {
-        // Backend call failed but we got a response
-        let errorMessage = `Server responded with ${response.status}: ${response.statusText}.`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (e) {
-          // Failed to parse error JSON, use statusText
-          console.error("Failed to parse error response from API as JSON:", e);
-        }
-        toast({
-          title: "Error Creating Menu (Server)",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      // This catch block handles network errors or other issues preventing fetch from completing
-      let detailedErrorMessage = "An unexpected error occurred.";
-      if (error.message === "Failed to fetch") {
-        detailedErrorMessage = "Failed to connect to the server. Please check your network connection or if the server is down.";
-      } else {
-        detailedErrorMessage = error.message || "An unknown network error occurred.";
-      }
-      
+    if (result.success && result.menuId) {
+      // Backend call successful, now update client-side state
+      const newMenu = addMenuInstance(trimmedMenuName); // This updates client state & local storage
       toast({
-        title: "Error Creating Menu (Network/Client)",
-        description: detailedErrorMessage,
+        title: "Menu Created!",
+        description: `Successfully created "${newMenu.name}" and registered with backend.`,
+        variant: "default",
+        className: "bg-green-500 text-white",
+      });
+      router.push("/dashboard");
+    } else {
+      // Backend call failed or server action had an issue
+      toast({
+        title: "Error Creating Menu",
+        description: result.message || "An unknown error occurred while trying to create the menu on the backend.",
         variant: "destructive",
       });
-      console.error("Full error object:", error);
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   };
 
   return (
