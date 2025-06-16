@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +19,17 @@ export default function SignInPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
-  if(isLoading) {
-    return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>;
   }
 
   if (isAuthenticated) {
-    router.replace("/dashboard");
     return null; 
   }
 
@@ -33,7 +39,7 @@ export default function SignInPage() {
     // Mock login
     if (email === "admin@example.com" && password === "password") {
       login();
-      router.push("/dashboard");
+      // No router.push here, useEffect will handle it
     } else {
       setError("Invalid email or password. (Hint: admin@example.com / password)");
     }
