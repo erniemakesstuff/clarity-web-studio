@@ -6,7 +6,7 @@ const API_BASE_URL = "https://api.bityfan.com";
 interface CreateMenuOnBackendResult {
   success: boolean;
   message?: string;
-  menuId?: string; 
+  menuId?: string;
 }
 
 export async function createMenuOnBackend(ownerId: string, menuName: string): Promise<CreateMenuOnBackendResult> {
@@ -15,10 +15,11 @@ export async function createMenuOnBackend(ownerId: string, menuName: string): Pr
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": "password" // Added Authorization header
       },
       body: JSON.stringify({
         ownerId: ownerId,
-        menuId: menuName, 
+        menuId: menuName,
       }),
     });
 
