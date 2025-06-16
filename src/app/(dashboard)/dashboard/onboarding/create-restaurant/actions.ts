@@ -15,23 +15,26 @@ export async function createMenuOnBackend(
   jwtToken: string | null // Added jwtToken parameter
 ): Promise<CreateMenuOnBackendResult> {
   try {
+    // Construct the Authorization header value
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
 
     const response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": authorizationValue // Updated Authorization header
+        "Authorization": authorizationValue // Using the constructed value
       },
       body: JSON.stringify({
         ownerId: ownerId,
-        menuId: menuName,
+        menuId: menuName, // menuName is used as menuId for the backend
       }),
     });
 
     if (response.ok) {
-      return { success: true, menuId: menuName };
+      // Successfully created on backend
+      return { success: true, menuId: menuName }; // Return menuName as menuId
     } else {
+      // Handle API errors
       let errorMessage = `Backend API Error: ${response.status} ${response.statusText}.`;
       try {
         const errorData = await response.json();
@@ -42,6 +45,7 @@ export async function createMenuOnBackend(
       return { success: false, message: errorMessage };
     }
   } catch (error: any) {
+    // Handle fetch/network errors
     let detailedErrorMessage = "Failed to communicate with the backend service.";
     if (error.message && error.message.toLowerCase().includes("fetch failed")) {
         detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL}. Please check server status and network connectivity.`;
