@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname as usePathname_ } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   SidebarProvider,
   Sidebar,
@@ -19,7 +20,7 @@ import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthRedirect } from "@/hooks/use-auth-redirect";
-import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical } from "lucide-react";
+import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical, PlusCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -57,12 +58,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   } = useAuth();
   const { isLoading: isRedirecting } = useAuthRedirect(); 
   const pathname = usePathname_();
+  const router = useRouter();
 
   if (isAuthLoading || isRedirecting || isLoadingRestaurants) {
     return <div className="flex h-screen items-center justify-center"><p>Loading dashboard...</p></div>;
   }
 
   if (!isAuthenticated) {
+    // This should ideally be handled by useAuthRedirect, but as a fallback:
     return <div className="flex h-screen items-center justify-center"><p>Redirecting to login...</p></div>;
   }
   
@@ -106,25 +109,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
             <div className="flex-1">
                 <h1 className="text-xl font-semibold truncate">
-                    {selectedRestaurant ? `${selectedRestaurant.name} - ` : ''} {pageTitle}
+                    {selectedRestaurant ? `${selectedRestaurant.name} - ` : restaurants.length === 0 ? 'No Restaurant - ' : 'Select Restaurant - '} {pageTitle}
                 </h1>
             </div>
 
             <div className="flex items-center gap-3">
               {isLoadingRestaurants ? (
                 <Skeleton className="h-9 w-36 rounded-md" />
-              ) : restaurants.length > 1 ? (
+              ) : (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">
                       <Building className="h-4 w-4" />
-                      <span className="truncate max-w-[150px]">{selectedRestaurant ? selectedRestaurant.name : "Select Restaurant"}</span>
+                      <span className="truncate max-w-[150px]">
+                        {selectedRestaurant ? selectedRestaurant.name : restaurants.length === 0 ? "No Restaurants" : "Select Restaurant"}
+                      </span>
                       <ChevronDown className="h-4 w-4 opacity-70" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Switch Restaurant</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>
+                      {restaurants.length > 0 ? "Switch Restaurant" : "No Restaurants Available"}
+                    </DropdownMenuLabel>
+                    {restaurants.length > 0 && <DropdownMenuSeparator />}
                     {restaurants.map((restaurant) => (
                       <DropdownMenuItem
                         key={restaurant.id}
@@ -134,19 +141,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                         {restaurant.name}
                       </DropdownMenuItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => router.push('/dashboard/onboarding/create-restaurant')}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Create New Restaurant
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              ) : selectedRestaurant ? (
-                 <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground border px-3 py-2 rounded-md h-9">
-                    <Building className="h-4 w-4" />
-                    <span className="truncate max-w-[150px]">{selectedRestaurant.name}</span>
-                 </div>
-              ) : restaurants.length === 0 && !isLoadingRestaurants ? (
-                 <div className="flex items-center gap-2 text-sm text-muted-foreground border px-3 py-2 rounded-md h-9">
-                    <Building className="h-4 w-4" />
-                    <span>No Restaurants</span>
-                 </div>
-              ) : null}
+              )}
 
               <DropdownMenu>
                   <DropdownMenuTrigger asChild>

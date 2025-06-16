@@ -20,6 +20,7 @@ interface AuthContextType {
   restaurants: Restaurant[];
   selectedRestaurant: Restaurant | null;
   selectRestaurant: (restaurantId: string) => void;
+  addRestaurant: (name: string) => Restaurant;
   isLoadingRestaurants: boolean;
 }
 
@@ -47,36 +48,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Simulate fetching user's restaurants
       // For admin@example.com, assume they have access to mockRestaurants
       // In a real app, this would be an API call based on the logged-in user
-      setTimeout(() => { // Simulate API delay
-        setRestaurants(mockRestaurants);
-        if (mockRestaurants.length > 0) {
-          // Try to load last selected restaurant from localStorage
+      setTimeout(() => { 
+        // For this mock, we initialize with mockRestaurants but allow adding more.
+        // A real app would fetch user-specific restaurants.
+        // If `restaurants` state already has items (e.g., from a previous addRestaurant call in the same session),
+        // we might not want to overwrite with mockRestaurants unless it's the very first load after login.
+        // For simplicity, let's assume mockRestaurants are the base for a new session.
+        const initialRestaurants = [...mockRestaurants]; // Start with a copy
+        setRestaurants(initialRestaurants);
+
+        if (initialRestaurants.length > 0) {
           const storedRestaurantId = localStorage.getItem("clarityMenuSelectedRestaurant");
-          const foundRestaurant = mockRestaurants.find(r => r.id === storedRestaurantId);
-          setSelectedRestaurant(foundRestaurant || mockRestaurants[0]);
+          const foundRestaurant = initialRestaurants.find(r => r.id === storedRestaurantId);
+          setSelectedRestaurant(foundRestaurant || initialRestaurants[0]);
         } else {
           setSelectedRestaurant(null);
         }
         setIsLoadingRestaurants(false);
       }, 500);
     } else {
-      // Clear restaurant data if not authenticated
       setRestaurants([]);
       setSelectedRestaurant(null);
       setIsLoadingRestaurants(false);
+      localStorage.removeItem("clarityMenuSelectedRestaurant");
     }
   }, [isAuthenticated]);
 
   const login = () => {
     setIsAuthenticated(true);
     localStorage.setItem("clarityMenuAuth", "true");
+    // Restaurant loading will be handled by the useEffect above
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem("clarityMenuAuth");
-    localStorage.removeItem("clarityMenuSelectedRestaurant"); // Clear selected restaurant on logout
-    // Reset restaurant states
+    localStorage.removeItem("clarityMenuSelectedRestaurant"); 
     setRestaurants([]);
     setSelectedRestaurant(null);
   };
@@ -89,6 +96,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addRestaurant = (name: string): Restaurant => {
+    const newRestaurant: Restaurant = {
+      id: name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+      name: name,
+      menu: [],
+    };
+    setRestaurants(prevRestaurants => [...prevRestaurants, newRestaurant]);
+    setSelectedRestaurant(newRestaurant);
+    localStorage.setItem("clarityMenuSelectedRestaurant", newRestaurant.id);
+    return newRestaurant;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
@@ -98,6 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       restaurants,
       selectedRestaurant,
       selectRestaurant,
+      addRestaurant,
       isLoadingRestaurants
     }}>
       {children}
