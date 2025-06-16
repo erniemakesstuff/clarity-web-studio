@@ -21,6 +21,7 @@ interface AuthContextType {
   selectedRestaurant: Restaurant | null;
   selectRestaurant: (restaurantId: string) => void;
   addRestaurant: (name: string) => Restaurant;
+  renameRestaurant: (restaurantId: string, newName: string) => boolean;
   isLoadingRestaurants: boolean;
 }
 
@@ -45,16 +46,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isAuthenticated) {
       setIsLoadingRestaurants(true);
-      // Simulate fetching user's restaurants
-      // For admin@example.com, assume they have access to mockRestaurants
-      // In a real app, this would be an API call based on the logged-in user
       setTimeout(() => { 
-        // For this mock, we initialize with mockRestaurants but allow adding more.
-        // A real app would fetch user-specific restaurants.
-        // If `restaurants` state already has items (e.g., from a previous addRestaurant call in the same session),
-        // we might not want to overwrite with mockRestaurants unless it's the very first load after login.
-        // For simplicity, let's assume mockRestaurants are the base for a new session.
-        const initialRestaurants = [...mockRestaurants]; // Start with a copy
+        const storedRestaurants = localStorage.getItem("clarityMenuUserRestaurants");
+        let initialRestaurants: Restaurant[];
+        if (storedRestaurants) {
+          initialRestaurants = JSON.parse(storedRestaurants);
+        } else {
+          initialRestaurants = [...mockRestaurants]; 
+          localStorage.setItem("clarityMenuUserRestaurants", JSON.stringify(initialRestaurants));
+        }
         setRestaurants(initialRestaurants);
 
         if (initialRestaurants.length > 0) {
@@ -71,19 +71,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSelectedRestaurant(null);
       setIsLoadingRestaurants(false);
       localStorage.removeItem("clarityMenuSelectedRestaurant");
+      localStorage.removeItem("clarityMenuUserRestaurants");
     }
   }, [isAuthenticated]);
 
   const login = () => {
     setIsAuthenticated(true);
     localStorage.setItem("clarityMenuAuth", "true");
-    // Restaurant loading will be handled by the useEffect above
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem("clarityMenuAuth");
     localStorage.removeItem("clarityMenuSelectedRestaurant"); 
+    localStorage.removeItem("clarityMenuUserRestaurants");
     setRestaurants([]);
     setSelectedRestaurant(null);
   };
@@ -102,11 +103,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       name: name,
       menu: [],
     };
-    setRestaurants(prevRestaurants => [...prevRestaurants, newRestaurant]);
+    const updatedRestaurants = [...restaurants, newRestaurant];
+    setRestaurants(updatedRestaurants);
     setSelectedRestaurant(newRestaurant);
+    localStorage.setItem("clarityMenuUserRestaurants", JSON.stringify(updatedRestaurants));
     localStorage.setItem("clarityMenuSelectedRestaurant", newRestaurant.id);
     return newRestaurant;
   };
+
+  const renameRestaurant = (restaurantId: string, newName: string): boolean => {
+    let success = false;
+    setRestaurants(prevRestaurants => {
+      const updatedRestaurants = prevRestaurants.map(r => 
+        r.id === restaurantId ? { ...r, name: newName } : r
+      );
+      if (JSON.stringify(updatedRestaurants) !== JSON.stringify(prevRestaurants)) {
+        localStorage.setItem("clarityMenuUserRestaurants", JSON.stringify(updatedRestaurants));
+        success = true;
+      }
+      return updatedRestaurants;
+    });
+
+    if (selectedRestaurant?.id === restaurantId) {
+      setSelectedRestaurant(prevSelected => prevSelected ? { ...prevSelected, name: newName } : null);
+    }
+    return success;
+  };
+
 
   return (
     <AuthContext.Provider value={{ 
@@ -118,6 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       selectedRestaurant,
       selectRestaurant,
       addRestaurant,
+      renameRestaurant,
       isLoadingRestaurants
     }}>
       {children}
