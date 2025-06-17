@@ -10,24 +10,26 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPresignedUploadUrl, startBackendWorkflow, pollWorkflowStatus } from "@/app/(dashboard)/dashboard/menu-management/actions";
-import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, XCircle, Clock } from "lucide-react";
+import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, XCircle, Clock, Image as ImageIcon } from "lucide-react";
 import type { ExtractedMenuItem, DigitalMenuState } from "@/lib/types";
 import Image from "next/image";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 interface QueuedItem {
   id: string;
   file: File;
   previewUrl: string;
   source: 'upload' | 'capture';
-  base64?: string; // To store base64 for presigned URL request
-  s3UploadUrl?: string; // To store the S3 presigned PUT URL
+  base64?: string; 
+  s3UploadUrl?: string; 
+  finalMediaUrl?: string; // Added to store the final URL for AI, if different
   uploadSuccess?: boolean;
 }
 
 const MAX_CONCURRENT_UPLOADS = 3;
-const POLLING_INTERVAL_MS = 10000; // 10 seconds
-const POLLING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const POLLING_INTERVAL_MS = 10000; 
+const POLLING_TIMEOUT_MS = 5 * 60 * 1000; 
 
 export function MenuUploadForm() {
   const [queuedItems, setQueuedItems] = useState<QueuedItem[]>([]);
@@ -36,6 +38,8 @@ export function MenuUploadForm() {
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [currentProgress, setCurrentProgress] = useState(0);
   const [progressMessage, setProgressMessage] = useState("");
+  const [workflowOutcome, setWorkflowOutcome] = useState<'success' | 'failure' | null>(null);
+  const [processedImageUrls, setProcessedImageUrls] = useState<string[]>([]);
 
   const { toast } = useToast();
   const { jwtToken, selectedMenuInstance, refreshMenuInstances } = useAuth();
@@ -99,6 +103,8 @@ export function MenuUploadForm() {
       setQueuedItems(prev => [...prev, ...newQueuedItems].slice(0, 5));
       setExtractedItems([]);
       setProcessingError(null);
+      setWorkflowOutcome(null);
+      setProcessedImageUrls([]);
       if (newFiles.length > 5) {
         toast({ title: "File Limit", description: "You can upload a maximum of 5 images at a time.", variant: "default" });
       }
@@ -127,6 +133,8 @@ export function MenuUploadForm() {
             };
             if (queuedItems.length < 5) {
               setQueuedItems(prev => [...prev, newQueuedItem]);
+              setWorkflowOutcome(null);
+              setProcessedImageUrls([]);
             } else {
               toast({ title: "File Limit", description: "You can process a maximum of 5 images at a time.", variant: "default" });
             }
@@ -166,6 +174,7 @@ export function MenuUploadForm() {
       toast({ title: "Polling Error", description: pollResult.message, variant: "destructive" });
       cleanupPolling();
       setIsProcessing(false); 
+      setWorkflowOutcome('failure');
       return;
     }
 
@@ -190,6 +199,7 @@ export function MenuUploadForm() {
         setCurrentProgress(100);
         setProgressMessage("Extraction complete!");
         setExtractedItems(pollResult.menuItems || []);
+        setProcessedImageUrls(pollResult.s3ContextImageUrls || []);
         toast({
           title: "Menu Processed Successfully!",
           description: `${pollResult.menuItems?.length || 0} items found.`,
@@ -197,6 +207,7 @@ export function MenuUploadForm() {
         });
         cleanupPolling();
         setIsProcessing(false);
+        setWorkflowOutcome('success');
         refreshMenuInstances();
         break;
       case "Failed":
@@ -204,7 +215,8 @@ export function MenuUploadForm() {
         toast({ title: "Workflow Failed", description: "The backend failed to process your menu.", variant: "destructive" });
         cleanupPolling();
         setIsProcessing(false);
-        setCurrentProgress(0);
+        setCurrentProgress(100); // Show 100% on fail but colored red
+        setWorkflowOutcome('failure');
         break;
       default:
         setProgressMessage(`Monitoring workflow (State: ${state})...`);
@@ -228,6 +240,8 @@ export function MenuUploadForm() {
     setExtractedItems([]);
     setCurrentProgress(0);
     setProgressMessage("Starting process...");
+    setWorkflowOutcome(null);
+    setProcessedImageUrls([]);
 
     const ownerId = "admin@example.com"; 
     const menuId = selectedMenuInstance.id;
@@ -253,12 +267,14 @@ export function MenuUploadForm() {
           throw new Error(presignedResult.message || `Failed to get upload URL for ${item.file.name}`);
         }
         item.s3UploadUrl = presignedResult.mediaURL;
+        item.finalMediaUrl = presignedResult.finalMediaUrl; // Store finalMediaUrl
         itemsToProcess.push(item);
         setCurrentProgress(Math.round(10 + ( (i + 1) / queuedItems.length) * 10)); 
       } catch (err: any) {
         setProcessingError(`Error preparing ${item.file.name}: ${err.message}`);
         toast({ title: `Preparation Error`, description: err.message, variant: "destructive" });
         setIsProcessing(false);
+        setWorkflowOutcome('failure');
         return;
       }
     }
@@ -279,6 +295,7 @@ export function MenuUploadForm() {
       setProcessingError(`Error starting backend workflow: ${err.message}`);
       toast({ title: "Workflow Start Error", description: err.message, variant: "destructive" });
       setIsProcessing(false);
+      setWorkflowOutcome('failure');
       return;
     }
 
@@ -322,6 +339,7 @@ export function MenuUploadForm() {
       setProcessingError(prev => (prev ? prev + "\n" : "") + "All S3 uploads failed. Cannot proceed with workflow.");
       toast({ title: "Upload Failure", description: "All image uploads to S3 failed.", variant: "destructive" });
       setIsProcessing(false);
+      setWorkflowOutcome('failure');
       return;
     }
     if (successfulUploadsCount < itemsToProcess.length) {
@@ -344,16 +362,30 @@ export function MenuUploadForm() {
           setProcessingError("Workflow polling timed out. Please check status later or refresh.");
           toast({ title: "Polling Timeout", description: "Workflow took too long to respond.", variant: "destructive" });
           setIsProcessing(false);
+          setWorkflowOutcome('failure');
         }, POLLING_TIMEOUT_MS);
       } else if (!initialPollStateResult.success || initialPollStateResult.state === 'Failed') {
         setIsProcessing(false); 
+        setWorkflowOutcome('failure');
       } else if (initialPollStateResult.state === 'Done') {
          setIsProcessing(false); 
+         setWorkflowOutcome('success');
       }
     } else {
       setIsProcessing(false);
+      setWorkflowOutcome('failure');
     }
   };
+  
+  const progressIndicatorClass = cn(
+    "h-full w-full flex-1 transition-all",
+    {
+      "bg-primary": workflowOutcome === null || (workflowOutcome === 'success' && !isProcessing), // Default or non-final success
+      "bg-green-500": workflowOutcome === 'success' && !isProcessing, // Explicit success color
+      "bg-destructive": workflowOutcome === 'failure', // Explicit failure color
+    }
+  );
+
 
   return (
     <Card className="w-full shadow-lg">
@@ -448,17 +480,20 @@ export function MenuUploadForm() {
             </div>
           )}
           
-          {isProcessing && (
+          {(isProcessing || workflowOutcome) && (
             <div className="space-y-2">
-              <Progress value={currentProgress} className="w-full" />
+               <Progress value={currentProgress} className="w-full" indicatorClassName={progressIndicatorClass} />
               <p className="text-sm text-muted-foreground text-center flex items-center justify-center">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {workflowOutcome === 'success' && !isProcessing && <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
+                {workflowOutcome === 'failure' && !isProcessing && <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />}
                 {progressMessage || "Processing..."}
               </p>
             </div>
           )}
 
-          {processingError && !isProcessing && ( 
+
+          {processingError && !isProcessing && workflowOutcome === 'failure' && ( 
             <div className="p-3 rounded-md bg-destructive/10 text-destructive flex items-start">
               <AlertTriangle className="h-5 w-5 mr-2 shrink-0" />
               <p className="text-sm whitespace-pre-line">{processingError}</p>
@@ -483,7 +518,30 @@ export function MenuUploadForm() {
         </CardFooter>
       </form>
 
-      {extractedItems.length > 0 && !isProcessing && (
+      {workflowOutcome === 'success' && !isProcessing && processedImageUrls.length > 0 && (
+        <div className="p-6 border-t">
+          <h3 className="text-xl font-semibold mb-4 flex items-center">
+            <ImageIcon className="h-6 w-6 mr-2 text-primary" />
+            Processed Menu Images
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-96 overflow-y-auto p-2 border rounded-md bg-secondary/10">
+            {processedImageUrls.map((url, index) => (
+              <div key={`${url}-${index}`} className="relative aspect-square border rounded-md overflow-hidden">
+                <Image 
+                  src={url} 
+                  alt={`Processed image ${index + 1}`} 
+                  layout="fill" 
+                  objectFit="cover" 
+                  data-ai-hint="menu page" 
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+      {extractedItems.length > 0 && !isProcessing && workflowOutcome === 'success' && (
         <div className="p-6 border-t">
           <h3 className="text-xl font-semibold mb-4 flex items-center">
             <CheckCircle className="h-6 w-6 mr-2 text-green-600" />
@@ -505,7 +563,7 @@ export function MenuUploadForm() {
           </Button>
         </div>
       )}
-       {isProcessing && progressMessage.startsWith("Workflow state: Done") && extractedItems.length === 0 && (
+       {isProcessing && progressMessage.startsWith("Workflow state: Done") && extractedItems.length === 0 && workflowOutcome !== 'failure' && (
          <div className="p-6 border-t text-center text-muted-foreground">
             <Clock className="mx-auto h-8 w-8 mb-2" />
             <p>Workflow completed, but no items were extracted or returned by the backend.</p>
@@ -514,6 +572,3 @@ export function MenuUploadForm() {
     </Card>
   );
 }
-
-
-    

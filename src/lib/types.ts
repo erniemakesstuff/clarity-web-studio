@@ -46,3 +46,20 @@ export type DigitalMenuState =
   | "Failed"
   | "Unknown"; // Added for safety
 
+// This is the expected structure from the backend for polling
+export interface BackendDigitalMenuPollResponse {
+  OwnerID: string;
+  MenuID: string;
+  State: DigitalMenuState;
+  FoodServiceEntries?: ExtractedMenuItem[] | null; // Assuming ExtractedMenuItem matches backend
+  ContextS3MediaUrls?: string[] | null; // Added for processed image URLs
+}
+
+// This is the result type for the frontend pollWorkflowStatus action
+export interface PollWorkflowStatusResult {
+  success: boolean;
+  state?: DigitalMenuState;
+  menuItems?: ExtractedMenuItem[];
+  s3ContextImageUrls?: string[]; // Added for processed image URLs
+  message?: string;
+}
