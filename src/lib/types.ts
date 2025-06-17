@@ -51,8 +51,8 @@ export interface BackendDigitalMenuPollResponse {
   OwnerID: string;
   MenuID: string;
   State: DigitalMenuState;
-  FoodServiceEntries?: ExtractedMenuItem[] | null; // Assuming ExtractedMenuItem matches backend
-  ContextS3MediaUrls?: string[] | null; // Added for processed image URLs
+  FoodServiceEntries?: ExtractedMenuItem[] | null; 
+  ContextS3MediaUrls?: string | null; // Changed from string[] to string, as it's a CSV
 }
 
 // This is the result type for the frontend pollWorkflowStatus action
@@ -60,6 +60,6 @@ export interface PollWorkflowStatusResult {
   success: boolean;
   state?: DigitalMenuState;
   menuItems?: ExtractedMenuItem[];
-  s3ContextImageUrls?: string[]; // Added for processed image URLs
+  s3ContextImageUrls?: string[]; // This will be an array of full URLs after parsing
   message?: string;
 }

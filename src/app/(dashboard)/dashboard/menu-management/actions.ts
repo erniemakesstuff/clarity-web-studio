@@ -7,6 +7,7 @@ import type { MenuItemCore } from '@/lib/types';
 
 
 const API_BASE_URL = "https://api.bityfan.com";
+const S3_BUCKET_BASE_URL = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/"; // Define this base URL
 
 interface GetPresignedUrlParams {
   ownerId: string;
@@ -108,6 +109,8 @@ export async function startBackendWorkflow(
         return { success: true, message: "Workflow started, but backend returned an empty success response." };
       }
       try {
+        // Attempt to parse if there's content, but succeed even if it's not JSON for 2xx.
+        // JSON.parse(responseText); 
         return { success: true };
       } catch (jsonError) {
         return { success: true, message: "Workflow started, but backend returned a non-JSON success response." };
@@ -125,7 +128,15 @@ export async function startBackendWorkflow(
       return { success: false, message: errorMessage };
     }
   } catch (error: any) {
-    return { success: false, message: `Network or unexpected error (starting workflow): ${error.message}` };
+    let detailedErrorMessage = "Failed to communicate with the backend service while starting workflow.";
+    if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
+        detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for starting workflow. Please check server status and network connectivity.`;
+    } else if (error.message && error.message.includes("ECONNREFUSED")) {
+        detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for starting workflow. Please ensure the service is running.`;
+    } else if (error.message) {
+        detailedErrorMessage = `An unexpected error occurred (starting workflow): ${error.message}`;
+    }
+    return { success: false, message: detailedErrorMessage };
   }
 }
 
@@ -157,13 +168,20 @@ export async function pollWorkflowStatus(
         const extractedItems: ExtractedMenuItem[] = (data.FoodServiceEntries || []).map(entry => ({
           name: entry.name,
           description: entry.description,
-          price: entry.price, 
+          price: String(entry.price), // Assuming price might be number, ensure string
         }));
+
+        let s3ImageFullUrls: string[] = [];
+        if (typeof data.ContextS3MediaUrls === 'string' && data.ContextS3MediaUrls.trim() !== '') {
+          const s3Keys = data.ContextS3MediaUrls.split(',').map(key => key.trim()).filter(key => key.length > 0);
+          s3ImageFullUrls = s3Keys.map(key => `${S3_BUCKET_BASE_URL}${key}`);
+        }
+        
         return { 
           success: true, 
           state: data.State, 
           menuItems: extractedItems,
-          s3ContextImageUrls: data.ContextS3MediaUrls || undefined, // Extract S3 URLs
+          s3ContextImageUrls: s3ImageFullUrls.length > 0 ? s3ImageFullUrls : undefined,
         };
       } catch (jsonError: any) {
         return { 
@@ -184,6 +202,14 @@ export async function pollWorkflowStatus(
       return { success: false, message: errorMessage };
     }
   } catch (error: any) {
-     return { success: false, message: `Network or unexpected error (polling status): ${error.message}` };
+     let detailedErrorMessage = "Failed to communicate with the backend service while polling status.";
+     if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
+        detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for polling. Please check server status and network connectivity.`;
+    } else if (error.message && error.message.includes("ECONNREFUSED")) {
+        detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for polling. Please ensure the service is running.`;
+    } else if (error.message) {
+        detailedErrorMessage = `An unexpected error occurred (polling status): ${error.message}`;
+    }
+    return { success: false, message: detailedErrorMessage };
   }
 }
