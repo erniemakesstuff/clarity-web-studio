@@ -9,10 +9,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { getPresignedUploadUrl } from "@/app/(dashboard)/dashboard/menu-management/actions";
-import { extractMenuItems, type ExtractMenuItemsInput, type ExtractMenuItemsOutput } from "@/ai/flows/extract-menu-items";
-import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, XCircle } from "lucide-react";
-import type { ExtractedMenuItem } from "@/lib/types";
+import { getPresignedUploadUrl, startBackendWorkflow, pollWorkflowStatus } from "@/app/(dashboard)/dashboard/menu-management/actions";
+import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, XCircle, Clock } from "lucide-react";
+import type { ExtractedMenuItem, DigitalMenuState } from "@/lib/types";
 import Image from "next/image";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 
@@ -21,7 +20,14 @@ interface QueuedItem {
   file: File;
   previewUrl: string;
   source: 'upload' | 'capture';
+  base64?: string; // To store base64 for presigned URL request
+  s3UploadUrl?: string; // To store the S3 presigned PUT URL
+  uploadSuccess?: boolean;
 }
+
+const MAX_CONCURRENT_UPLOADS = 3;
+const POLLING_INTERVAL_MS = 10000; // 10 seconds
+const POLLING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export function MenuUploadForm() {
   const [queuedItems, setQueuedItems] = useState<QueuedItem[]>([]);
@@ -32,12 +38,15 @@ export function MenuUploadForm() {
   const [progressMessage, setProgressMessage] = useState("");
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance } = useAuth();
+  const { jwtToken, selectedMenuInstance, refreshMenuInstances } = useAuth();
 
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
 
   const requestCameraPermission = useCallback(async () => {
     if (isCameraActive) {
@@ -73,6 +82,8 @@ export function MenuUploadForm() {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
       }
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
     };
   }, [requestCameraPermission]);
 
@@ -85,7 +96,7 @@ export function MenuUploadForm() {
         previewUrl: URL.createObjectURL(file),
         source: 'upload',
       }));
-      setQueuedItems(prev => [...prev, ...newQueuedItems].slice(0, 5)); // Limit to 5 for now
+      setQueuedItems(prev => [...prev, ...newQueuedItems].slice(0, 5));
       setExtractedItems([]);
       setProcessingError(null);
       if (newFiles.length > 5) {
@@ -139,126 +150,220 @@ export function MenuUploadForm() {
     setQueuedItems(prev => prev.filter(item => item.id !== itemId));
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (queuedItems.length === 0) {
-      toast({
-        title: "No images selected",
-        description: "Please upload or capture at least one menu image.",
-        variant: "destructive",
-      });
+  const cleanupPolling = () => {
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    pollingIntervalRef.current = null;
+    pollingTimeoutRef.current = null;
+  };
+
+  const doPollWorkflowStatus = async (ownerId: string, menuId: string) => {
+    setProgressMessage("Checking workflow status...");
+    const pollResult = await pollWorkflowStatus(ownerId, menuId, jwtToken);
+
+    if (!pollResult.success) {
+      setProcessingError(pollResult.message || "Failed to get workflow status.");
+      toast({ title: "Polling Error", description: pollResult.message, variant: "destructive" });
+      cleanupPolling();
+      setIsProcessing(false); // Consider full stop
       return;
     }
 
-    if (!selectedMenuInstance) {
-      toast({
-        title: "No Menu Selected",
-        description: "Please select a menu from the dropdown in the header before uploading images.",
-        variant: "destructive",
-      });
+    const state = pollResult.state || "Unknown";
+    setProgressMessage(`Workflow state: ${state}`);
+
+    switch (state) {
+      case "New":
+      case "WaitingForInitialContext":
+        setCurrentProgress(60);
+        setProgressMessage("Workflow started, waiting for context...");
+        break;
+      case "Preparing":
+        setCurrentProgress(70);
+        setProgressMessage("Backend preparing menu data...");
+        break;
+      case "Generating":
+        setCurrentProgress(85);
+        setProgressMessage("AI extracting items from images...");
+        break;
+      case "Done":
+        setCurrentProgress(100);
+        setProgressMessage("Extraction complete!");
+        setExtractedItems(pollResult.menuItems || []);
+        toast({
+          title: "Menu Processed Successfully!",
+          description: `${pollResult.menuItems?.length || 0} items found.`,
+          variant: "default", className: "bg-green-500 text-white"
+        });
+        cleanupPolling();
+        setIsProcessing(false);
+        refreshMenuInstances(); // Refresh menu instances in AuthContext
+        break;
+      case "Failed":
+        setProcessingError("Backend workflow failed to process the menu.");
+        toast({ title: "Workflow Failed", description: "The backend failed to process your menu.", variant: "destructive" });
+        cleanupPolling();
+        setIsProcessing(false);
+        setCurrentProgress(0); // Or some error indication on progress
+        break;
+      default:
+        // Keep polling for other states or unknown states
+        setProgressMessage(`Monitoring workflow (State: ${state})...`);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (queuedItems.length === 0) {
+      toast({ title: "No images selected", description: "Please upload or capture at least one menu image.", variant: "destructive" });
       return;
     }
-    const menuId = selectedMenuInstance.id;
-    const ownerId = "admin@example.com"; // Mocked, replace with actual from AuthContext if available
+    if (!selectedMenuInstance) {
+      toast({ title: "No Menu Selected", description: "Please select a menu from the dropdown.", variant: "destructive" });
+      return;
+    }
 
     setIsProcessing(true);
     setProcessingError(null);
     setExtractedItems([]);
-    let allExtracted: ExtractedMenuItem[] = [];
-    let filesProcessedSuccessfully = 0;
-    const totalFiles = queuedItems.length;
+    setCurrentProgress(0);
+    setProgressMessage("Starting process...");
 
-    for (let i = 0; i < totalFiles; i++) {
+    const ownerId = "admin@example.com"; // Mocked
+    const menuId = selectedMenuInstance.id;
+    const itemsToProcess: QueuedItem[] = [];
+
+    // Phase 1: Get Base64 and Presigned URLs
+    setProgressMessage("Preparing image uploads (1/4)...");
+    for (let i = 0; i < queuedItems.length; i++) {
       const item = queuedItems[i];
-      const currentFileProgress = (i / totalFiles) * 100;
-      let base64Image = ""; // Store base64 for AI extraction
-      
       try {
-        // Stage 1: Get presigned URL (also generates base64 needed for AI)
-        setProgressMessage(`Preparing ${item.file.name} (1/3)...`);
-        setCurrentProgress(currentFileProgress + (1 / 3 / totalFiles) * 100 * 0.9); 
-
-        base64Image = await new Promise<string>((resolve, reject) => {
+        const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (error) => reject(error);
+          reader.onerror = reject;
           reader.readAsDataURL(item.file);
         });
+        item.base64 = base64;
 
-        const presignedUrlResult = await getPresignedUploadUrl(
-          { ownerId, menuId, mediaType: item.file.type, payload: base64Image }, 
+        const presignedResult = await getPresignedUploadUrl(
+          { ownerId, menuId, mediaType: item.file.type, payload: base64 },
           jwtToken
         );
-
-        if (!presignedUrlResult.success || !presignedUrlResult.mediaURL) {
-          throw new Error(presignedUrlResult.message || `Failed to get upload URL for ${item.file.name}`);
+        if (!presignedResult.success || !presignedResult.mediaURL) {
+          throw new Error(presignedResult.message || `Failed to get upload URL for ${item.file.name}`);
         }
-        const s3UploadUrl = presignedUrlResult.mediaURL;
-        
-        // Stage 2: Upload to S3
-        setProgressMessage(`Uploading ${item.file.name} (2/3)...`);
-        setCurrentProgress(currentFileProgress + (2 / 3 / totalFiles) * 100 * 0.9);
+        item.s3UploadUrl = presignedResult.mediaURL;
+        itemsToProcess.push(item);
+        setCurrentProgress(10 + (i / queuedItems.length) * 10); // 10-20% progress
+      } catch (err: any) {
+        setProcessingError(`Error preparing ${item.file.name}: ${err.message}`);
+        toast({ title: `Preparation Error`, description: err.message, variant: "destructive" });
+        setIsProcessing(false);
+        return;
+      }
+    }
+    
+    // Phase 2 & 3: Start Backend Workflow & Upload to S3 (Concurrently)
+    setProgressMessage("Starting backend workflow & S3 uploads (2/4 & 3/4)...");
+    setCurrentProgress(20);
 
-        const s3Response = await fetch(s3UploadUrl, {
+    let workflowStartedSuccessfully = false;
+    try {
+      const workflowStartResult = await startBackendWorkflow(ownerId, menuId, jwtToken);
+      if (!workflowStartResult.success) {
+        throw new Error(workflowStartResult.message || "Failed to start backend workflow.");
+      }
+      workflowStartedSuccessfully = true;
+      setProgressMessage("Backend workflow initiated. Uploading images...");
+      setCurrentProgress(25); // Workflow started, now focus on uploads
+    } catch (err: any) {
+      setProcessingError(`Error starting backend workflow: ${err.message}`);
+      toast({ title: "Workflow Start Error", description: err.message, variant: "destructive" });
+      // Decide if to continue S3 uploads or stop. For now, let's stop.
+      setIsProcessing(false);
+      return;
+    }
+
+    // S3 Uploads
+    const uploadPromises: Promise<void>[] = [];
+    let uploadsCompleted = 0;
+    const s3UploadTasks = itemsToProcess.map(item => async () => {
+      if (!item.s3UploadUrl) return; // Should not happen
+      try {
+        const s3Response = await fetch(item.s3UploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': item.file.type }, 
+          headers: { 'Content-Type': item.file.type },
           body: item.file,
         });
-
         if (!s3Response.ok) {
           throw new Error(`S3 upload failed for ${item.file.name}: ${s3Response.status} ${s3Response.statusText}`);
         }
-
-        // Stage 3: Extract menu items using AI with base64 data URI
-        setProgressMessage(`Extracting from ${item.file.name} (3/3)...`);
-        setCurrentProgress(currentFileProgress + (3 / 3 / totalFiles) * 100 * 0.9);
-
-        const extractionInput: ExtractMenuItemsInput = { menuImage: base64Image }; // Pass base64
-        const extractionResult: ExtractMenuItemsOutput = await extractMenuItems(extractionInput);
-
-        if (extractionResult.menuItems && extractionResult.menuItems.length > 0) {
-          allExtracted = [...allExtracted, ...extractionResult.menuItems];
-        }
-        filesProcessedSuccessfully++;
-
-      } catch (err: any) {
-        console.error(`Error processing ${item.file.name}:`, err);
-        setProcessingError((prevError) => 
-          (prevError ? prevError + "\n" : "") + `Failed to process ${item.file.name}: ${err.message}`
-        );
-        toast({
-          title: `Error with ${item.file.name}`,
-          description: err.message,
-          variant: "destructive",
-        });
+        item.uploadSuccess = true;
+      } catch (uploadErr: any) {
+        item.uploadSuccess = false;
+        // Accumulate errors for S3 uploads instead of stopping immediately
+        setProcessingError(prev => (prev ? prev + "\n" : "") + uploadErr.message);
+        toast({ title: `S3 Upload Error`, description: uploadErr.message, variant: "destructive" });
+      } finally {
+        uploadsCompleted++;
+        setCurrentProgress(25 + (uploadsCompleted / itemsToProcess.length) * 25); // 25-50% progress
       }
-    }
-    setCurrentProgress(100);
-    setProgressMessage(filesProcessedSuccessfully > 0 ? "Processing complete!" : "Processing finished with errors.");
-    setExtractedItems(allExtracted);
-    setIsProcessing(false);
+    });
 
-    if (filesProcessedSuccessfully === totalFiles && totalFiles > 0) {
-      toast({
-        title: "Menu Items Extracted!",
-        description: `${allExtracted.length} items found from ${totalFiles} image(s). Review and save.`,
-        variant: "default",
-        className: "bg-green-500 text-white"
-      });
-    } else if (allExtracted.length > 0) {
-       toast({
-        title: "Partial Success",
-        description: `${allExtracted.length} items extracted. Some images failed. Check error messages.`,
-        variant: "default" 
-      });
-    } else if (totalFiles > 0) {
-      const noItemsMsg = "No menu items could be extracted from the processed image(s). Try clearer images or check formats.";
-      if (!processingError) setProcessingError(noItemsMsg); 
-      toast({
-        title: "Extraction Complete - No Items Found",
-        description: noItemsMsg,
-        variant: "destructive",
-      });
+    // Concurrency for S3 uploads
+    const concurrencyLimit = MAX_CONCURRENT_UPLOADS;
+    const activeUploads: Promise<void>[] = [];
+    for (const task of s3UploadTasks) {
+        if (activeUploads.length >= concurrencyLimit) {
+            await Promise.race(activeUploads);
+        }
+        const promise = task().finally(() => {
+            activeUploads.splice(activeUploads.indexOf(promise), 1);
+        });
+        activeUploads.push(promise);
+    }
+    await Promise.all(activeUploads);
+
+    const successfulUploads = itemsToProcess.filter(item => item.uploadSuccess).length;
+    if (successfulUploads === 0 && itemsToProcess.length > 0) {
+      setProcessingError(prev => (prev ? prev + "\n" : "") + "All S3 uploads failed. Cannot proceed with workflow.");
+      toast({ title: "Upload Failure", description: "All image uploads to S3 failed.", variant: "destructive" });
+      setIsProcessing(false);
+      return;
+    }
+    if (successfulUploads < itemsToProcess.length) {
+       toast({ title: "Partial Upload Success", description: `${successfulUploads} of ${itemsToProcess.length} images uploaded. Proceeding with workflow.`, variant: "default" });
+    }
+
+    setProgressMessage("Image uploads complete. Monitoring backend workflow (4/4)...");
+    setCurrentProgress(50);
+
+    // Phase 4: Poll for Workflow Status
+    if (workflowStartedSuccessfully && successfulUploads > 0) {
+      cleanupPolling(); // Clear any previous timers
+
+      // Initial poll
+      await doPollWorkflowStatus(ownerId, menuId);
+      
+      // Setup interval if not Done/Failed already
+      const currentState = await pollWorkflowStatus(ownerId,menuId, jwtToken); // get current state one more time
+      if (currentState.success && currentState.state && !['Done', 'Failed'].includes(currentState.state)) {
+        pollingIntervalRef.current = setInterval(() => doPollWorkflowStatus(ownerId, menuId), POLLING_INTERVAL_MS);
+        pollingTimeoutRef.current = setTimeout(() => {
+          cleanupPolling();
+          setProcessingError("Workflow polling timed out. Please check status later.");
+          toast({ title: "Polling Timeout", description: "Workflow took too long to respond.", variant: "destructive" });
+          setIsProcessing(false);
+        }, POLLING_TIMEOUT_MS);
+      } else if (!currentState.success || currentState.state === 'Failed') {
+        setIsProcessing(false); // Already handled by doPollWorkflowStatus
+      } else if (currentState.state === 'Done') {
+         setIsProcessing(false); // Already handled
+      }
+    } else {
+      // If workflow didn't start or no uploads, don't poll
+      setIsProcessing(false);
     }
   };
 
@@ -270,7 +375,7 @@ export function MenuUploadForm() {
           Upload or Capture Your Menu
         </CardTitle>
         <CardDescription>
-          Add up to 5 menu images (JPG, PNG, WEBP). Our AI will extract items after upload.
+          Add up to 5 menu images (JPG, PNG, WEBP). Backend AI will process items after upload.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -358,7 +463,10 @@ export function MenuUploadForm() {
           {isProcessing && (
             <div className="space-y-2">
               <Progress value={currentProgress} className="w-full" />
-              <p className="text-sm text-muted-foreground text-center">{progressMessage || "Processing..."}</p>
+              <p className="text-sm text-muted-foreground text-center flex items-center justify-center">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                {progressMessage || "Processing..."}
+              </p>
             </div>
           )}
 
@@ -380,7 +488,7 @@ export function MenuUploadForm() {
             ) : (
               <>
                 <FileText className="mr-2 h-4 w-4" />
-                Upload & Extract from {queuedItems.length} Image(s)
+                Upload & Process {queuedItems.length} Image(s)
               </>
             )}
           </Button>
@@ -391,7 +499,7 @@ export function MenuUploadForm() {
         <div className="p-6 border-t">
           <h3 className="text-xl font-semibold mb-4 flex items-center">
             <CheckCircle className="h-6 w-6 mr-2 text-green-600" />
-            Extracted Items ({extractedItems.length})
+            Extracted Items ({extractedItems.length}) from Backend
           </h3>
           <div className="max-h-96 overflow-y-auto space-y-3 pr-2 rounded-md border p-4 bg-secondary/30">
             {extractedItems.map((item, index) => (
@@ -404,12 +512,17 @@ export function MenuUploadForm() {
               </Card>
             ))}
           </div>
-          <Button className="mt-4 w-full sm:w-auto" onClick={() => toast({title: "Save Mocked", description:"This would save the menu to backend."})}>
-            Review and Save Menu
+          <Button className="mt-4 w-full sm:w-auto" onClick={() => toast({title: "Save Mocked", description:"This would typically save/confirm the menu processed by backend."})}>
+            Confirm Menu
           </Button>
         </div>
       )}
+       {isProcessing && progressMessage.startsWith("Workflow state: Done") && extractedItems.length === 0 && (
+         <div className="p-6 border-t text-center text-muted-foreground">
+            <Clock className="mx-auto h-8 w-8 mb-2" />
+            <p>Workflow completed, but no items were extracted or returned by the backend.</p>
+         </div>
+       )}
     </Card>
   );
 }
-

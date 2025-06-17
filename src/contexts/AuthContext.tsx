@@ -2,7 +2,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { MenuInstance } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -24,9 +24,10 @@ interface AuthContextType {
   menuInstances: MenuInstance[];
   selectedMenuInstance: MenuInstance | null;
   selectMenuInstance: (menuId: string) => void;
-  addMenuInstance: (name: string) => MenuInstance; // This will update local cache, backend sync is separate
-  renameMenuInstance: (menuId: string, newName: string) => boolean; // This will update local cache
+  addMenuInstance: (name: string) => MenuInstance; 
+  renameMenuInstance: (menuId: string, newName: string) => boolean; 
   isLoadingMenuInstances: boolean;
+  refreshMenuInstances: () => Promise<void>; // New function to manually refresh
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +42,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingMenuInstances, setIsLoadingMenuInstances] = useState(true);
   const { toast } = useToast();
 
+  const loadMenuData = useCallback(async (forceRefresh = false) => {
+    if (!isAuthenticated) {
+      setMenuInstances([]);
+      setSelectedMenuInstance(null);
+      setIsLoadingMenuInstances(false);
+      localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+      localStorage.removeItem(MENU_INSTANCES_LS_KEY);
+      localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
+      localStorage.removeItem(JWT_TOKEN_LS_KEY);
+      setJwtToken(null);
+      return;
+    }
+
+    setIsLoadingMenuInstances(true);
+    const ownerId = "admin@example.com"; 
+    
+    const cachedTimestampStr = localStorage.getItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
+    const cachedInstancesStr = localStorage.getItem(MENU_INSTANCES_LS_KEY);
+    const cachedTimestamp = cachedTimestampStr ? parseInt(cachedTimestampStr, 10) : null;
+
+    if (!forceRefresh && cachedTimestamp && cachedInstancesStr && (Date.now() - cachedTimestamp < MENU_CACHE_TTL)) {
+      try {
+        const parsedInstances: MenuInstance[] = JSON.parse(cachedInstancesStr);
+        setMenuInstances(parsedInstances);
+        const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
+        const foundMenuInstance = parsedInstances.find(m => m.id === storedMenuInstanceId);
+        setSelectedMenuInstance(foundMenuInstance || (parsedInstances.length > 0 ? parsedInstances[0] : null));
+        setIsLoadingMenuInstances(false);
+        return; 
+      } catch (e) {
+        console.error("Failed to parse cached menu instances:", e);
+      }
+    }
+    
+    const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
+
+    if (result.success && result.menuInstances) {
+      setMenuInstances(result.menuInstances);
+      localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(result.menuInstances));
+      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
+
+      if (result.menuInstances.length > 0) {
+        const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
+        // If current selectedMenuInstance is still valid, keep it, else update.
+        const currentSelectedStillValid = result.menuInstances.find(m => m.id === selectedMenuInstance?.id);
+        if (currentSelectedStillValid) {
+            setSelectedMenuInstance(currentSelectedStillValid); // Potentially updated data for the same menu
+        } else {
+            // If not valid or was null, pick from new list
+            const foundMenuInstance = result.menuInstances.find(m => m.id === storedMenuInstanceId);
+            const newSelected = foundMenuInstance || result.menuInstances[0];
+            setSelectedMenuInstance(newSelected);
+            localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newSelected.id);
+        }
+
+      } else {
+        setSelectedMenuInstance(null);
+        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+      }
+    } else {
+      toast({
+        title: "Error Fetching Menus",
+        description: result.message || "Could not load your menus from the server.",
+        variant: "destructive",
+      });
+      // Don't clear local cache on transient fetch error unless forced or cache expired
+      if (forceRefresh || !cachedInstancesStr) {
+        setMenuInstances([]); 
+        setSelectedMenuInstance(null);
+        localStorage.removeItem(MENU_INSTANCES_LS_KEY); 
+        localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
+        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+      }
+    }
+    setIsLoadingMenuInstances(false);
+  }, [isAuthenticated, jwtToken, toast, selectedMenuInstance?.id]);
+
+
   useEffect(() => {
     const storedAuthStatus = localStorage.getItem(AUTH_STATUS_LS_KEY);
     const storedJwtToken = localStorage.getItem(JWT_TOKEN_LS_KEY);
@@ -52,76 +131,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    const loadMenuData = async () => {
-      if (!isAuthenticated) {
-        setMenuInstances([]);
-        setSelectedMenuInstance(null);
-        setIsLoadingMenuInstances(false);
-        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
-        localStorage.removeItem(MENU_INSTANCES_LS_KEY);
-        localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
-        localStorage.removeItem(JWT_TOKEN_LS_KEY);
-        setJwtToken(null);
-        return;
-      }
-
-      setIsLoadingMenuInstances(true);
-      const ownerId = "admin@example.com"; // Mock ownerId, replace with actual user identifier
-      
-      const cachedTimestampStr = localStorage.getItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
-      const cachedInstancesStr = localStorage.getItem(MENU_INSTANCES_LS_KEY);
-      const cachedTimestamp = cachedTimestampStr ? parseInt(cachedTimestampStr, 10) : null;
-
-      if (cachedTimestamp && cachedInstancesStr && (Date.now() - cachedTimestamp < MENU_CACHE_TTL)) {
-        try {
-          const parsedInstances: MenuInstance[] = JSON.parse(cachedInstancesStr);
-          setMenuInstances(parsedInstances);
-          const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
-          const foundMenuInstance = parsedInstances.find(m => m.id === storedMenuInstanceId);
-          setSelectedMenuInstance(foundMenuInstance || (parsedInstances.length > 0 ? parsedInstances[0] : null));
-          setIsLoadingMenuInstances(false);
-          return; // Exit if valid cache is used
-        } catch (e) {
-          console.error("Failed to parse cached menu instances:", e);
-          // Proceed to fetch if cache is invalid
-        }
-      }
-      
-      // Fetch from backend if no valid cache
-      const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
-
-      if (result.success && result.menuInstances) {
-        setMenuInstances(result.menuInstances);
-        localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(result.menuInstances));
-        localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
-
-        if (result.menuInstances.length > 0) {
-          const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
-          const foundMenuInstance = result.menuInstances.find(m => m.id === storedMenuInstanceId);
-          const newSelected = foundMenuInstance || result.menuInstances[0];
-          setSelectedMenuInstance(newSelected);
-          localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newSelected.id);
-        } else {
-          setSelectedMenuInstance(null);
-          localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
-        }
-      } else {
-        toast({
-          title: "Error Fetching Menus",
-          description: result.message || "Could not load your menus from the server.",
-          variant: "destructive",
-        });
-        setMenuInstances([]); // Clear menus on fetch error
-        setSelectedMenuInstance(null);
-        localStorage.removeItem(MENU_INSTANCES_LS_KEY); // Clear potentially stale cache
-        localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
-        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
-      }
-      setIsLoadingMenuInstances(false);
-    };
-
     loadMenuData();
-  }, [isAuthenticated, jwtToken, toast]);
+  }, [isAuthenticated, loadMenuData]); // jwtToken change will trigger loadMenuData via isAuthenticated effect chain
 
   const login = () => {
     const mockTokenValue = "mock-jwt-for-admin@example.com-" + Date.now();
@@ -134,7 +145,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setIsAuthenticated(false);
     setJwtToken(null);
-    // Clearing menu data is handled by the useEffect watching isAuthenticated
   };
 
   const selectMenuInstance = (menuId: string) => {
@@ -146,26 +156,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addMenuInstance = (name: string): MenuInstance => {
-    // This function primarily updates local state and cache.
-    // A separate backend call is made in the create-restaurant page.
     const newMenuInstance: MenuInstance = {
-      id: name.toLowerCase().replace(/\s+/g, '-') + '-menu-' + Date.now(), // Ensure unique ID for local
+      id: name.toLowerCase().replace(/\s+/g, '-') + '-menu-' + Date.now(), 
       name: name,
       menu: [],
     };
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
     setSelectedMenuInstance(newMenuInstance);
-    // Update local storage cache immediately
     localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); // Invalidate old cache
+    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); 
     localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newMenuInstance.id);
     return newMenuInstance;
   };
 
   const renameMenuInstance = (menuId: string, newName: string): boolean => {
-    // This function primarily updates local state and cache.
-    // Backend sync for rename would need a separate server action.
     let success = false;
     const updatedMenuInstances = menuInstances.map(m =>
       m.id === menuId ? { ...m, name: newName } : m
@@ -174,7 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (JSON.stringify(updatedMenuInstances) !== JSON.stringify(menuInstances)) {
       setMenuInstances(updatedMenuInstances);
       localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); // Invalidate old cache
+      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); 
       success = true;
     }
 
@@ -184,6 +189,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     return success;
   };
+
+  const refreshMenuInstances = useCallback(async () => {
+    await loadMenuData(true); // Pass true to force refresh from backend
+  }, [loadMenuData]);
+
 
   return (
     <AuthContext.Provider value={{
@@ -197,7 +207,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       selectMenuInstance,
       addMenuInstance,
       renameMenuInstance,
-      isLoadingMenuInstances
+      isLoadingMenuInstances,
+      refreshMenuInstances
     }}>
       {children}
     </AuthContext.Provider>

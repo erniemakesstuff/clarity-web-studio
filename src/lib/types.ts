@@ -29,10 +29,20 @@ export interface MenuInstance {
   menu: MenuItem[]; // This 'menu' field refers to the list of MenuItem objects
 }
 
-// For AI extracted items before they are fully processed
+// For AI extracted items before they are fully processed OR items returned by backend
 export interface ExtractedMenuItem extends MenuItemCore {}
 
 export interface MenuCategory {
   name:string;
   items: MenuItem[];
 }
+
+export type DigitalMenuState =
+  | "New"
+  | "WaitingForInitialContext"
+  | "Preparing"
+  | "Generating"
+  | "Done"
+  | "Failed"
+  | "Unknown"; // Added for safety
+
