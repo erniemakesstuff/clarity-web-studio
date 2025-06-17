@@ -138,6 +138,7 @@ const SidebarProvider = React.forwardRef<
               {
                 "--sidebar-width": SIDEBAR_WIDTH,
                 "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+                "--sidebar-width-mobile": SIDEBAR_WIDTH_MOBILE,
                 ...style,
               } as React.CSSProperties
             }
@@ -291,13 +292,22 @@ const SidebarRail = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button">
 >(({ className, ...props }, ref) => {
-  const { toggleSidebar, open, isMobile } = useSidebar();
+  const { toggleSidebar, open, isMobile, openMobile, setOpenMobile } = useSidebar();
 
-  if (isMobile) {
-    return null; // Rail is not for mobile
-  }
+  const handleRailClick = () => {
+    if (isMobile) {
+      setOpenMobile(prev => !prev);
+    } else {
+      toggleSidebar(); // This toggles the desktop 'open' state (expanded/collapsed)
+    }
+  };
 
-  const Icon = open ? ChevronLeft : ChevronRight; // Assuming left sidebar behavior
+  const currentIconState = isMobile ? openMobile : open;
+  const Icon = currentIconState ? ChevronLeft : ChevronRight; // Assuming left sidebar behavior
+
+  const positionClass = isMobile
+    ? (currentIconState ? "left-[var(--sidebar-width-mobile)]" : "left-0")
+    : (currentIconState ? "left-[var(--sidebar-width)]" : "left-[var(--sidebar-width-icon)]");
 
   return (
     <button
@@ -305,16 +315,14 @@ const SidebarRail = React.forwardRef<
       data-sidebar="rail"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
-      onClick={toggleSidebar}
+      onClick={handleRailClick}
       title="Toggle Sidebar"
       className={cn(
         "fixed top-1/2 -translate-y-1/2 z-30 flex items-center justify-center",
-        "h-20 w-6 py-3", // Tab dimensions
+        "h-20 w-6 py-3", 
         "bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors duration-200 ease-linear",
-        "rounded-r-lg", // Assuming left sidebar, so tab is on the right of the sidebar
-        open
-          ? "left-[var(--sidebar-width)]"  // Position when sidebar is expanded
-          : "left-[var(--sidebar-width-icon)]", // Position when sidebar is collapsed
+        "rounded-r-lg", 
+        positionClass,
         className
       )}
       {...props}
