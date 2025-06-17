@@ -171,13 +171,14 @@ export function MenuUploadForm() {
     for (let i = 0; i < totalFiles; i++) {
       const item = queuedItems[i];
       const currentFileProgress = (i / totalFiles) * 100;
+      let base64Image = ""; // Store base64 for AI extraction
       
       try {
-        // Stage 1: Get presigned URL
+        // Stage 1: Get presigned URL (also generates base64 needed for AI)
         setProgressMessage(`Preparing ${item.file.name} (1/3)...`);
-        setCurrentProgress(currentFileProgress + (1 / 3 / totalFiles) * 100 * 0.9); // Small increment for this step
+        setCurrentProgress(currentFileProgress + (1 / 3 / totalFiles) * 100 * 0.9); 
 
-        const base64Image = await new Promise<string>((resolve, reject) => {
+        base64Image = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = (error) => reject(error);
@@ -194,12 +195,6 @@ export function MenuUploadForm() {
         }
         const s3UploadUrl = presignedUrlResult.mediaURL;
         
-        // The finalMediaUrl from presignedUrlResult is currently the same as s3UploadUrl (the presigned PUT URL).
-        // For the AI to GET the image, we attempt to use the base URL (without query params).
-        // This assumes the S3 objects are publicly readable after upload.
-        const finalMediaUrlForAI = (presignedUrlResult.finalMediaUrl || s3UploadUrl).split('?')[0];
-
-
         // Stage 2: Upload to S3
         setProgressMessage(`Uploading ${item.file.name} (2/3)...`);
         setCurrentProgress(currentFileProgress + (2 / 3 / totalFiles) * 100 * 0.9);
@@ -214,12 +209,11 @@ export function MenuUploadForm() {
           throw new Error(`S3 upload failed for ${item.file.name}: ${s3Response.status} ${s3Response.statusText}`);
         }
 
-        // Stage 3: Extract menu items using AI
+        // Stage 3: Extract menu items using AI with base64 data URI
         setProgressMessage(`Extracting from ${item.file.name} (3/3)...`);
         setCurrentProgress(currentFileProgress + (3 / 3 / totalFiles) * 100 * 0.9);
 
-
-        const extractionInput: ExtractMenuItemsInput = { menuImageUrl: finalMediaUrlForAI };
+        const extractionInput: ExtractMenuItemsInput = { menuImage: base64Image }; // Pass base64
         const extractionResult: ExtractMenuItemsOutput = await extractMenuItems(extractionInput);
 
         if (extractionResult.menuItems && extractionResult.menuItems.length > 0) {
@@ -259,14 +253,13 @@ export function MenuUploadForm() {
       });
     } else if (totalFiles > 0) {
       const noItemsMsg = "No menu items could be extracted from the processed image(s). Try clearer images or check formats.";
-      if (!processingError) setProcessingError(noItemsMsg); // Set general error if no specific file errors
+      if (!processingError) setProcessingError(noItemsMsg); 
       toast({
         title: "Extraction Complete - No Items Found",
         description: noItemsMsg,
         variant: "destructive",
       });
     }
-    // setQueuedItems([]); // Optionally clear queue after processing
   };
 
   return (
@@ -369,7 +362,7 @@ export function MenuUploadForm() {
             </div>
           )}
 
-          {processingError && !isProcessing && ( // Show general errors only when not processing
+          {processingError && !isProcessing && ( 
             <div className="p-3 rounded-md bg-destructive/10 text-destructive flex items-start">
               <AlertTriangle className="h-5 w-5 mr-2 shrink-0" />
               <p className="text-sm whitespace-pre-line">{processingError}</p>
@@ -419,3 +412,4 @@ export function MenuUploadForm() {
     </Card>
   );
 }
+

@@ -3,9 +3,9 @@
 'use server';
 
 /**
- * @fileOverview Extracts menu items from an image of a menu, using an S3 URL.
+ * @fileOverview Extracts menu items from an image of a menu, using a data URI.
  *
- * - extractMenuItems - A function that handles the extraction of menu items from an image URL.
+ * - extractMenuItems - A function that handles the extraction of menu items from an image data URI.
  * - ExtractMenuItemsInput - The input type for the extractMenuItems function.
  * - ExtractMenuItemsOutput - The return type for the extractMenuItems function.
  */
@@ -14,11 +14,10 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ExtractMenuItemsInputSchema = z.object({
-  menuImageUrl: z
+  menuImage: z
     .string()
-    .url()
     .describe(
-      "An S3 URL pointing to the menu image after it has been uploaded."
+      "A data URI of the menu image. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
 export type ExtractMenuItemsInput = z.infer<typeof ExtractMenuItemsInputSchema>;
@@ -46,7 +45,7 @@ const prompt = ai.definePrompt({
   output: {schema: ExtractMenuItemsOutputSchema},
   prompt: `You are an expert in extracting menu items from images of menus. Extract the menu items from the following image.
 
-Menu Image URL: {{media url=menuImageUrl}}
+Menu Image: {{media url=menuImage}}
 
 Make sure to extract the name, description, and price of each menu item. If the image is unclear or not a menu, return an empty list of menu items.`,
 });
