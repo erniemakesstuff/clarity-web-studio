@@ -10,27 +10,38 @@ interface BackendFoodServiceEntryJson {
   food_category: string;
   name: string;
   description: string;
-  ingredients: string; 
+  ingredients: string;
   allergen_tags: string[];
   source_media_blob_ref?: string;
   visual_description?: string;
   generated_blob_media_ref?: string;
-  you_may_also_like: string[]; 
-  display_order: number; 
+  you_may_also_like: string[];
+  display_order: number;
   price: number; // Assuming cents
 }
 
+interface BackendMenuAnalyticsJson {
+  timestamp_day: string;
+  impressions: number;
+  engagement_sec: number[];
+  food_name: string;
+  average_engagement: number;
+}
+
 interface BackendDigitalMenuJson {
-  OwnerID: string; 
+  OwnerID: string;
   MenuID: string;
   // Reason: string;
-  // State: string; // Assuming DigitalMenuState is a string type from backend
+  // State: string; 
   // ContextS3MediaUrls: string;
   // ContextMediaText: string;
-  // CreatedAt: string; // Assuming time.Time is serialized to string
+  // CreatedAt: string; 
   // UpdatedAt: string;
-  food_service_entries: BackendFoodServiceEntryJson[] | null; // Can be null
+  food_service_entries: BackendFoodServiceEntryJson[] | null;
+  test_food_service_entries?: BackendFoodServiceEntryJson[] | null; // for A/B testing
+  AllowABTesting?: boolean; // whether to allow A/B testing for this menu
   // Version: number;
+  Analytics?: BackendMenuAnalyticsJson[] | null;
 }
 
 
@@ -58,7 +69,11 @@ export async function fetchMenuInstancesFromBackend(
       const backendDigitalMenus: BackendDigitalMenuJson[] = await response.json();
       
       const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map(digitalMenu => {
-        const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, index) => {
+        // For now, we use food_service_entries. If AllowABTesting is true, 
+        // test_food_service_entries could be used in the future.
+        const entriesToProcess = digitalMenu.food_service_entries;
+
+        const menuItems: MenuItem[] = (entriesToProcess || []).map((entry, index) => {
           const formattedPrice = `$${(entry.price / 100).toFixed(2)}`;
 
           const mediaObjects: MediaObject[] = [];
@@ -77,7 +92,7 @@ export async function fetchMenuInstancesFromBackend(
 
 
             mediaObjects.push({
-              type: 'image', 
+              type: 'image',
               url: imageUrl,
               dataAiHint: hint,
             });
@@ -86,7 +101,6 @@ export async function fetchMenuInstancesFromBackend(
           const dietaryIcons: DietaryIcon[] = [];
           const backendAllergenTagsLower = (entry.allergen_tags || []).map(tag => tag.toLowerCase());
 
-          // Map based on food_category for specific dietary properties
           if (entry.food_category === "Vegan") {
             dietaryIcons.push('vegan');
           }
@@ -97,7 +111,6 @@ export async function fetchMenuInstancesFromBackend(
             dietaryIcons.push('gluten-free');
           }
           
-          // Retain existing logic for "spicy" from allergen_tags, as it's not a formal category/allergen provided
           if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
             dietaryIcons.push('spicy');
           }
@@ -105,7 +118,7 @@ export async function fetchMenuInstancesFromBackend(
           const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
 
           return {
-            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`, // Create a more unique ID
+            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`, 
             name: entry.name,
             description: entry.description,
             price: formattedPrice,
@@ -117,8 +130,11 @@ export async function fetchMenuInstancesFromBackend(
 
         return {
           id: digitalMenu.MenuID,
-          name: digitalMenu.MenuID, 
+          name: digitalMenu.MenuID,
           menu: menuItems,
+          // The fields AllowABTesting, test_food_service_entries, and Analytics 
+          // are parsed from backendDigitalMenus but not directly stored on the 
+          // MenuInstance frontend type yet. They can be used if needed for future features.
         };
       });
       return { success: true, menuInstances: transformedMenuInstances };
@@ -144,4 +160,3 @@ export async function fetchMenuInstancesFromBackend(
     return { success: false, message: detailedErrorMessage };
   }
 }
-
