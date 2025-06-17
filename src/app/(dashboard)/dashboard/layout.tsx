@@ -15,6 +15,7 @@ import {
   SidebarFooter,
   SidebarTrigger,
   SidebarInset,
+  SidebarRail, // Added SidebarRail import
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </Button>
         </SidebarFooter>
       </Sidebar>
+      <SidebarRail /> 
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background px-6 shadow-sm">
             <div className="md:hidden">
@@ -179,3 +181,5 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    

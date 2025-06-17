@@ -4,14 +4,14 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { PanelLeft } from "lucide-react"
+import { PanelLeft, ChevronRight, ChevronLeft } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet" // Added SheetTitle
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet" 
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -291,7 +291,13 @@ const SidebarRail = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button">
 >(({ className, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, open, isMobile } = useSidebar();
+
+  if (isMobile) {
+    return null; // Rail is not for mobile
+  }
+
+  const Icon = open ? ChevronLeft : ChevronRight; // Assuming left sidebar behavior
 
   return (
     <button
@@ -302,17 +308,20 @@ const SidebarRail = React.forwardRef<
       onClick={toggleSidebar}
       title="Toggle Sidebar"
       className={cn(
-        "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex",
-        "[[data-side=left]_&]:cursor-w-resize [[data-side=right]_&]:cursor-e-resize",
-        "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
-        "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full group-data-[collapsible=offcanvas]:hover:bg-sidebar",
-        "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
-        "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
+        "fixed top-1/2 -translate-y-1/2 z-30 flex items-center justify-center",
+        "h-20 w-6 py-3", // Tab dimensions
+        "bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors duration-200 ease-linear",
+        "rounded-r-lg", // Assuming left sidebar, so tab is on the right of the sidebar
+        open
+          ? "left-[var(--sidebar-width)]"  // Position when sidebar is expanded
+          : "left-[var(--sidebar-width-icon)]", // Position when sidebar is collapsed
         className
       )}
       {...props}
-    />
-  )
+    >
+      <Icon className="h-5 w-5" />
+    </button>
+  );
 })
 SidebarRail.displayName = "SidebarRail"
 
@@ -763,3 +772,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
