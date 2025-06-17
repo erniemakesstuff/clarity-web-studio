@@ -32,7 +32,7 @@ export async function getPresignedUploadUrl(
     const requestBody = {
       ownerId: params.ownerId,
       menuId: params.menuId,
-      mediaType: params.mediaType, // Use the specific file type
+      mediaType: params.mediaType, 
       payload: params.payload,
     };
 
@@ -49,8 +49,6 @@ export async function getPresignedUploadUrl(
     if (response.ok) {
       const resultJson = await response.json();
       if (resultJson.mediaURL) {
-        // Assuming mediaURL is the presigned URL client should use for PUT
-        // finalMediaUrl should be the plain S3 URL for later reference (if needed)
         const finalMediaUrl = resultJson.mediaURL.split('?')[0];
         return { success: true, mediaURL: resultJson.mediaURL, finalMediaUrl: finalMediaUrl };
       } else {
@@ -103,40 +101,50 @@ export async function startBackendWorkflow(
     });
 
     if (response.ok) {
-      return { success: true };
+      // Check if the response body is empty or not valid JSON, even on 2xx status
+      const responseText = await response.text();
+      if (!responseText) {
+        return { success: true, message: "Workflow started, but backend returned an empty success response." };
+      }
+      try {
+        // Optionally parse if a specific success JSON is expected
+        // JSON.parse(responseText); 
+        return { success: true };
+      } catch (jsonError) {
+        return { success: true, message: "Workflow started, but backend returned a non-JSON success response." };
+      }
     } else {
       let errorMessage = `Backend API Error (starting workflow): ${response.status} ${response.statusText}.`;
       try {
         const errorData = await response.json();
         errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) { /* Failed to parse error */ }
+      } catch (e) { 
+        const responseText = await response.text();
+        errorMessage += ` Response body: ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}`;
+      }
       return { success: false, message: errorMessage };
     }
   } catch (error: any) {
-    // Simplified error message construction
     return { success: false, message: `Network or unexpected error (starting workflow): ${error.message}` };
   }
 }
 
-// Types matching backend FoodServiceEntry and DigitalMenu for polling response
 interface BackendFoodServiceEntryJson {
   name: string;
   description: string;
-  price: string; // Assuming price is already formatted string, or adjust as needed
-  // Add other fields if returned and needed: food_category, ingredients, allergen_tags etc.
+  price: string; 
 }
 interface BackendDigitalMenuPollResponse {
   OwnerID: string;
   MenuID: string;
   State: DigitalMenuState;
-  FoodServiceEntries?: BackendFoodServiceEntryJson[] | null; // This will contain menu items when "Done"
-  // Include other fields from DigitalMenu struct if needed by frontend during polling
+  FoodServiceEntries?: BackendFoodServiceEntryJson[] | null;
 }
 
 interface PollWorkflowStatusResult {
   success: boolean;
   state?: DigitalMenuState;
-  menuItems?: ExtractedMenuItem[]; // Using ExtractedMenuItem for consistency on client
+  menuItems?: ExtractedMenuItem[];
   message?: string;
 }
 
@@ -145,9 +153,10 @@ export async function pollWorkflowStatus(
   menuId: string,
   jwtToken: string | null
 ): Promise<PollWorkflowStatusResult> {
+  let response: Response;
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${encodeURIComponent(ownerId)}&menuId=${encodeURIComponent(menuId)}`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${encodeURIComponent(ownerId)}&menuId=${encodeURIComponent(menuId)}`, {
       method: "GET",
       headers: {
         "Authorization": authorizationValue,
@@ -155,23 +164,40 @@ export async function pollWorkflowStatus(
       },
     });
 
+    const responseText = await response.text();
+
     if (response.ok) {
-      const data: BackendDigitalMenuPollResponse = await response.json();
-      const extractedItems: ExtractedMenuItem[] = (data.FoodServiceEntries || []).map(entry => ({
-        name: entry.name,
-        description: entry.description,
-        price: entry.price, // Assuming price is a string like "$X.YY"
-      }));
-      return { success: true, state: data.State, menuItems: extractedItems };
+      if (!responseText) {
+        return { success: false, message: "Polling successful, but backend returned an empty response body." };
+      }
+      try {
+        const data: BackendDigitalMenuPollResponse = JSON.parse(responseText);
+        const extractedItems: ExtractedMenuItem[] = (data.FoodServiceEntries || []).map(entry => ({
+          name: entry.name,
+          description: entry.description,
+          price: entry.price, 
+        }));
+        return { success: true, state: data.State, menuItems: extractedItems };
+      } catch (jsonError: any) {
+        return { 
+          success: false, 
+          message: `Polling successful, but failed to parse JSON response: ${jsonError.message}. Response text: ${responseText.substring(0,200)}`
+        };
+      }
     } else {
       let errorMessage = `Backend API Error (polling status): ${response.status} ${response.statusText}.`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) { /* Failed to parse error */ }
+      if (responseText) {
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage += ` Response body: ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}`;
+        }
+      }
       return { success: false, message: errorMessage };
     }
   } catch (error: any) {
      return { success: false, message: `Network or unexpected error (polling status): ${error.message}` };
   }
 }
+
