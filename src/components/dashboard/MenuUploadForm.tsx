@@ -214,8 +214,8 @@ export function MenuUploadForm() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
           <div>
-            <Label htmlFor="menu-image-upload" className="text-base">Add Menu Images</Label>
-            <div className="mt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <Label htmlFor="menu-image-upload" className="text-base">Upload Menu Image(s)</Label>
+            <div className="mt-2 flex items-center gap-4">
               <Input
                 id="menu-image-upload"
                 type="file"
@@ -230,7 +230,6 @@ export function MenuUploadForm() {
                 variant="outline" 
                 onClick={() => setIsCameraActive(prev => !prev)}
                 disabled={isProcessing}
-                className="w-full sm:w-auto flex-shrink-0"
               >
                 <Camera className="mr-2 h-4 w-4" />
                 {isCameraActive ? "Close Camera" : "Open Camera"}
