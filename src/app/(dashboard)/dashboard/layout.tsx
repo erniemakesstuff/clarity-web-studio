@@ -15,12 +15,11 @@ import {
   SidebarFooter,
   SidebarTrigger,
   SidebarInset,
-  SidebarRail, // Added SidebarRail import
+  SidebarRail,
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthRedirect } from "@/hooks/use-auth-redirect";
 import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical, PlusCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -48,28 +47,47 @@ const navItems: NavItem[] = [
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { 
-    isAuthenticated, 
-    isLoading: isAuthLoading, 
+  const {
+    isAuthenticated,
+    isLoading: isAuthLoading,
     logout,
-    menuInstances, 
-    selectedMenuInstance, 
-    selectMenuInstance, 
-    isLoadingMenuInstances 
+    menuInstances,
+    selectedMenuInstance,
+    selectMenuInstance,
+    isLoadingMenuInstances
   } = useAuth();
-  const { isLoading: isRedirecting } = useAuthRedirect(); 
+  // useAuthRedirect hook is not directly used here for the loading state decision,
+  // as its primary role is redirection, which Next.js handles after router.replace.
+  // The isAuthLoading and isAuthenticated states from useAuth are sufficient.
   const pathname = usePathname_();
   const router = useRouter();
 
-  if (isAuthLoading || isRedirecting || isLoadingMenuInstances) {
-    return <div className="flex h-screen items-center justify-center"><p>Loading dashboard...</p></div>;
+  // Handle initial authentication loading and redirection cases first.
+  // These might show a full-page loader or handle redirection.
+  if (isAuthLoading) {
+    return <div className="flex h-screen items-center justify-center"><p>Loading authentication...</p></div>;
   }
 
   if (!isAuthenticated) {
-    // This should ideally be handled by useAuthRedirect, but as a fallback:
+    // This case should ideally be caught by a higher-level redirect mechanism
+    // or route protection. If execution reaches here and not authenticated,
+    // it's often a sign that navigation to a protected route occurred before
+    // authentication status was fully resolved or redirection took effect.
+    // For robustness, explicitly redirect if not authenticated and auth is no longer loading.
+    // Note: Direct router.replace() in render can be problematic.
+    // Consider using a useEffect in a wrapper or relying on middleware/route guards.
+    // For this fix, we assume a redirect will happen if needed, or a login page is shown.
+    // If still rendering, show a message.
+     if (typeof window !== 'undefined') { // Ensure router.replace is client-side
+        router.replace("/signin");
+     }
     return <div className="flex h-screen items-center justify-center"><p>Redirecting to login...</p></div>;
   }
-  
+
+  // If authenticated, render the main dashboard layout.
+  // isLoadingMenuInstances will be handled by showing a Skeleton for the menu dropdown,
+  // without unmounting the main children content.
+
   const pageTitle = navItems.find(item => pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href)))?.label || "Dashboard";
 
   return (
@@ -103,7 +121,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </Button>
         </SidebarFooter>
       </Sidebar>
-      <SidebarRail /> 
+      <SidebarRail />
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background px-6 shadow-sm">
             <div className="md:hidden">
@@ -134,10 +152,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       {menuInstances.length > 0 ? "Switch Menu" : "No Menus Available"}
                     </DropdownMenuLabel>
                     {menuInstances.length > 0 && <DropdownMenuSeparator key="separator-before-menu-items"/>}
-                    {menuInstances.map((menu) => ( 
+                    {menuInstances.map((menu) => (
                       <DropdownMenuItem
                         key={menu.id}
-                        onSelect={() => selectMenuInstance(menu.id)} 
+                        onSelect={() => selectMenuInstance(menu.id)}
                         disabled={selectedMenuInstance?.id === menu.id}
                       >
                         {menu.name}
@@ -181,5 +199,3 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
