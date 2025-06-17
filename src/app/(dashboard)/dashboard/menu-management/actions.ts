@@ -88,9 +88,10 @@ export async function startBackendWorkflow(
   menuId: string,
   jwtToken: string | null
 ): Promise<StartWorkflowResult> {
+  let response: Response;
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    const response = await fetch(`${API_BASE_URL}/ris/v1/menu/start-workflow`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu/start-workflow`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -100,27 +101,30 @@ export async function startBackendWorkflow(
       body: JSON.stringify({ ownerId, menuId }),
     });
 
+    const responseText = await response.text(); // Read response as text first
+
     if (response.ok) {
-      // Check if the response body is empty or not valid JSON, even on 2xx status
-      const responseText = await response.text();
       if (!responseText) {
         return { success: true, message: "Workflow started, but backend returned an empty success response." };
       }
       try {
-        // Optionally parse if a specific success JSON is expected
+        // Optionally parse if a specific success JSON is expected, though not strictly necessary if empty is ok
         // JSON.parse(responseText); 
         return { success: true };
       } catch (jsonError) {
+        // This case might not be reached if empty/non-JSON on OK is fine
         return { success: true, message: "Workflow started, but backend returned a non-JSON success response." };
       }
     } else {
       let errorMessage = `Backend API Error (starting workflow): ${response.status} ${response.statusText}.`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) { 
-        const responseText = await response.text();
-        errorMessage += ` Response body: ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}`;
+      if (responseText) {
+        try {
+          const errorData = JSON.parse(responseText); // Try to parse as JSON error
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) { 
+          // If not JSON, append raw text snippet
+          errorMessage += ` Response body: ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}`;
+        }
       }
       return { success: false, message: errorMessage };
     }
@@ -160,14 +164,15 @@ export async function pollWorkflowStatus(
       method: "GET",
       headers: {
         "Authorization": authorizationValue,
-        "Accept": "application/json",
+        "Accept": "application/json", // We expect JSON
       },
     });
 
-    const responseText = await response.text();
+    const responseText = await response.text(); // Always read as text first
 
     if (response.ok) {
       if (!responseText) {
+        // Empty response body on OK status - might be valid for some states, or an issue.
         return { success: false, message: "Polling successful, but backend returned an empty response body." };
       }
       try {
@@ -179,6 +184,7 @@ export async function pollWorkflowStatus(
         }));
         return { success: true, state: data.State, menuItems: extractedItems };
       } catch (jsonError: any) {
+        // This is where "Unexpected end of JSON input" would be caught if responseText is not valid JSON
         return { 
           success: false, 
           message: `Polling successful, but failed to parse JSON response: ${jsonError.message}. Response text: ${responseText.substring(0,200)}`
@@ -188,15 +194,17 @@ export async function pollWorkflowStatus(
       let errorMessage = `Backend API Error (polling status): ${response.status} ${response.statusText}.`;
       if (responseText) {
         try {
-          const errorData = JSON.parse(responseText);
+          const errorData = JSON.parse(responseText); // Try to parse error as JSON
           errorMessage = errorData.message || errorData.error || errorMessage;
         } catch (e) {
+          // If error response is not JSON, append raw text snippet
           errorMessage += ` Response body: ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}`;
         }
       }
       return { success: false, message: errorMessage };
     }
   } catch (error: any) {
+     // Network errors or other unexpected issues with the fetch itself
      return { success: false, message: `Network or unexpected error (polling status): ${error.message}` };
   }
 }
