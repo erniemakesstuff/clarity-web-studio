@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { extractMenuItems, type ExtractMenuItemsInput, type ExtractMenuItemsOutput } from "@/ai/flows/extract-menu-items";
-import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, Trash2, XCircle } from "lucide-react";
+import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, XCircle } from "lucide-react";
 import type { ExtractedMenuItem } from "@/lib/types";
 import Image from "next/image";
-import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert"; // Renamed to avoid conflict
+import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert"; 
 
 
 interface QueuedItem {
@@ -63,7 +63,7 @@ export function MenuUploadForm() {
 
   useEffect(() => {
     requestCameraPermission();
-    return () => { // Cleanup on unmount or when isCameraActive changes
+    return () => { 
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
@@ -85,7 +85,7 @@ export function MenuUploadForm() {
       setExtractedItems([]);
       setProcessingError(null);
     }
-    event.target.value = ''; // Reset file input
+    event.target.value = ''; 
   };
 
   const handleCapturePhoto = () => {
@@ -123,7 +123,7 @@ export function MenuUploadForm() {
   const handleRemoveQueuedItem = (itemId: string) => {
     const itemToRemove = queuedItems.find(item => item.id === itemId);
     if (itemToRemove) {
-      URL.revokeObjectURL(itemToRemove.previewUrl); // Clean up object URL
+      URL.revokeObjectURL(itemToRemove.previewUrl); 
     }
     setQueuedItems(prev => prev.filter(item => item.id !== itemId));
   };
@@ -161,13 +161,13 @@ export function MenuUploadForm() {
         if (result.menuItems && result.menuItems.length > 0) {
           allExtracted = [...allExtracted, ...result.menuItems];
         } else {
-          // errorsEncountered++; // Not a fatal error, just no items from this image
+          
           console.warn(`No items extracted from ${item.file.name}`);
         }
       } catch (err: any) {
         errorsEncountered++;
         console.error(`Error extracting from ${item.file.name}:`, err);
-        // Individual error display could be added here if needed
+        
       }
     }
     
@@ -195,7 +195,7 @@ export function MenuUploadForm() {
        toast({
         title: "Extraction Complete - No Items Found",
         description: noItemsMsg,
-        variant: "destructive", // Or "default" if this is not strictly an error
+        variant: "destructive", 
       });
     }
   };
@@ -213,26 +213,24 @@ export function MenuUploadForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="menu-image-upload" className="text-base">Upload Menu Image(s)</Label>
+          <div>
+            <Label htmlFor="menu-image-upload" className="text-base">Add Menu Images</Label>
+            <div className="mt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <Input
                 id="menu-image-upload"
                 type="file"
                 accept="image/png, image/jpeg, image/webp"
                 multiple
                 onChange={handleFileChange}
-                className="mt-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                className="flex-grow file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                 disabled={isProcessing || isCameraActive}
               />
-            </div>
-            <div>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setIsCameraActive(prev => !prev)}
                 disabled={isProcessing}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto flex-shrink-0"
               >
                 <Camera className="mr-2 h-4 w-4" />
                 {isCameraActive ? "Close Camera" : "Open Camera"}
@@ -349,4 +347,3 @@ export function MenuUploadForm() {
     </Card>
   );
 }
-
