@@ -51,10 +51,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     isAuthenticated, 
     isLoading: isAuthLoading, 
     logout,
-    menuInstances, // Renamed
-    selectedMenuInstance, // Renamed
-    selectMenuInstance, // Renamed
-    isLoadingMenuInstances // Renamed
+    menuInstances, 
+    selectedMenuInstance, 
+    selectMenuInstance, 
+    isLoadingMenuInstances 
   } = useAuth();
   const { isLoading: isRedirecting } = useAuthRedirect(); 
   const pathname = usePathname_();
@@ -131,18 +131,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     <DropdownMenuLabel>
                       {menuInstances.length > 0 ? "Switch Menu" : "No Menus Available"}
                     </DropdownMenuLabel>
-                    {menuInstances.length > 0 && <DropdownMenuSeparator />}
-                    {menuInstances.map((menu) => ( // Renamed restaurant to menu
+                    {menuInstances.length > 0 && <DropdownMenuSeparator key="separator-before-menu-items"/>}
+                    {menuInstances.map((menu) => ( 
                       <DropdownMenuItem
                         key={menu.id}
-                        onSelect={() => selectMenuInstance(menu.id)} // Renamed
+                        onSelect={() => selectMenuInstance(menu.id)} 
                         disabled={selectedMenuInstance?.id === menu.id}
                       >
                         {menu.name}
                       </DropdownMenuItem>
                     ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => router.push('/dashboard/onboarding/create-restaurant')}>
+                    <DropdownMenuSeparator key="separator-after-menu-items" />
+                    <DropdownMenuItem key="create-new-menu" onSelect={() => router.push('/dashboard/onboarding/create-restaurant')}>
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Create New Menu
                     </DropdownMenuItem>
