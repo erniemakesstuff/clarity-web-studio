@@ -193,7 +193,11 @@ export function MenuUploadForm() {
           throw new Error(presignedUrlResult.message || `Failed to get upload URL for ${item.file.name}`);
         }
         const s3UploadUrl = presignedUrlResult.mediaURL;
-        const finalMediaUrlForAI = presignedUrlResult.finalMediaUrl || s3UploadUrl;
+        
+        // The finalMediaUrl from presignedUrlResult is currently the same as s3UploadUrl (the presigned PUT URL).
+        // For the AI to GET the image, we attempt to use the base URL (without query params).
+        // This assumes the S3 objects are publicly readable after upload.
+        const finalMediaUrlForAI = (presignedUrlResult.finalMediaUrl || s3UploadUrl).split('?')[0];
 
 
         // Stage 2: Upload to S3
