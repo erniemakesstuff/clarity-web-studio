@@ -1,91 +1,202 @@
+
 "use client";
 
-import { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { extractMenuItems, type ExtractMenuItemsInput, type ExtractMenuItemsOutput } from "@/ai/flows/extract-menu-items";
-import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, Trash2, XCircle } from "lucide-react";
 import type { ExtractedMenuItem } from "@/lib/types";
+import Image from "next/image";
+import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert"; // Renamed to avoid conflict
+
+
+interface QueuedItem {
+  id: string;
+  file: File;
+  previewUrl: string;
+  source: 'upload' | 'capture';
+}
 
 export function MenuUploadForm() {
-  const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [extractedItems, setExtractedItems] = useState<ExtractedMenuItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [queuedItems, setQueuedItems] = useState<QueuedItem[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [extractedItems, setExtractedItems] = useState<ExtractedMenuItem[]>([]);
+  const [processingError, setProcessingError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setFile(event.target.files[0]);
-      setExtractedItems(null); // Reset previous results
-      setError(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
+
+
+  const requestCameraPermission = useCallback(async () => {
+    if (isCameraActive) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings to use this feature.',
+        });
+        setIsCameraActive(false); 
+      }
+    } else {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
     }
+  }, [isCameraActive, toast]);
+
+  useEffect(() => {
+    requestCameraPermission();
+    return () => { // Cleanup on unmount or when isCameraActive changes
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [requestCameraPermission]);
+
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files);
+      const newQueuedItems: QueuedItem[] = newFiles.map(file => ({
+        id: `${file.name}-${Date.now()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        source: 'upload',
+      }));
+      setQueuedItems(prev => [...prev, ...newQueuedItems]);
+      setExtractedItems([]);
+      setProcessingError(null);
+    }
+    event.target.value = ''; // Reset file input
+  };
+
+  const handleCapturePhoto = () => {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          if (blob) {
+            const fileName = `capture-${Date.now()}.png`;
+            const capturedFile = new File([blob], fileName, { type: 'image/png' });
+            const newQueuedItem: QueuedItem = {
+              id: fileName,
+              file: capturedFile,
+              previewUrl: URL.createObjectURL(capturedFile),
+              source: 'capture',
+            };
+            setQueuedItems(prev => [...prev, newQueuedItem]);
+          }
+        }, 'image/png');
+      }
+    } else {
+      toast({
+        title: "Camera not ready",
+        description: "Please wait for the camera feed to load before capturing.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleRemoveQueuedItem = (itemId: string) => {
+    const itemToRemove = queuedItems.find(item => item.id === itemId);
+    if (itemToRemove) {
+      URL.revokeObjectURL(itemToRemove.previewUrl); // Clean up object URL
+    }
+    setQueuedItems(prev => prev.filter(item => item.id !== itemId));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!file) {
+    if (queuedItems.length === 0) {
       toast({
-        title: "No file selected",
-        description: "Please select an image of your menu to upload.",
+        title: "No images selected",
+        description: "Please upload or capture at least one menu image.",
         variant: "destructive",
       });
       return;
     }
 
-    setIsUploading(true);
-    setError(null);
-    setExtractedItems(null);
+    setIsProcessing(true);
+    setProcessingError(null);
+    setExtractedItems([]);
+    let allExtracted: ExtractedMenuItem[] = [];
+    let errorsEncountered = 0;
 
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64Image = reader.result as string;
+    for (const item of queuedItems) {
+      try {
+        const reader = new FileReader();
+        const fileReadPromise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (error) => reject(error);
+          reader.readAsDataURL(item.file);
+        });
+
+        const base64Image = await fileReadPromise;
         const input: ExtractMenuItemsInput = { menuImage: base64Image };
         const result: ExtractMenuItemsOutput = await extractMenuItems(input);
         
         if (result.menuItems && result.menuItems.length > 0) {
-          setExtractedItems(result.menuItems);
-          toast({
-            title: "Menu Extracted Successfully!",
-            description: `${result.menuItems.length} items found. Review and save.`,
-            variant: "default",
-            className: "bg-green-500 text-white"
-          });
+          allExtracted = [...allExtracted, ...result.menuItems];
         } else {
-           setError("No menu items could be extracted. Try a clearer image or check the format.");
-           toast({
-            title: "Extraction Issue",
-            description: "No menu items found. Please try a different image.",
-            variant: "destructive",
-          });
+          // errorsEncountered++; // Not a fatal error, just no items from this image
+          console.warn(`No items extracted from ${item.file.name}`);
         }
-      };
-      reader.onerror = (error) => {
-        console.error("Error reading file:", error);
-        setError("Failed to read the image file.");
-        toast({
-          title: "File Read Error",
-          description: "Could not read the selected image file.",
-          variant: "destructive",
-        });
-        setIsUploading(false);
-      };
-    } catch (err: any) {
-      console.error("Error extracting menu items:", err);
-      const errorMessage = err.message || "An unknown error occurred during menu extraction.";
-      setError(`Extraction failed: ${errorMessage}`);
+      } catch (err: any) {
+        errorsEncountered++;
+        console.error(`Error extracting from ${item.file.name}:`, err);
+        // Individual error display could be added here if needed
+      }
+    }
+    
+    setExtractedItems(allExtracted);
+    setIsProcessing(false);
+
+    if (errorsEncountered > 0) {
+      const errorMsg = `Failed to process ${errorsEncountered} out of ${queuedItems.length} images. ${allExtracted.length} items were extracted from the rest.`;
+      setProcessingError(errorMsg);
       toast({
-        title: "Extraction Error",
-        description: `Failed to extract menu items: ${errorMessage}`,
+        title: "Partial Extraction Failure",
+        description: errorMsg,
         variant: "destructive",
       });
-    } finally {
-      setIsUploading(false);
+    } else if (allExtracted.length > 0) {
+      toast({
+        title: "Menu Items Extracted!",
+        description: `${allExtracted.length} items found from ${queuedItems.length} image(s). Review and save.`,
+        variant: "default",
+        className: "bg-green-500 text-white"
+      });
+    } else {
+       const noItemsMsg = "No menu items could be extracted from the provided image(s). Try clearer images or check formats.";
+       setProcessingError(noItemsMsg);
+       toast({
+        title: "Extraction Complete - No Items Found",
+        description: noItemsMsg,
+        variant: "destructive", // Or "default" if this is not strictly an error
+      });
     }
   };
 
@@ -94,46 +205,113 @@ export function MenuUploadForm() {
       <CardHeader>
         <CardTitle className="flex items-center text-2xl">
           <UploadCloud className="mr-3 h-7 w-7 text-primary" />
-          Upload Your Menu
+          Upload or Capture Your Menu
         </CardTitle>
         <CardDescription>
-          Upload an image of your menu (e.g., JPG, PNG). Our AI will extract the items.
+          Upload image(s) of your menu (e.g., JPG, PNG) or take photos. Our AI will extract the items.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
-          <div>
-            <Label htmlFor="menu-image" className="text-base">Menu Image File</Label>
-            <Input
-              id="menu-image"
-              type="file"
-              accept="image/png, image/jpeg, image/webp"
-              onChange={handleFileChange}
-              className="mt-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              disabled={isUploading}
-            />
-            {file && <p className="mt-2 text-sm text-muted-foreground">Selected: {file.name}</p>}
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="menu-image-upload" className="text-base">Upload Menu Image(s)</Label>
+              <Input
+                id="menu-image-upload"
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                multiple
+                onChange={handleFileChange}
+                className="mt-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                disabled={isProcessing || isCameraActive}
+              />
+            </div>
+            <div>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsCameraActive(prev => !prev)}
+                disabled={isProcessing}
+                className="w-full sm:w-auto"
+              >
+                <Camera className="mr-2 h-4 w-4" />
+                {isCameraActive ? "Close Camera" : "Open Camera"}
+              </Button>
+            </div>
           </div>
           
-          {error && (
+          {isCameraActive && (
+            <div className="space-y-4 p-4 border rounded-md bg-secondary/30">
+              <h3 className="text-lg font-medium">Camera Capture</h3>
+              {hasCameraPermission === false && (
+                <Alert variant="destructive">
+                  <AlertTitleUI>Camera Access Denied</AlertTitleUI>
+                  <AlertDescriptionUI>
+                    Please enable camera permissions in your browser settings to use this feature. You may need to refresh the page after granting permission.
+                  </AlertDescriptionUI>
+                </Alert>
+              )}
+              {hasCameraPermission === true && (
+                <>
+                  <div className="relative aspect-video bg-black rounded-md overflow-hidden">
+                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                  </div>
+                  <Button type="button" onClick={handleCapturePhoto} className="w-full sm:w-auto" disabled={!videoRef.current?.srcObject}>
+                    Capture Photo
+                  </Button>
+                </>
+              )}
+               {hasCameraPermission === null && <p className="text-muted-foreground">Requesting camera permission...</p>}
+            </div>
+          )}
+
+          {queuedItems.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Queued Images ({queuedItems.length})</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-96 overflow-y-auto p-2 border rounded-md bg-secondary/10">
+                {queuedItems.map((item) => (
+                  <div key={item.id} className="relative group aspect-square border rounded-md overflow-hidden">
+                    <Image src={item.previewUrl} alt={item.file.name} layout="fill" objectFit="cover" />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemoveQueuedItem(item.id)}
+                        className="h-8 w-8"
+                        aria-label="Remove image"
+                      >
+                        <XCircle className="h-5 w-5" />
+                      </Button>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 truncate">
+                      {item.file.name} ({item.source})
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {processingError && (
             <div className="p-3 rounded-md bg-destructive/10 text-destructive flex items-start">
               <AlertTriangle className="h-5 w-5 mr-2 shrink-0"/> 
-              <p className="text-sm">{error}</p>
+              <p className="text-sm">{processingError}</p>
             </div>
           )}
 
         </CardContent>
         <CardFooter className="border-t pt-6">
-          <Button type="submit" disabled={isUploading || !file} className="w-full sm:w-auto">
-            {isUploading ? (
+          <Button type="submit" disabled={isProcessing || queuedItems.length === 0} className="w-full sm:w-auto">
+            {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Extracting...
+                Extracting ({queuedItems.length} images)...
               </>
             ) : (
               <>
                 <FileText className="mr-2 h-4 w-4" />
-                Extract Menu Items
+                Extract Items from {queuedItems.length} Image(s)
               </>
             )}
           </Button>
@@ -148,7 +326,7 @@ export function MenuUploadForm() {
           </h3>
           <div className="max-h-96 overflow-y-auto space-y-3 pr-2 rounded-md border p-4 bg-secondary/30">
             {extractedItems.map((item, index) => (
-              <Card key={index} className="bg-background shadow-sm">
+              <Card key={`${item.name}-${index}`} className="bg-background shadow-sm">
                 <CardContent className="p-3">
                   <p className="font-semibold text-base text-primary">{item.name}</p>
                   <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
@@ -162,6 +340,13 @@ export function MenuUploadForm() {
           </Button>
         </div>
       )}
+       {isProcessing && queuedItems.length === 0 && !processingError && (
+         <div className="p-6 border-t text-center text-muted-foreground">
+           <Loader2 className="mx-auto h-8 w-8 animate-spin mb-2" />
+           <p>Preparing to process...</p>
+         </div>
+       )}
     </Card>
   );
 }
+
