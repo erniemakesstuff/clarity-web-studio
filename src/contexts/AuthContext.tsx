@@ -4,25 +4,28 @@
 import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type { MenuInstance } from "@/lib/types";
+import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock menu instance data
-const mockMenuInstances: MenuInstance[] = [
-  { id: "clara-kitchen-menu", name: "Clara's Kitchen Menu", menu: [] },
-  { id: "daily-grind-menu", name: "The Daily Grind Cafe Menu", menu: [] },
-  { id: "spice-route-menu", name: "Spice Route Eatery Menu", menu: [] },
-];
+
+const MENU_INSTANCES_LS_KEY = "clarityMenuUserMenuInstances";
+const MENU_INSTANCES_TIMESTAMP_LS_KEY = "clarityMenuMenuInstancesTimestamp";
+const SELECTED_MENU_INSTANCE_LS_KEY = "clarityMenuSelectedMenuInstance";
+const AUTH_STATUS_LS_KEY = "clarityMenuAuth";
+const JWT_TOKEN_LS_KEY = "clarityMenuJwtToken";
+const MENU_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  jwtToken: string | null; // Added for JWT token
+  jwtToken: string | null;
   login: () => void;
   logout: () => void;
   menuInstances: MenuInstance[];
   selectedMenuInstance: MenuInstance | null;
   selectMenuInstance: (menuId: string) => void;
-  addMenuInstance: (name: string) => MenuInstance;
-  renameMenuInstance: (menuId: string, newName: string) => boolean;
+  addMenuInstance: (name: string) => MenuInstance; // This will update local cache, backend sync is separate
+  renameMenuInstance: (menuId: string, newName: string) => boolean; // This will update local cache
   isLoadingMenuInstances: boolean;
 }
 
@@ -31,122 +34,162 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [jwtToken, setJwtToken] = useState<string | null>(null); // Added
+  const [jwtToken, setJwtToken] = useState<string | null>(null);
 
   const [menuInstances, setMenuInstances] = useState<MenuInstance[]>([]);
   const [selectedMenuInstance, setSelectedMenuInstance] = useState<MenuInstance | null>(null);
   const [isLoadingMenuInstances, setIsLoadingMenuInstances] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const storedAuthStatus = localStorage.getItem("clarityMenuAuth");
-    const storedJwtToken = localStorage.getItem("clarityMenuJwtToken"); // Added
+    const storedAuthStatus = localStorage.getItem(AUTH_STATUS_LS_KEY);
+    const storedJwtToken = localStorage.getItem(JWT_TOKEN_LS_KEY);
     if (storedAuthStatus === "true") {
       setIsAuthenticated(true);
-      setJwtToken(storedJwtToken); // Added
+      setJwtToken(storedJwtToken);
     }
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      setIsLoadingMenuInstances(true);
-      setTimeout(() => {
-        const storedMenuInstances = localStorage.getItem("clarityMenuUserMenuInstances");
-        let initialMenuInstances: MenuInstance[];
-        if (storedMenuInstances) {
-          initialMenuInstances = JSON.parse(storedMenuInstances);
-        } else {
-          initialMenuInstances = [...mockMenuInstances];
-          localStorage.setItem("clarityMenuUserMenuInstances", JSON.stringify(initialMenuInstances));
-        }
-        setMenuInstances(initialMenuInstances);
+    const loadMenuData = async () => {
+      if (!isAuthenticated) {
+        setMenuInstances([]);
+        setSelectedMenuInstance(null);
+        setIsLoadingMenuInstances(false);
+        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+        localStorage.removeItem(MENU_INSTANCES_LS_KEY);
+        localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
+        localStorage.removeItem(JWT_TOKEN_LS_KEY);
+        setJwtToken(null);
+        return;
+      }
 
-        if (initialMenuInstances.length > 0) {
-          const storedMenuInstanceId = localStorage.getItem("clarityMenuSelectedMenuInstance");
-          const foundMenuInstance = initialMenuInstances.find(m => m.id === storedMenuInstanceId);
-          setSelectedMenuInstance(foundMenuInstance || initialMenuInstances[0]);
+      setIsLoadingMenuInstances(true);
+      const ownerId = "admin@example.com"; // Mock ownerId, replace with actual user identifier
+      
+      const cachedTimestampStr = localStorage.getItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
+      const cachedInstancesStr = localStorage.getItem(MENU_INSTANCES_LS_KEY);
+      const cachedTimestamp = cachedTimestampStr ? parseInt(cachedTimestampStr, 10) : null;
+
+      if (cachedTimestamp && cachedInstancesStr && (Date.now() - cachedTimestamp < MENU_CACHE_TTL)) {
+        try {
+          const parsedInstances: MenuInstance[] = JSON.parse(cachedInstancesStr);
+          setMenuInstances(parsedInstances);
+          const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
+          const foundMenuInstance = parsedInstances.find(m => m.id === storedMenuInstanceId);
+          setSelectedMenuInstance(foundMenuInstance || (parsedInstances.length > 0 ? parsedInstances[0] : null));
+          setIsLoadingMenuInstances(false);
+          return; // Exit if valid cache is used
+        } catch (e) {
+          console.error("Failed to parse cached menu instances:", e);
+          // Proceed to fetch if cache is invalid
+        }
+      }
+      
+      // Fetch from backend if no valid cache
+      const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
+
+      if (result.success && result.menuInstances) {
+        setMenuInstances(result.menuInstances);
+        localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(result.menuInstances));
+        localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
+
+        if (result.menuInstances.length > 0) {
+          const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
+          const foundMenuInstance = result.menuInstances.find(m => m.id === storedMenuInstanceId);
+          const newSelected = foundMenuInstance || result.menuInstances[0];
+          setSelectedMenuInstance(newSelected);
+          localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newSelected.id);
         } else {
           setSelectedMenuInstance(null);
+          localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
         }
-        setIsLoadingMenuInstances(false);
-      }, 500);
-    } else {
-      setMenuInstances([]);
-      setSelectedMenuInstance(null);
+      } else {
+        toast({
+          title: "Error Fetching Menus",
+          description: result.message || "Could not load your menus from the server.",
+          variant: "destructive",
+        });
+        setMenuInstances([]); // Clear menus on fetch error
+        setSelectedMenuInstance(null);
+        localStorage.removeItem(MENU_INSTANCES_LS_KEY); // Clear potentially stale cache
+        localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
+        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+      }
       setIsLoadingMenuInstances(false);
-      localStorage.removeItem("clarityMenuSelectedMenuInstance");
-      localStorage.removeItem("clarityMenuUserMenuInstances");
-      localStorage.removeItem("clarityMenuJwtToken"); // Added
-      setJwtToken(null); // Added
-    }
-  }, [isAuthenticated]);
+    };
+
+    loadMenuData();
+  }, [isAuthenticated, jwtToken, toast]);
 
   const login = () => {
-    const mockToken = "mock-jwt-for-admin@example.com-" + Date.now(); // Create a mock token
+    const mockTokenValue = "mock-jwt-for-admin@example.com-" + Date.now();
     setIsAuthenticated(true);
-    setJwtToken(mockToken);
-    localStorage.setItem("clarityMenuAuth", "true");
-    localStorage.setItem("clarityMenuJwtToken", mockToken); // Store mock token
+    setJwtToken(mockTokenValue);
+    localStorage.setItem(AUTH_STATUS_LS_KEY, "true");
+    localStorage.setItem(JWT_TOKEN_LS_KEY, mockTokenValue);
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     setJwtToken(null);
-    localStorage.removeItem("clarityMenuAuth");
-    localStorage.removeItem("clarityMenuSelectedMenuInstance");
-    localStorage.removeItem("clarityMenuUserMenuInstances");
-    localStorage.removeItem("clarityMenuJwtToken"); // Clear mock token
-    setMenuInstances([]);
-    setSelectedMenuInstance(null);
+    // Clearing menu data is handled by the useEffect watching isAuthenticated
   };
 
   const selectMenuInstance = (menuId: string) => {
     const menuInstance = menuInstances.find(m => m.id === menuId);
     if (menuInstance) {
       setSelectedMenuInstance(menuInstance);
-      localStorage.setItem("clarityMenuSelectedMenuInstance", menuInstance.id);
+      localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, menuInstance.id);
     }
   };
 
   const addMenuInstance = (name: string): MenuInstance => {
+    // This function primarily updates local state and cache.
+    // A separate backend call is made in the create-restaurant page.
     const newMenuInstance: MenuInstance = {
-      id: name.toLowerCase().replace(/\s+/g, '-') + '-menu-' + Date.now(),
+      id: name.toLowerCase().replace(/\s+/g, '-') + '-menu-' + Date.now(), // Ensure unique ID for local
       name: name,
       menu: [],
     };
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
     setSelectedMenuInstance(newMenuInstance);
-    localStorage.setItem("clarityMenuUserMenuInstances", JSON.stringify(updatedMenuInstances));
-    localStorage.setItem("clarityMenuSelectedMenuInstance", newMenuInstance.id);
+    // Update local storage cache immediately
+    localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
+    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); // Invalidate old cache
+    localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newMenuInstance.id);
     return newMenuInstance;
   };
 
   const renameMenuInstance = (menuId: string, newName: string): boolean => {
+    // This function primarily updates local state and cache.
+    // Backend sync for rename would need a separate server action.
     let success = false;
-    setMenuInstances(prevMenuInstances => {
-      const updatedMenuInstances = prevMenuInstances.map(m =>
-        m.id === menuId ? { ...m, name: newName } : m
-      );
-      if (JSON.stringify(updatedMenuInstances) !== JSON.stringify(prevMenuInstances)) {
-        localStorage.setItem("clarityMenuUserMenuInstances", JSON.stringify(updatedMenuInstances));
-        success = true;
-      }
-      return updatedMenuInstances;
-    });
+    const updatedMenuInstances = menuInstances.map(m =>
+      m.id === menuId ? { ...m, name: newName } : m
+    );
+    
+    if (JSON.stringify(updatedMenuInstances) !== JSON.stringify(menuInstances)) {
+      setMenuInstances(updatedMenuInstances);
+      localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
+      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); // Invalidate old cache
+      success = true;
+    }
 
     if (selectedMenuInstance?.id === menuId) {
-      setSelectedMenuInstance(prevSelected => prevSelected ? { ...prevSelected, name: newName } : null);
+      const newSelected = updatedMenuInstances.find(m => m.id === menuId);
+      setSelectedMenuInstance(newSelected || null);
     }
     return success;
   };
-
 
   return (
     <AuthContext.Provider value={{
       isAuthenticated,
       isLoading,
-      jwtToken, // Added
+      jwtToken,
       login,
       logout,
       menuInstances,
