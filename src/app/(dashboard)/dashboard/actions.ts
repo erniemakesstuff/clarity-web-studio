@@ -10,13 +10,13 @@ interface BackendFoodServiceEntryJson {
   food_category: string;
   name: string;
   description: string;
-  ingredients: string; // Available from backend, not currently in frontend MenuItem
+  ingredients: string; 
   allergen_tags: string[];
   source_media_blob_ref?: string;
   visual_description?: string;
   generated_blob_media_ref?: string;
-  you_may_also_like: string[]; // Available, not currently in frontend MenuItem
-  display_order: number; // Available, not currently in frontend MenuItem
+  you_may_also_like: string[]; 
+  display_order: number; 
   price: number; // Assuming cents
 }
 
@@ -59,10 +59,8 @@ export async function fetchMenuInstancesFromBackend(
       
       const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map(digitalMenu => {
         const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, index) => {
-          // Price formatting (assuming price is in cents)
           const formattedPrice = `$${(entry.price / 100).toFixed(2)}`;
 
-          // Media object
           const mediaObjects: MediaObject[] = [];
           const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
           if (imageUrl) {
@@ -79,26 +77,35 @@ export async function fetchMenuInstancesFromBackend(
 
 
             mediaObjects.push({
-              type: 'image', // Assuming image type for now
+              type: 'image', 
               url: imageUrl,
               dataAiHint: hint,
             });
           }
 
-          // Dietary icons mapping
           const dietaryIcons: DietaryIcon[] = [];
-          const tagsLower = (entry.allergen_tags || []).map(tag => tag.toLowerCase());
+          const backendAllergenTagsLower = (entry.allergen_tags || []).map(tag => tag.toLowerCase());
+
+          // Map based on food_category for specific dietary properties
+          if (entry.food_category === "Vegan") {
+            dietaryIcons.push('vegan');
+          }
+          if (entry.food_category === "Vegetarian") {
+            dietaryIcons.push('vegetarian');
+          }
+          if (entry.food_category === "Gluten Free") {
+            dietaryIcons.push('gluten-free');
+          }
           
-          if (tagsLower.some(tag => tag.includes('vegetarian'))) dietaryIcons.push('vegetarian');
-          if (tagsLower.some(tag => tag.includes('vegan'))) dietaryIcons.push('vegan');
-          if (tagsLower.some(tag => tag.includes('gluten-free') || tag.includes('gluten free'))) dietaryIcons.push('gluten-free');
-          if (tagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) dietaryIcons.push('spicy');
+          // Retain existing logic for "spicy" from allergen_tags, as it's not a formal category/allergen provided
+          if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
+            dietaryIcons.push('spicy');
+          }
           
-          // Ensure unique icons
           const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
 
           return {
-            id: `${entry.name.replace(/\s+/g, '-')}-${index}`, // Create a unique ID for MenuItem
+            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`, // Create a more unique ID
             name: entry.name,
             description: entry.description,
             price: formattedPrice,
@@ -110,7 +117,7 @@ export async function fetchMenuInstancesFromBackend(
 
         return {
           id: digitalMenu.MenuID,
-          name: digitalMenu.MenuID, // Use MenuID as name by default
+          name: digitalMenu.MenuID, 
           menu: menuItems,
         };
       });
@@ -137,3 +144,4 @@ export async function fetchMenuInstancesFromBackend(
     return { success: false, message: detailedErrorMessage };
   }
 }
+
