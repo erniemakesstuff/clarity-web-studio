@@ -185,7 +185,7 @@ export function MenuUploadForm() {
         });
 
         const presignedUrlResult = await getPresignedUploadUrl(
-          { ownerId, menuId, mediaType: item.file.type, payload: base64Image },
+          { ownerId, menuId, mediaType: "image", payload: base64Image }, // Changed item.file.type to "image"
           jwtToken
         );
 
@@ -202,7 +202,7 @@ export function MenuUploadForm() {
 
         const s3Response = await fetch(s3UploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': item.file.type },
+          headers: { 'Content-Type': item.file.type }, // Keep original MIME type for S3 PUT
           body: item.file,
         });
 
