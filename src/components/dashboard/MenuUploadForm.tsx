@@ -21,15 +21,15 @@ interface QueuedItem {
   file: File;
   previewUrl: string;
   source: 'upload' | 'capture';
-  base64?: string; 
-  s3UploadUrl?: string; 
-  finalMediaUrl?: string; 
+  base64?: string;
+  s3UploadUrl?: string;
+  finalMediaUrl?: string;
   uploadSuccess?: boolean;
 }
 
 const MAX_CONCURRENT_UPLOADS = 3;
-const POLLING_INTERVAL_MS = 10000; 
-const POLLING_TIMEOUT_MS = 5 * 60 * 1000; 
+const POLLING_INTERVAL_MS = 10000;
+const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
 
 export function MenuUploadForm() {
   const [queuedItems, setQueuedItems] = useState<QueuedItem[]>([]);
@@ -50,6 +50,19 @@ export function MenuUploadForm() {
   const canvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (selectedMenuInstance && selectedMenuInstance.s3ContextImageUrls && selectedMenuInstance.s3ContextImageUrls.length > 0 && !isProcessing && workflowOutcome === null) {
+      setProcessedImageUrls(selectedMenuInstance.s3ContextImageUrls);
+      // Optionally, you might want to set a default success message or outcome if showing pre-processed images
+      // setProgressMessage("Displaying previously processed images.");
+      // setWorkflowOutcome('success'); // Or a new state like 'preloaded'
+      // setCurrentProgress(100);
+    } else if (!selectedMenuInstance?.s3ContextImageUrls && !isProcessing && workflowOutcome === null) {
+      // Clear if no context images and not processing
+      setProcessedImageUrls([]);
+    }
+  }, [selectedMenuInstance, isProcessing, workflowOutcome]);
 
 
   const requestCameraPermission = useCallback(async () => {
@@ -104,7 +117,7 @@ export function MenuUploadForm() {
       setExtractedItems([]);
       setProcessingError(null);
       setWorkflowOutcome(null);
-      setProcessedImageUrls([]);
+      setProcessedImageUrls([]); // Clear previous images when new files are selected
       setCurrentProgress(0);
       setProgressMessage("");
       if (newFiles.length > 5) {
@@ -136,7 +149,7 @@ export function MenuUploadForm() {
             if (queuedItems.length < 5) {
               setQueuedItems(prev => [...prev, newQueuedItem]);
               setWorkflowOutcome(null);
-              setProcessedImageUrls([]);
+              setProcessedImageUrls([]); // Clear previous images
               setCurrentProgress(0);
               setProgressMessage("");
             } else {
@@ -170,41 +183,36 @@ export function MenuUploadForm() {
   },[]);
 
   const doPollWorkflowStatus = useCallback(async (ownerId: string, menuId: string): Promise<boolean> => {
-    // This function now returns a boolean: true to continue polling, false to stop.
-    setProgressMessage("Checking workflow status...");
     const pollResult = await pollWorkflowStatusAction(ownerId, menuId, jwtToken);
 
     if (!pollResult.success) {
       setProcessingError(pollResult.message || "Failed to get workflow status.");
       toast({ title: "Polling Error", description: pollResult.message, variant: "destructive" });
       cleanupPolling();
-      setIsProcessing(false); 
+      setIsProcessing(false);
       setWorkflowOutcome('failure');
       setCurrentProgress(100);
-      return false; // Stop polling
+      return false;
     }
 
     const backendState = pollResult.state || "Unknown";
-    // Don't set progressMessage here if it's a terminal state, it will be handled by the JSX
-    // For non-terminal states, update progressMessage and currentProgress.
-    
+
     switch (backendState) {
       case "New":
       case "WaitingForInitialContext":
         setCurrentProgress(60);
         setProgressMessage("Workflow started, waiting for context...");
-        return true; // Continue polling
+        return true;
       case "Preparing":
         setCurrentProgress(70);
         setProgressMessage("Backend preparing menu data...");
-        return true; // Continue polling
+        return true;
       case "Generating":
         setCurrentProgress(85);
         setProgressMessage("AI extracting items from images...");
-        return true; // Continue polling
+        return true;
       case "Done":
         setCurrentProgress(100);
-        // setProgressMessage("Extraction complete!"); // Message handled by JSX based on outcome
         setExtractedItems(pollResult.menuItems || []);
         setProcessedImageUrls(pollResult.s3ContextImageUrls || []);
         toast({
@@ -216,20 +224,18 @@ export function MenuUploadForm() {
         setIsProcessing(false);
         setWorkflowOutcome('success');
         refreshMenuInstances();
-        return false; // Stop polling
+        return false;
       case "Failed":
-        // setProgressMessage("Backend workflow failed."); // Message handled by JSX based on outcome
+        setCurrentProgress(100);
         setProcessingError(pollResult.message || "Backend workflow failed to process the menu.");
         toast({ title: "Workflow Failed", description: pollResult.message || "The backend failed to process your menu.", variant: "destructive" });
         cleanupPolling();
         setIsProcessing(false);
-        setCurrentProgress(100); 
         setWorkflowOutcome('failure');
-        return false; // Stop polling
+        return false;
       default:
-        // For any other intermediate or unknown state, keep polling
         setProgressMessage(`Monitoring workflow (State: ${backendState})...`);
-        return true; // Continue polling
+        return true;
     }
   }, [jwtToken, toast, cleanupPolling, refreshMenuInstances]);
 
@@ -248,12 +254,12 @@ export function MenuUploadForm() {
     setIsProcessing(true);
     setProcessingError(null);
     setExtractedItems([]);
-    setWorkflowOutcome(null); 
-    setProcessedImageUrls([]);
+    setWorkflowOutcome(null);
+    setProcessedImageUrls([]); // Clear any previously displayed context images for the new workflow
     setCurrentProgress(0);
     setProgressMessage("Starting process...");
 
-    const ownerId = "admin@example.com"; 
+    const ownerId = "admin@example.com";
     const menuId = selectedMenuInstance.id;
     const itemsToProcess: QueuedItem[] = [];
 
@@ -270,16 +276,16 @@ export function MenuUploadForm() {
         item.base64 = base64;
 
         const presignedResult = await getPresignedUploadUrl(
-          { ownerId, menuId, mediaType: item.file.type, payload: base64 }, // ensure mediaType is item.file.type
+          { ownerId, menuId, mediaType: item.file.type, payload: base64 },
           jwtToken
         );
         if (!presignedResult.success || !presignedResult.mediaURL) {
           throw new Error(presignedResult.message || `Failed to get upload URL for ${item.file.name}`);
         }
         item.s3UploadUrl = presignedResult.mediaURL;
-        item.finalMediaUrl = presignedResult.finalMediaUrl; 
+        item.finalMediaUrl = presignedResult.finalMediaUrl;
         itemsToProcess.push(item);
-        setCurrentProgress(Math.round(10 + ( (i + 1) / queuedItems.length) * 10)); 
+        setCurrentProgress(Math.round(10 + ( (i + 1) / queuedItems.length) * 10));
       } catch (err: any) {
         setProcessingError(`Error preparing ${item.file.name}: ${err.message}`);
         toast({ title: `Preparation Error`, description: err.message, variant: "destructive" });
@@ -289,7 +295,7 @@ export function MenuUploadForm() {
         return;
       }
     }
-    
+
     setProgressMessage("Starting backend workflow & S3 uploads (2/4 & 3/4)...");
     setCurrentProgress(20);
 
@@ -313,7 +319,7 @@ export function MenuUploadForm() {
 
     let uploadsCompletedCount = 0;
     const s3UploadPromises = itemsToProcess.map(item => async () => {
-      if (!item.s3UploadUrl) return; 
+      if (!item.s3UploadUrl) return;
       try {
         const s3Response = await fetch(item.s3UploadUrl, {
           method: 'PUT',
@@ -340,10 +346,10 @@ export function MenuUploadForm() {
       });
       activeUploads.push(promise);
       if (activeUploads.length >= MAX_CONCURRENT_UPLOADS) {
-        await Promise.race(activeUploads); 
+        await Promise.race(activeUploads);
       }
     }
-    await Promise.all(activeUploads); 
+    await Promise.all(activeUploads);
 
     const successfulUploadsCount = itemsToProcess.filter(item => item.uploadSuccess).length;
     if (successfulUploadsCount === 0 && itemsToProcess.length > 0) {
@@ -362,22 +368,21 @@ export function MenuUploadForm() {
     setCurrentProgress(50);
 
     if (workflowStartedSuccessfully && successfulUploadsCount > 0) {
-      cleanupPolling(); 
+      cleanupPolling();
 
-      let shouldContinuePolling = await doPollWorkflowStatus(ownerId, menuId); 
-      
-      if (shouldContinuePolling) { 
+      let shouldContinuePolling = await doPollWorkflowStatus(ownerId, menuId);
+
+      if (shouldContinuePolling) {
         pollingIntervalRef.current = setInterval(async () => {
           const continuePollingAfterInterval = await doPollWorkflowStatus(ownerId, menuId);
           if (!continuePollingAfterInterval) {
-            cleanupPolling(); 
+            cleanupPolling();
           }
         }, POLLING_INTERVAL_MS);
-        
+
         pollingTimeoutRef.current = setTimeout(() => {
-          if (pollingIntervalRef.current) { 
+          if (pollingIntervalRef.current) {
              cleanupPolling();
-             // Only update to failure if not already resolved to success or a more specific failure
              if (workflowOutcome !== 'success' && workflowOutcome !== 'failure') {
                 setProcessingError("Workflow polling timed out. Please check status later or refresh.");
                 toast({ title: "Polling Timeout", description: "Workflow took too long to respond.", variant: "destructive" });
@@ -395,16 +400,21 @@ export function MenuUploadForm() {
       setCurrentProgress(100);
     }
   };
-  
+
   const progressIndicatorClass = cn(
     "h-full w-full flex-1 transition-all",
     {
-      "bg-primary": workflowOutcome === null && isProcessing, 
-      "bg-green-500": workflowOutcome === 'success', 
-      "bg-destructive": workflowOutcome === 'failure', 
+      "bg-primary": workflowOutcome === null && isProcessing,
+      "bg-green-500": workflowOutcome === 'success',
+      "bg-destructive": workflowOutcome === 'failure',
     }
   );
 
+  const displayedProgressMessage = () => {
+    if (workflowOutcome === 'success' && !isProcessing) return "Extraction complete!";
+    if (workflowOutcome === 'failure' && !isProcessing) return processingError || "Workflow failed.";
+    return progressMessage || "Processing...";
+  };
 
   return (
     <Card className="w-full shadow-lg">
@@ -498,7 +508,7 @@ export function MenuUploadForm() {
               </div>
             </div>
           )}
-          
+
           {(isProcessing || workflowOutcome) && (
             <div className="space-y-2">
                <Progress value={currentProgress} className="w-full" indicatorClassName={progressIndicatorClass} />
@@ -506,25 +516,10 @@ export function MenuUploadForm() {
                 {isProcessing && workflowOutcome === null && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {workflowOutcome === 'success' && !isProcessing && <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
                 {workflowOutcome === 'failure' && !isProcessing && <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />}
-                
-                {workflowOutcome === 'success' && !isProcessing
-                  ? "Extraction complete!" 
-                  : workflowOutcome === 'failure' && !isProcessing
-                  ? (processingError || "Workflow failed.")
-                  : progressMessage || "Processing..."
-                }
+                {displayedProgressMessage()}
               </p>
             </div>
           )}
-
-
-          {/* This specific error display is now handled by the text above if workflowOutcome is 'failure' */}
-          {/* {processingError && workflowOutcome === 'failure' && ( 
-            <div className="p-3 rounded-md bg-destructive/10 text-destructive flex items-start">
-              <AlertTriangle className="h-5 w-5 mr-2 shrink-0" />
-              <p className="text-sm whitespace-pre-line">{processingError}</p>
-            </div>
-          )} */}
 
         </CardContent>
         <CardFooter className="border-t pt-6">
@@ -553,12 +548,12 @@ export function MenuUploadForm() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-96 overflow-y-auto p-2 border rounded-md bg-secondary/10">
             {processedImageUrls.map((url, index) => (
               <div key={`${url}-${index}`} className="relative aspect-square border rounded-md overflow-hidden">
-                <Image 
-                  src={url} 
-                  alt={`Processed image ${index + 1}`} 
-                  layout="fill" 
-                  objectFit="cover" 
-                  data-ai-hint="menu page" 
+                <Image
+                  src={url}
+                  alt={`Processed image ${index + 1}`}
+                  layout="fill"
+                  objectFit="cover"
+                  data-ai-hint="menu page"
                 />
               </div>
             ))}
@@ -589,21 +584,40 @@ export function MenuUploadForm() {
           </Button>
         </div>
       )}
-       {/* Message for "Done" but no items/images */}
        {workflowOutcome === 'success' && !isProcessing && extractedItems.length === 0 && processedImageUrls.length === 0 && (
           <div className="p-6 border-t text-center text-muted-foreground">
             <CheckCircle className="mx-auto h-8 w-8 mb-2 text-green-500" />
             <p>Workflow completed successfully, but no menu items were extracted and no processed images were returned by the backend.</p>
           </div>
        )}
-       {/* Message for still processing and state is "Done" but extractedItems is empty (edge case if UI updates slowly) */}
        {isProcessing && progressMessage.includes("Done") && extractedItems.length === 0 && workflowOutcome !== 'failure' && (
          <div className="p-6 border-t text-center text-muted-foreground">
             <Clock className="mx-auto h-8 w-8 mb-2" />
             <p>Workflow completed, finalizing results...</p>
          </div>
        )}
+       {/* Display pre-existing context images if no active workflow and images exist */}
+        {!isProcessing && workflowOutcome === null && processedImageUrls.length > 0 && (
+          <div className="p-6 border-t">
+            <h3 className="text-xl font-semibold mb-4 flex items-center">
+              <ImageIcon className="h-6 w-6 mr-2 text-primary" />
+              Previously Processed Menu Images
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-96 overflow-y-auto p-2 border rounded-md bg-secondary/10">
+              {processedImageUrls.map((url, index) => (
+                <div key={`${url}-${index}-context`} className="relative aspect-square border rounded-md overflow-hidden">
+                  <Image
+                    src={url}
+                    alt={`Previously processed image ${index + 1}`}
+                    layout="fill"
+                    objectFit="cover"
+                    data-ai-hint="menu page"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
     </Card>
   );
 }
-

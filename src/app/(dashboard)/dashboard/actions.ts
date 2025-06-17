@@ -4,6 +4,7 @@
 import type { MenuInstance, MenuItem, MediaObject, DietaryIcon } from '@/lib/types';
 
 const API_BASE_URL = "https://api.bityfan.com";
+const S3_BUCKET_BASE_URL = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/";
 
 // Interfaces matching the backend JSON structure
 interface BackendFoodServiceEntryJson {
@@ -32,10 +33,10 @@ interface BackendDigitalMenuJson {
   OwnerID: string;
   MenuID: string;
   // Reason: string;
-  // State: string; 
-  // ContextS3MediaUrls: string;
+  // State: string;
+  ContextS3MediaUrls?: string | null; // CSV string of S3 object keys
   // ContextMediaText: string;
-  // CreatedAt: string; 
+  // CreatedAt: string;
   // UpdatedAt: string;
   food_service_entries: BackendFoodServiceEntryJson[] | null;
   test_food_service_entries?: BackendFoodServiceEntryJson[] | null; // for A/B testing
@@ -69,8 +70,6 @@ export async function fetchMenuInstancesFromBackend(
       const backendDigitalMenus: BackendDigitalMenuJson[] = await response.json();
       
       const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map(digitalMenu => {
-        // For now, we use food_service_entries. If AllowABTesting is true, 
-        // test_food_service_entries could be used in the future.
         const entriesToProcess = digitalMenu.food_service_entries;
 
         const menuItems: MenuItem[] = (entriesToProcess || []).map((entry, index) => {
@@ -118,7 +117,7 @@ export async function fetchMenuInstancesFromBackend(
           const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
 
           return {
-            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`, 
+            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`,
             name: entry.name,
             description: entry.description,
             price: formattedPrice,
@@ -128,13 +127,17 @@ export async function fetchMenuInstancesFromBackend(
           };
         });
 
+        let s3ContextImageUrls: string[] = [];
+        if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
+          const s3Keys = digitalMenu.ContextS3MediaUrls.split(',').map(key => key.trim()).filter(key => key.length > 0);
+          s3ContextImageUrls = s3Keys.map(key => `${S3_BUCKET_BASE_URL}${key}`);
+        }
+
         return {
           id: digitalMenu.MenuID,
           name: digitalMenu.MenuID,
           menu: menuItems,
-          // The fields AllowABTesting, test_food_service_entries, and Analytics 
-          // are parsed from backendDigitalMenus but not directly stored on the 
-          // MenuInstance frontend type yet. They can be used if needed for future features.
+          s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances };

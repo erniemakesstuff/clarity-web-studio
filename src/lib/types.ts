@@ -27,6 +27,7 @@ export interface MenuInstance {
   id: string;
   name: string;
   menu: MenuItem[]; // This 'menu' field refers to the list of MenuItem objects
+  s3ContextImageUrls?: string[]; // URLs of the context images used to process this menu
 }
 
 // For AI extracted items before they are fully processed OR items returned by backend
@@ -51,7 +52,7 @@ export interface BackendDigitalMenuPollResponse {
   OwnerID: string;
   MenuID: string;
   State: DigitalMenuState;
-  FoodServiceEntries?: ExtractedMenuItem[] | null; 
+  FoodServiceEntries?: ExtractedMenuItem[] | null;
   ContextS3MediaUrls?: string | null; // Changed from string[] to string, as it's a CSV
 }
 
