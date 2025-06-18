@@ -22,14 +22,6 @@ export interface MenuItem extends MenuItemCore {
 
 export type DietaryIcon = "vegetarian" | "vegan" | "gluten-free" | "spicy";
 
-// Renamed from Restaurant to MenuInstance
-export interface MenuInstance {
-  id: string;
-  name: string;
-  menu: MenuItem[]; // This 'menu' field refers to the list of MenuItem objects
-  s3ContextImageUrls?: string[]; // URLs of the context images used to process this menu
-}
-
 // For AI extracted items before they are fully processed OR items returned by backend
 export interface ExtractedMenuItem extends MenuItemCore {}
 
@@ -52,8 +44,8 @@ export interface BackendDigitalMenuPollResponse {
   OwnerID: string;
   MenuID: string;
   State: DigitalMenuState;
-  FoodServiceEntries?: ExtractedMenuItem[] | null;
-  ContextS3MediaUrls?: string | null; // Changed from string[] to string, as it's a CSV
+  FoodServiceEntries?: ExtractedMenuItem[] | null; // Used by MenuUploadForm polling
+  ContextS3MediaUrls?: string | null; 
 }
 
 // This is the result type for the frontend pollWorkflowStatus action
@@ -61,6 +53,41 @@ export interface PollWorkflowStatusResult {
   success: boolean;
   state?: DigitalMenuState;
   menuItems?: ExtractedMenuItem[];
-  s3ContextImageUrls?: string[]; // This will be an array of full URLs after parsing
+  s3ContextImageUrls?: string[]; 
   message?: string;
+}
+
+// Matches the backend JSON structure for a single food service entry
+export interface BackendFoodServiceEntryJson {
+  food_category: string;
+  name: string;
+  description: string;
+  ingredients: string | null;
+  allergen_tags: string[] | null;
+  source_media_blob_ref?: string | null;
+  visual_description?: string | null;
+  generated_blob_media_ref?: string | null;
+  you_may_also_like: string[] | null;
+  display_order: number;
+  price: number; // Assuming cents
+}
+
+// Matches the main backend JSON structure for a digital menu
+export interface BackendDigitalMenuJson {
+  OwnerID: string;
+  MenuID: string;
+  ContextS3MediaUrls?: string | null;
+  food_service_entries: BackendFoodServiceEntryJson[] | null; // This is the key field
+  test_food_service_entries?: BackendFoodServiceEntryJson[] | null;
+  AllowABTesting?: boolean;
+  Analytics?: unknown[] | null; // Replace unknown with specific type if needed
+  State?: DigitalMenuState; // Added for completeness, might be present
+}
+
+// Renamed from Restaurant to MenuInstance
+export interface MenuInstance {
+  id: string; // Corresponds to MenuID from backend
+  name: string; // Can be MenuID or a user-friendly name
+  menu: MenuItem[]; // Transformed from food_service_entries
+  s3ContextImageUrls?: string[]; // URLs of the context images used to process this menu
 }
