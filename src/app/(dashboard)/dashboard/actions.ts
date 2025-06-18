@@ -4,7 +4,8 @@
 import type { MenuInstance, MenuItem, MediaObject, DietaryIcon } from '@/lib/types';
 
 const API_BASE_URL = "https://api.bityfan.com";
-const S3_BUCKET_BASE_URL = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/";
+// S3_BUCKET_BASE_URL is no longer needed here if backend provides full URLs in ContextS3MediaUrls
+// const S3_BUCKET_BASE_URL = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/";
 
 // Interfaces matching the backend JSON structure
 interface BackendFoodServiceEntryJson {
@@ -32,16 +33,10 @@ interface BackendMenuAnalyticsJson {
 interface BackendDigitalMenuJson {
   OwnerID: string;
   MenuID: string;
-  // Reason: string;
-  // State: string;
-  ContextS3MediaUrls?: string | null; // CSV string of S3 object keys
-  // ContextMediaText: string;
-  // CreatedAt: string;
-  // UpdatedAt: string;
+  ContextS3MediaUrls?: string | null; // CSV string of S3 object keys OR FULL URLs
   food_service_entries: BackendFoodServiceEntryJson[] | null;
-  test_food_service_entries?: BackendFoodServiceEntryJson[] | null; // for A/B testing
-  AllowABTesting?: boolean; // whether to allow A/B testing for this menu
-  // Version: number;
+  test_food_service_entries?: BackendFoodServiceEntryJson[] | null;
+  AllowABTesting?: boolean; 
   Analytics?: BackendMenuAnalyticsJson[] | null;
 }
 
@@ -129,8 +124,10 @@ export async function fetchMenuInstancesFromBackend(
 
         let s3ContextImageUrls: string[] = [];
         if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
-          const s3Keys = digitalMenu.ContextS3MediaUrls.split(',').map(key => key.trim()).filter(key => key.length > 0);
-          s3ContextImageUrls = s3Keys.map(key => `${S3_BUCKET_BASE_URL}${key}`);
+          // Assuming backend now sends a CSV of *full URLs*
+          s3ContextImageUrls = digitalMenu.ContextS3MediaUrls.split(',')
+            .map(url => url.trim())
+            .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')));
         }
 
         return {

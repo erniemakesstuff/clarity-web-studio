@@ -7,19 +7,20 @@ import type { MenuItemCore } from '@/lib/types';
 
 
 const API_BASE_URL = "https://api.bityfan.com";
-const S3_BUCKET_BASE_URL = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/"; // Define this base URL
+// S3_BUCKET_BASE_URL is no longer needed here if backend provides full URLs in ContextS3MediaUrls
+// const S3_BUCKET_BASE_URL = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/";
 
 interface GetPresignedUrlParams {
   ownerId: string;
   menuId: string;
-  mediaType: string; // e.g. "image/png"
-  payload: string; // base64 encoded image data
+  mediaType: string; 
+  payload: string; 
 }
 
 interface GetPresignedUrlResult {
   success: boolean;
-  mediaURL?: string; // This is the S3 presigned URL for client PUT upload
-  finalMediaUrl?: string; // The base S3 URL after stripping presigned parts
+  mediaURL?: string; 
+  finalMediaUrl?: string; 
   message?: string;
 }
 
@@ -57,11 +58,13 @@ export async function getPresignedUploadUrl(
       }
     } else {
       let errorMessage = `Backend API Error (getting presigned URL): ${response.status} ${response.statusText}.`;
+      let responseBodyText = "";
       try {
-        const errorData = await response.json();
+        responseBodyText = await response.text();
+        const errorData = JSON.parse(responseBodyText);
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch (e) {
-        // Failed to parse error JSON from backend
+         errorMessage += ` Raw response: ${responseBodyText.substring(0, 200)}`;
       }
       return { success: false, message: errorMessage };
     }
@@ -108,13 +111,8 @@ export async function startBackendWorkflow(
       if (!responseText) {
         return { success: true, message: "Workflow started, but backend returned an empty success response." };
       }
-      try {
-        // Attempt to parse if there's content, but succeed even if it's not JSON for 2xx.
-        // JSON.parse(responseText); 
-        return { success: true };
-      } catch (jsonError) {
-        return { success: true, message: "Workflow started, but backend returned a non-JSON success response." };
-      }
+      // Even if successful, the body might not be JSON.
+      return { success: true };
     } else {
       let errorMessage = `Backend API Error (starting workflow): ${response.status} ${response.statusText}.`;
       if (responseText) {
@@ -168,13 +166,15 @@ export async function pollWorkflowStatus(
         const extractedItems: ExtractedMenuItem[] = (data.FoodServiceEntries || []).map(entry => ({
           name: entry.name,
           description: entry.description,
-          price: String(entry.price), // Assuming price might be number, ensure string
+          price: String(entry.price), 
         }));
 
         let s3ImageFullUrls: string[] = [];
         if (typeof data.ContextS3MediaUrls === 'string' && data.ContextS3MediaUrls.trim() !== '') {
-          const s3Keys = data.ContextS3MediaUrls.split(',').map(key => key.trim()).filter(key => key.length > 0);
-          s3ImageFullUrls = s3Keys.map(key => `${S3_BUCKET_BASE_URL}${key}`);
+          // Assuming backend now sends a CSV of *full URLs*
+          s3ImageFullUrls = data.ContextS3MediaUrls.split(',')
+            .map(url => url.trim())
+            .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')));
         }
         
         return { 
