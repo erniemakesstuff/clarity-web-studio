@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { MenuUploadForm } from "@/components/dashboard/MenuUploadForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff } from "lucide-react";
+import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { MenuItem, DietaryIcon, MenuCategory as MenuCategoryType, MediaObject } from "@/lib/types";
@@ -12,6 +12,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { EditMenuItemDialog } from "@/components/dashboard/EditMenuItemDialog";
 
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
@@ -29,9 +31,11 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
 };
 
 export default function MenuManagementPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem } = useAuth();
   const { toast } = useToast();
   const [menuCategories, setMenuCategories] = useState<MenuCategoryType[]>([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<MenuItem | null>(null);
 
   useEffect(() => {
     if (selectedMenuInstance && selectedMenuInstance.menu.length > 0) {
@@ -45,10 +49,10 @@ export default function MenuManagementPage() {
       });
       
       const sortedCategories = Object.keys(categoriesMap)
-        .sort() // Sort category names alphabetically
+        .sort() 
         .map(name => ({
           name,
-          items: categoriesMap[name].sort((a,b) => a.name.localeCompare(b.name)) // Sort items within category
+          items: categoriesMap[name].sort((a,b) => a.name.localeCompare(b.name)) 
         }));
       setMenuCategories(sortedCategories);
     } else {
@@ -71,6 +75,36 @@ export default function MenuManagementPage() {
       </div>
     );
   };
+
+  const handleEditClick = (item: MenuItem) => {
+    setItemToEdit(item);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveMenuItem = (updatedItem: MenuItem) => {
+    if (!selectedMenuInstance) {
+      toast({ title: "Error", description: "No menu instance selected.", variant: "destructive" });
+      return;
+    }
+    const success = updateMenuItem(selectedMenuInstance.id, updatedItem);
+    if (success) {
+      toast({
+        title: "Item Updated",
+        description: `"${updatedItem.name}" has been successfully updated.`,
+        variant: "default",
+        className: "bg-green-500 text-white",
+      });
+    } else {
+      toast({
+        title: "Update Failed",
+        description: `Could not update "${updatedItem.name}". Please try again.`,
+        variant: "destructive",
+      });
+    }
+    setIsEditModalOpen(false);
+    setItemToEdit(null);
+  };
+
 
   return (
     <div className="space-y-8">
@@ -101,7 +135,7 @@ export default function MenuManagementPage() {
               <Skeleton className="h-20 w-full" />
             </div>
           ) : menuCategories.length > 0 ? (
-            <Accordion type="multiple" className="w-full">
+            <Accordion type="multiple" className="w-full" defaultValue={menuCategories.map(cat => cat.name)}>
               {menuCategories.map(category => (
                 <AccordionItem value={category.name} key={category.name}>
                   <AccordionTrigger className="text-lg font-semibold hover:no-underline">
@@ -119,7 +153,13 @@ export default function MenuManagementPage() {
                             <div className="flex-grow">
                               <div className="flex justify-between items-start">
                                 <h4 className="text-md font-semibold text-foreground">{item.name}</h4>
-                                <p className="text-md font-bold text-primary">{item.price}</p>
+                                <div className="flex items-center gap-2">
+                                   <p className="text-md font-bold text-primary">{item.price}</p>
+                                   <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleEditClick(item)}>
+                                     <Pencil className="h-4 w-4" />
+                                     <span className="sr-only">Edit {item.name}</span>
+                                   </Button>
+                                </div>
                               </div>
                               <p className="text-sm text-muted-foreground mt-0.5 mb-1.5 line-clamp-2">{item.description || "No description available."}</p>
                               {item.dietaryIcons && item.dietaryIcons.length > 0 && (
@@ -149,6 +189,12 @@ export default function MenuManagementPage() {
           )}
         </CardContent>
       </Card>
+      <EditMenuItemDialog
+        item={itemToEdit}
+        isOpen={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        onSave={handleSaveMenuItem}
+      />
     </div>
   );
 }
