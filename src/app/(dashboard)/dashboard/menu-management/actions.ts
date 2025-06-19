@@ -2,13 +2,10 @@
 'use server';
 
 import type { AuthContextType } from '@/contexts/AuthContext'; // Only for type, not direct use
-import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult } from '@/lib/types';
-import type { MenuItemCore } from '@/lib/types';
+import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult, MenuItem as FrontendMenuItem } from '@/lib/types';
 
 
 const API_BASE_URL = "https://api.bityfan.com";
-// S3_BUCKET_BASE_URL is no longer needed here if backend provides full URLs in ContextS3MediaUrls
-// const S3_BUCKET_BASE_URL = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/";
 
 interface GetPresignedUrlParams {
   ownerId: string;
@@ -111,7 +108,6 @@ export async function startBackendWorkflow(
       if (!responseText) {
         return { success: true, message: "Workflow started, but backend returned an empty success response." };
       }
-      // Even if successful, the body might not be JSON.
       return { success: true };
     } else {
       let errorMessage = `Backend API Error (starting workflow): ${response.status} ${response.statusText}.`;
@@ -171,7 +167,6 @@ export async function pollWorkflowStatus(
 
         let s3ImageFullUrls: string[] = [];
         if (typeof data.ContextS3MediaUrls === 'string' && data.ContextS3MediaUrls.trim() !== '') {
-          // Assuming backend now sends a CSV of *full URLs*
           s3ImageFullUrls = data.ContextS3MediaUrls.split(',')
             .map(url => url.trim())
             .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')));
@@ -213,3 +208,109 @@ export async function pollWorkflowStatus(
     return { success: false, message: detailedErrorMessage };
   }
 }
+
+// Backend type definition for FoodServiceEntry, mirrors Go struct
+interface BackendFoodServiceEntry {
+  food_category: string;
+  name: string;
+  description: string;
+  ingredients: string | null;
+  allergen_tags: string[] | null;
+  source_media_blob_ref: string | null;
+  visual_description: string | null;
+  generated_blob_media_ref: string | null;
+  you_may_also_like: string[] | null;
+  display_order: number;
+  price: number; // in cents
+}
+
+interface UpdateMenuItemOnBackendParams {
+  ownerId: string;
+  menuId: string;
+  targetEntryName: string; // Original name of the item to find it
+  itemData: FrontendMenuItem; // The updated item data from the frontend
+  jwtToken: string | null;
+}
+
+interface UpdateMenuItemOnBackendResult {
+  success: boolean;
+  message?: string;
+}
+
+export async function updateMenuItemOnBackend(
+  params: UpdateMenuItemOnBackendParams
+): Promise<UpdateMenuItemOnBackendResult> {
+  const { ownerId, menuId, targetEntryName, itemData, jwtToken } = params;
+
+  // Convert price string (e.g., "$10.99") to integer cents
+  let priceInCents = 0;
+  if (itemData.price) {
+    const numericPrice = parseFloat(itemData.price.replace('$', ''));
+    if (!isNaN(numericPrice)) {
+      priceInCents = Math.round(numericPrice * 100);
+    }
+  }
+
+  const backendEntry: BackendFoodServiceEntry = {
+    food_category: itemData.category || "Other",
+    name: itemData.name,
+    description: itemData.description || "",
+    ingredients: itemData.ingredients || null,
+    allergen_tags: itemData.allergenTags || null,
+    source_media_blob_ref: null, // Assuming edits primarily update generated/primary media
+    visual_description: itemData.media && itemData.media.length > 0 && itemData.media[0].dataAiHint ? itemData.media[0].dataAiHint : itemData.name,
+    generated_blob_media_ref: itemData.media && itemData.media.length > 0 && itemData.media[0].type === 'image' ? itemData.media[0].url : null,
+    you_may_also_like: itemData.youMayAlsoLike || null,
+    display_order: itemData.displayOrder !== undefined ? itemData.displayOrder : 0,
+    price: priceInCents,
+  };
+
+  const requestBody = {
+    ownerId,
+    menuId,
+    isControl: true,
+    targetEntryName,
+    entry: backendEntry,
+  };
+
+  try {
+    const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
+    const response = await fetch(`${API_BASE_URL}/ris/v1/menu/item`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authorizationValue,
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await response.text();
+
+    if (response.ok) {
+      return { success: true, message: "Menu item updated successfully on backend." };
+    } else {
+      let errorMessage = `Backend API Error (updating item): ${response.status} ${response.statusText}.`;
+      if (responseText) {
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage += ` Response body: ${responseText.substring(0, 200)}`;
+        }
+      }
+      return { success: false, message: errorMessage };
+    }
+  } catch (error: any) {
+    let detailedErrorMessage = "Failed to communicate with the backend service while updating menu item.";
+    if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
+        detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for item update.`;
+    } else if (error.message && error.message.includes("ECONNREFUSED")) {
+        detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for item update.`;
+    } else if (error.message) {
+        detailedErrorMessage = `An unexpected error occurred (updating item): ${error.message}`;
+    }
+    return { success: false, message: detailedErrorMessage };
+  }
+}
+
