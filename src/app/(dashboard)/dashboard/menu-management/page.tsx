@@ -135,7 +135,7 @@ export default function MenuManagementPage() {
               <Skeleton className="h-20 w-full" />
             </div>
           ) : menuCategories.length > 0 ? (
-            <Accordion type="multiple" className="w-full" defaultValue={menuCategories.map(cat => cat.name)}>
+            <Accordion type="multiple" className="w-full" defaultValue={[]}>
               {menuCategories.map(category => (
                 <AccordionItem value={category.name} key={category.name}>
                   <AccordionTrigger className="text-lg font-semibold hover:no-underline">
@@ -198,3 +198,4 @@ export default function MenuManagementPage() {
     </div>
   );
 }
+
