@@ -33,7 +33,6 @@ export async function fetchMenuInstancesFromBackend(
           const formattedPrice = `$${(entry.price / 100).toFixed(2)}`;
 
           const mediaObjects: MediaObject[] = [];
-          // Prioritize generated_blob_media_ref, then source_media_blob_ref
           const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
           
           if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
@@ -48,18 +47,12 @@ export async function fetchMenuInstancesFromBackend(
             }
             if (hint.trim() === '') hint = 'food item';
 
-
             mediaObjects.push({
               type: 'image',
-              url: imageUrl, // Assuming these refs are full URLs
+              url: imageUrl,
               dataAiHint: hint,
             });
-          } else if (imageUrl) {
-            // If it's not a full URL, it might be an S3 key - handle as placeholder or construct URL if base is known
-            // For now, if it's not a full URL, we won't add it to avoid errors
-            // console.warn(`Media ref '${imageUrl}' for item '${entry.name}' is not a full URL. Skipping.`);
           }
-
 
           const dietaryIcons: DietaryIcon[] = [];
           const backendAllergenTagsLower = (entry.allergen_tags || []).map(tag => tag.toLowerCase());
@@ -70,7 +63,8 @@ export async function fetchMenuInstancesFromBackend(
           if (entry.food_category?.toLowerCase() === "vegetarian") {
             dietaryIcons.push('vegetarian');
           }
-          if (entry.food_category?.toLowerCase() === "gluten free") {
+          // Check for "gluten-free" in food_category OR allergen_tags for more robustness
+          if (entry.food_category?.toLowerCase().includes("gluten free") || backendAllergenTagsLower.includes("gluten-free") || backendAllergenTagsLower.includes("gluten free")) {
             dietaryIcons.push('gluten-free');
           }
           
@@ -81,13 +75,17 @@ export async function fetchMenuInstancesFromBackend(
           const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
 
           return {
-            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`, // Create a unique ID
+            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`,
             name: entry.name,
-            description: entry.description,
+            description: entry.description || "",
             price: formattedPrice,
-            category: entry.food_category,
-            media: mediaObjects,
+            category: entry.food_category || "Other",
+            media: mediaObjects.length > 0 ? mediaObjects : undefined,
             dietaryIcons: uniqueDietaryIcons.length > 0 ? uniqueDietaryIcons : undefined,
+            ingredients: entry.ingredients || undefined,
+            allergenTags: entry.allergen_tags || undefined,
+            youMayAlsoLike: entry.you_may_also_like || undefined,
+            displayOrder: entry.display_order,
           };
         });
 
@@ -100,7 +98,7 @@ export async function fetchMenuInstancesFromBackend(
 
         return {
           id: digitalMenu.MenuID,
-          name: digitalMenu.MenuID, // Use MenuID as the instance name for now
+          name: digitalMenu.MenuID, 
           menu: menuItems,
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
         };
