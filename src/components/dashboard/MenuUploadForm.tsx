@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -10,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPresignedUploadUrl, startBackendWorkflow, pollWorkflowStatus as pollWorkflowStatusAction } from "@/app/(dashboard)/dashboard/menu-management/actions";
-import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, XCircle, Clock, Image as ImageIcon } from "lucide-react";
+import { UploadCloud, FileText, Loader2, CheckCircle, AlertTriangle, Camera, XCircle, Clock, Image as ImageIcon, PlayCircle } from "lucide-react";
 import type { ExtractedMenuItem } from "@/lib/types";
 import Image from "next/image";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
@@ -30,6 +29,7 @@ interface QueuedItem {
 const MAX_CONCURRENT_UPLOADS = 3;
 const POLLING_INTERVAL_MS = 10000;
 const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
+const DEV_USER_ID = "admin@example.com"; // For developer-specific features
 
 export function MenuUploadForm() {
   const [queuedItems, setQueuedItems] = useState<QueuedItem[]>([]);
@@ -51,15 +51,12 @@ export function MenuUploadForm() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isDeveloperUser = DEV_USER_ID === "admin@example.com"; // Simple check for dev user
+
   useEffect(() => {
     if (selectedMenuInstance && selectedMenuInstance.s3ContextImageUrls && selectedMenuInstance.s3ContextImageUrls.length > 0 && !isProcessing && workflowOutcome === null) {
       setProcessedImageUrls(selectedMenuInstance.s3ContextImageUrls);
-      // Optionally, you might want to set a default success message or outcome if showing pre-processed images
-      // setProgressMessage("Displaying previously processed images.");
-      // setWorkflowOutcome('success'); // Or a new state like 'preloaded'
-      // setCurrentProgress(100);
     } else if (!selectedMenuInstance?.s3ContextImageUrls && !isProcessing && workflowOutcome === null) {
-      // Clear if no context images and not processing
       setProcessedImageUrls([]);
     }
   }, [selectedMenuInstance, isProcessing, workflowOutcome]);
@@ -117,7 +114,7 @@ export function MenuUploadForm() {
       setExtractedItems([]);
       setProcessingError(null);
       setWorkflowOutcome(null);
-      setProcessedImageUrls([]); // Clear previous images when new files are selected
+      setProcessedImageUrls([]);
       setCurrentProgress(0);
       setProgressMessage("");
       if (newFiles.length > 5) {
@@ -149,7 +146,7 @@ export function MenuUploadForm() {
             if (queuedItems.length < 5) {
               setQueuedItems(prev => [...prev, newQueuedItem]);
               setWorkflowOutcome(null);
-              setProcessedImageUrls([]); // Clear previous images
+              setProcessedImageUrls([]);
               setCurrentProgress(0);
               setProgressMessage("");
             } else {
@@ -191,7 +188,7 @@ export function MenuUploadForm() {
       cleanupPolling();
       setIsProcessing(false);
       setWorkflowOutcome('failure');
-      setCurrentProgress(100);
+      setCurrentProgress(100); // Ensure progress bar completes on error
       return false;
     }
 
@@ -201,25 +198,27 @@ export function MenuUploadForm() {
       case "New":
       case "WaitingForInitialContext":
         setCurrentProgress(60);
-        setProgressMessage("Workflow started, waiting for context...");
+        setProgressMessage("Workflow state: Waiting for context...");
         return true;
       case "Preparing":
         setCurrentProgress(70);
-        setProgressMessage("Backend preparing menu data...");
+        setProgressMessage("Workflow state: Preparing data...");
         return true;
       case "Generating":
         setCurrentProgress(85);
-        setProgressMessage("AI extracting items from images...");
+        setProgressMessage("Workflow state: AI processing images...");
         return true;
       case "Done":
         setCurrentProgress(100);
         setExtractedItems(pollResult.menuItems || []);
         setProcessedImageUrls(pollResult.s3ContextImageUrls || []);
-        toast({
-          title: "Menu Processed Successfully!",
-          description: `${pollResult.menuItems?.length || 0} items found.`,
-          variant: "default", className: "bg-green-500 text-white"
-        });
+        if(!isProcessing) { // Avoid double toast if already set by handleSubmit
+          toast({
+            title: "Menu Processed Successfully!",
+            description: `${pollResult.menuItems?.length || 0} items found.`,
+            variant: "default", className: "bg-green-500 text-white"
+          });
+        }
         cleanupPolling();
         setIsProcessing(false);
         setWorkflowOutcome('success');
@@ -228,16 +227,18 @@ export function MenuUploadForm() {
       case "Failed":
         setCurrentProgress(100);
         setProcessingError(pollResult.message || "Backend workflow failed to process the menu.");
-        toast({ title: "Workflow Failed", description: pollResult.message || "The backend failed to process your menu.", variant: "destructive" });
+        if(!isProcessing) { // Avoid double toast
+          toast({ title: "Workflow Failed", description: pollResult.message || "The backend failed to process your menu.", variant: "destructive" });
+        }
         cleanupPolling();
         setIsProcessing(false);
         setWorkflowOutcome('failure');
         return false;
       default:
-        setProgressMessage(`Monitoring workflow (State: ${backendState})...`);
+        setProgressMessage(`Workflow state: ${backendState}. Monitoring...`);
         return true;
     }
-  }, [jwtToken, toast, cleanupPolling, refreshMenuInstances]);
+  }, [jwtToken, toast, cleanupPolling, refreshMenuInstances, isProcessing]);
 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -255,11 +256,11 @@ export function MenuUploadForm() {
     setProcessingError(null);
     setExtractedItems([]);
     setWorkflowOutcome(null);
-    setProcessedImageUrls([]); // Clear any previously displayed context images for the new workflow
+    setProcessedImageUrls([]);
     setCurrentProgress(0);
     setProgressMessage("Starting process...");
 
-    const ownerId = "admin@example.com";
+    const ownerId = DEV_USER_ID;
     const menuId = selectedMenuInstance.id;
     const itemsToProcess: QueuedItem[] = [];
 
@@ -386,9 +387,9 @@ export function MenuUploadForm() {
              if (workflowOutcome !== 'success' && workflowOutcome !== 'failure') {
                 setProcessingError("Workflow polling timed out. Please check status later or refresh.");
                 toast({ title: "Polling Timeout", description: "Workflow took too long to respond.", variant: "destructive" });
-                setIsProcessing(false);
-                setWorkflowOutcome('failure');
-                setCurrentProgress(100);
+                setIsProcessing(false); // Ensure this is set
+                setWorkflowOutcome('failure'); // Ensure this is set
+                setCurrentProgress(100); // Ensure progress bar completes
              }
           }
         }, POLLING_TIMEOUT_MS);
@@ -401,20 +402,79 @@ export function MenuUploadForm() {
     }
   };
 
+  const handleManualWorkflowStart = async () => {
+    if (!selectedMenuInstance) {
+      toast({ title: "No Menu Selected", description: "Please select a menu from the dropdown.", variant: "destructive" });
+      return;
+    }
+    setIsProcessing(true);
+    setProcessingError(null);
+    setExtractedItems([]);
+    setWorkflowOutcome(null);
+    setProcessedImageUrls([]);
+    setCurrentProgress(0);
+    setProgressMessage("Manually starting workflow...");
+
+    const ownerId = DEV_USER_ID;
+    const menuId = selectedMenuInstance.id;
+
+    try {
+      const workflowStartResult = await startBackendWorkflow(ownerId, menuId, jwtToken);
+      if (!workflowStartResult.success) {
+        throw new Error(workflowStartResult.message || "Failed to start backend workflow manually.");
+      }
+      
+      setProgressMessage("Manual workflow initiated. Monitoring backend (2/2)...");
+      setCurrentProgress(50);
+      
+      cleanupPolling();
+      let shouldContinuePolling = await doPollWorkflowStatus(ownerId, menuId);
+
+      if (shouldContinuePolling) {
+        pollingIntervalRef.current = setInterval(async () => {
+          const continuePollingAfterInterval = await doPollWorkflowStatus(ownerId, menuId);
+          if (!continuePollingAfterInterval) {
+            cleanupPolling();
+          }
+        }, POLLING_INTERVAL_MS);
+
+        pollingTimeoutRef.current = setTimeout(() => {
+          if (pollingIntervalRef.current) {
+             cleanupPolling();
+             if (workflowOutcome !== 'success' && workflowOutcome !== 'failure') {
+                setProcessingError("Workflow polling timed out. Please check status later or refresh.");
+                toast({ title: "Polling Timeout", description: "Workflow took too long to respond.", variant: "destructive" });
+                setIsProcessing(false);
+                setWorkflowOutcome('failure');
+                setCurrentProgress(100);
+             }
+          }
+        }, POLLING_TIMEOUT_MS);
+      }
+    } catch (err: any) {
+      setProcessingError(`Error starting manual workflow: ${err.message}`);
+      toast({ title: "Manual Workflow Start Error", description: err.message, variant: "destructive" });
+      setIsProcessing(false);
+      setWorkflowOutcome('failure');
+      setCurrentProgress(100);
+    }
+  };
+
   const progressIndicatorClass = cn(
     "h-full w-full flex-1 transition-all",
     {
       "bg-primary": workflowOutcome === null && isProcessing,
-      "bg-green-500": workflowOutcome === 'success',
-      "bg-destructive": workflowOutcome === 'failure',
+      "bg-green-500": workflowOutcome === 'success' && !isProcessing,
+      "bg-destructive": workflowOutcome === 'failure' && !isProcessing,
     }
   );
 
   const displayedProgressMessage = () => {
     if (workflowOutcome === 'success' && !isProcessing) return "Extraction complete!";
     if (workflowOutcome === 'failure' && !isProcessing) return processingError || "Workflow failed.";
-    return progressMessage || "Processing...";
+    return progressMessage || (isProcessing ? "Processing..." : "Awaiting action.");
   };
+
 
   return (
     <Card className="w-full shadow-lg">
@@ -513,18 +573,18 @@ export function MenuUploadForm() {
             <div className="space-y-2">
                <Progress value={currentProgress} className="w-full" indicatorClassName={progressIndicatorClass} />
               <p className="text-sm text-muted-foreground text-center flex items-center justify-center">
-                {isProcessing && workflowOutcome === null && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {workflowOutcome === 'success' && !isProcessing && <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
-                {workflowOutcome === 'failure' && !isProcessing && <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />}
+                {(isProcessing && workflowOutcome === null) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {(workflowOutcome === 'success' && !isProcessing) && <CheckCircle className="mr-2 h-4 w-4 text-green-500" />}
+                {(workflowOutcome === 'failure' && !isProcessing) && <AlertTriangle className="mr-2 h-4 w-4 text-destructive" />}
                 {displayedProgressMessage()}
               </p>
             </div>
           )}
 
         </CardContent>
-        <CardFooter className="border-t pt-6">
+        <CardFooter className="border-t pt-6 flex flex-col sm:flex-row gap-2 justify-start items-center">
           <Button type="submit" disabled={isProcessing || queuedItems.length === 0 || !selectedMenuInstance} className="w-full sm:w-auto">
-            {isProcessing ? (
+            {isProcessing && !progressMessage.toLowerCase().includes("manual") ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
@@ -536,6 +596,27 @@ export function MenuUploadForm() {
               </>
             )}
           </Button>
+          {isDeveloperUser && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleManualWorkflowStart} 
+              disabled={isProcessing || !selectedMenuInstance}
+              className="w-full sm:w-auto"
+            >
+              {isProcessing && progressMessage.toLowerCase().includes("manual") ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing Manually...
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="mr-2 h-4 w-4" />
+                  Dev: Start Workflow (Manual)
+                </>
+              )}
+            </Button>
+          )}
         </CardFooter>
       </form>
 
@@ -621,3 +702,4 @@ export function MenuUploadForm() {
     </Card>
   );
 }
+
