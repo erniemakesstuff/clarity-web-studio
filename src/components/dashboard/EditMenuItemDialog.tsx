@@ -26,6 +26,7 @@ import { Info, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMenuItemOnBackend } from "@/app/(dashboard)/dashboard/menu-management/actions";
+import { cn } from "@/lib/utils";
 
 
 interface EditMenuItemDialogProps {
@@ -135,19 +136,18 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       allergenTags: allergenTags,
     };
     
-    // Mock ownerId for now, replace with actual from auth context if available
     const ownerId = "admin@example.com"; 
 
     const backendResult = await updateMenuItemOnBackend({
         ownerId: ownerId,
         menuId: selectedMenuInstance.id,
-        targetEntryName: item.name, // Original name
+        targetEntryName: item.name, 
         itemData: updatedItemFromDialog,
         jwtToken: jwtToken,
     });
 
     if (backendResult.success) {
-      onSave(updatedItemFromDialog); // Update local state
+      onSave(updatedItemFromDialog); 
       toast({
         title: "Item Updated",
         description: backendResult.message || `"${updatedItemFromDialog.name}" updated successfully on the backend.`,
