@@ -21,6 +21,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface EditMenuItemDialogProps {
   item: MenuItem | null;
@@ -37,7 +39,7 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
   const [primaryImageUrl, setPrimaryImageUrl] = useState("");
   const [displayOrder, setDisplayOrder] = useState<number | string>("");
   const [ingredients, setIngredients] = useState("");
-  const [youMayAlsoLike, setYouMayAlsoLike] = useState(""); // Comma-separated string
+  const [youMayAlsoLike, setYouMayAlsoLike] = useState("");
   const [allergenTags, setAllergenTags] = useState<string[]>([]);
 
   const { toast } = useToast();
@@ -47,14 +49,13 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
       setName(item.name);
       setDescription(item.description || "");
       setPrice(item.price);
-      setCategory(item.category || FOOD_CATEGORIES[FOOD_CATEGORIES.length -1]); // Default to "Other" or last in list
-      setPrimaryImageUrl(item.media && item.media.length > 0 ? item.media[0].url : "");
+      setCategory(item.category || FOOD_CATEGORIES[FOOD_CATEGORIES.length -1]);
+      setPrimaryImageUrl(item.media && item.media.length > 0 && item.media[0].type === 'image' ? item.media[0].url : "");
       setDisplayOrder(item.displayOrder !== undefined ? item.displayOrder : "");
       setIngredients(item.ingredients || "");
       setYouMayAlsoLike(item.youMayAlsoLike ? item.youMayAlsoLike.join(", ") : "");
       setAllergenTags(item.allergenTags || []);
     } else if (!isOpen) {
-      // Reset form when dialog is closed
       setName("");
       setDescription("");
       setPrice("");
@@ -137,6 +138,7 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
             Make changes to the menu item details below. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
+        <TooltipProvider>
         <ScrollArea className="max-h-[calc(80vh-200px)] pr-6">
         <div className="grid gap-6 py-4 ">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -165,23 +167,73 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
             </Select>
           </div>
            <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-image-url" className="text-right col-span-1">Primary Image URL</Label>
+             <div className="flex items-center justify-end col-span-1">
+                <Label htmlFor="edit-image-url" className="text-right mr-1">Main Graphic Url</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Determines what the customer sees as the visual representation of the food item (e.g., a photo).</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             <Input id="edit-image-url" value={primaryImageUrl} onChange={(e) => setPrimaryImageUrl(e.target.value)} className="col-span-3" placeholder="https://example.com/image.png" />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="edit-display-order" className="text-right col-span-1">Display Order</Label>
+            <div className="flex items-center justify-end col-span-1">
+                <Label htmlFor="edit-display-order" className="text-right mr-1">Display Order</Label>
+                 <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Determines the order in which food items are shown to the user, e.g., in lists or carousels. Lower numbers usually appear first.</p>
+                  </TooltipContent>
+                </Tooltip>
+            </div>
             <Input id="edit-display-order" type="number" value={displayOrder} onChange={(e) => setDisplayOrder(e.target.value)} className="col-span-3" placeholder="e.g., 1, 2, 3..." />
           </div>
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="edit-ingredients" className="text-right col-span-1 pt-2">Ingredients</Label>
-            <Textarea id="edit-ingredients" value={ingredients} onChange={(e) => setIngredients(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Flour, sugar, eggs (can be descriptive or comma-separated)" />
+            <div className="flex items-center justify-end col-span-1 pt-2">
+                <Label htmlFor="edit-ingredients" className="text-right mr-1">Ingredients</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">List the main ingredients of the dish. This can be a descriptive sentence or a comma-separated list.</p>
+                  </TooltipContent>
+                </Tooltip>
+            </div>
+            <Textarea id="edit-ingredients" value={ingredients} onChange={(e) => setIngredients(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Flour, sugar, eggs or Rich tomato sauce with herbs" />
           </div>
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="edit-recommend" className="text-right col-span-1 pt-2">Also Recommend</Label>
-            <Textarea id="edit-recommend" value={youMayAlsoLike} onChange={(e) => setYouMayAlsoLike(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Item A, Item B, Item C (comma-separated)" />
+            <div className="flex items-center justify-end col-span-1 pt-2">
+                <Label htmlFor="edit-recommend" className="text-right mr-1">Also Recommend</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Suggest other menu items that pair well with this one (comma-separated names of other items on your menu).</p>
+                  </TooltipContent>
+                </Tooltip>
+            </div>
+            <Textarea id="edit-recommend" value={youMayAlsoLike} onChange={(e) => setYouMayAlsoLike(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Item A, Item B, Item C" />
           </div>
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right col-span-1 pt-2">Allergens</Label>
+            <div className="flex items-center justify-end col-span-1 pt-2">
+                <Label className="text-right mr-1">Allergens</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Select common allergens present in this dish. This helps customers with dietary restrictions.</p>
+                  </TooltipContent>
+                </Tooltip>
+            </div>
             <div className="col-span-3 space-y-2">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 max-h-48">
                 {COMMON_ALLERGENS.map(allergen => (
@@ -200,6 +252,7 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
 
         </div>
         </ScrollArea>
+        </TooltipProvider>
         <DialogFooter className="pt-6">
           <DialogClose asChild>
             <Button type="button" variant="outline">
@@ -214,3 +267,4 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
     </Dialog>
   );
 }
+
