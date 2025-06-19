@@ -1,7 +1,7 @@
 
 'use server';
 
-import type { AuthContextType } from '@/contexts/AuthContext'; // Only for type, not direct use
+import type { AuthContextType } from '@/contexts/AuthContext'; 
 import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult, MenuItem as FrontendMenuItem } from '@/lib/types';
 
 
@@ -169,7 +169,7 @@ export async function pollWorkflowStatus(
         if (typeof data.ContextS3MediaUrls === 'string' && data.ContextS3MediaUrls.trim() !== '') {
           s3ImageFullUrls = data.ContextS3MediaUrls.split(',')
             .map(url => url.trim())
-            .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')));
+            .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
         }
         
         return { 
@@ -209,11 +209,10 @@ export async function pollWorkflowStatus(
   }
 }
 
-// Backend type definition for FoodServiceEntry, mirrors Go struct
 interface BackendFoodServiceEntry {
   food_category: string;
   name: string;
-  description: string;
+  description: string | null;
   ingredients: string | null;
   allergen_tags: string[] | null;
   source_media_blob_ref: string | null;
@@ -227,8 +226,8 @@ interface BackendFoodServiceEntry {
 interface UpdateMenuItemOnBackendParams {
   ownerId: string;
   menuId: string;
-  targetEntryName: string; // Original name of the item to find it
-  itemData: FrontendMenuItem; // The updated item data from the frontend
+  targetEntryName: string; 
+  itemData: FrontendMenuItem; 
   jwtToken: string | null;
 }
 
@@ -242,7 +241,6 @@ export async function updateMenuItemOnBackend(
 ): Promise<UpdateMenuItemOnBackendResult> {
   const { ownerId, menuId, targetEntryName, itemData, jwtToken } = params;
 
-  // Convert price string (e.g., "$10.99") to integer cents
   let priceInCents = 0;
   if (itemData.price) {
     const numericPrice = parseFloat(itemData.price.replace('$', ''));
@@ -254,11 +252,11 @@ export async function updateMenuItemOnBackend(
   const backendEntry: BackendFoodServiceEntry = {
     food_category: itemData.category || "Other",
     name: itemData.name,
-    description: itemData.description || "",
+    description: itemData.description || null,
     ingredients: itemData.ingredients || null,
     allergen_tags: itemData.allergenTags || null,
-    source_media_blob_ref: null, // Assuming edits primarily update generated/primary media
-    visual_description: itemData.media && itemData.media.length > 0 && itemData.media[0].dataAiHint ? itemData.media[0].dataAiHint : itemData.name,
+    source_media_blob_ref: null, 
+    visual_description: itemData._tempVisualDescriptionForSave || itemData.name, // Use the persisted hint or name
     generated_blob_media_ref: itemData.media && itemData.media.length > 0 && itemData.media[0].type === 'image' ? itemData.media[0].url : null,
     you_may_also_like: itemData.youMayAlsoLike || null,
     display_order: itemData.displayOrder !== undefined ? itemData.displayOrder : 0,
@@ -313,4 +311,3 @@ export async function updateMenuItemOnBackend(
     return { success: false, message: detailedErrorMessage };
   }
 }
-

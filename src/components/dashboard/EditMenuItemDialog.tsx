@@ -50,7 +50,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
   const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance } = useAuth(); // Get jwtToken and selectedMenuInstance
+  const { jwtToken, selectedMenuInstance } = useAuth(); 
 
   useEffect(() => {
     if (item && isOpen) {
@@ -64,6 +64,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       setYouMayAlsoLike(item.youMayAlsoLike || []);
       setAllergenTags(item.allergenTags || []);
     } else if (!isOpen) {
+      // Reset form when dialog closes or item is null
       setName("");
       setDescription("");
       setPrice("");
@@ -114,12 +115,17 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
 
     setIsSaving(true);
 
-    const updatedMedia: MediaObject[] = [];
+    const originalDataAiHint = item.media?.[0]?.dataAiHint;
+    // Determine the effective visual description: prioritize original hint, then new name (truncated).
+    const effectiveVisualDescription = originalDataAiHint || name.trim().toLowerCase().split(' ').slice(0,2).join(' ') || "food item";
+
+
+    const updatedMediaObjects: MediaObject[] = [];
     if (primaryImageUrl.trim()) {
-      updatedMedia.push({
+      updatedMediaObjects.push({
         type: 'image',
         url: primaryImageUrl.trim(),
-        dataAiHint: item.media && item.media.length > 0 && item.media[0].dataAiHint ? item.media[0].dataAiHint : name.toLowerCase().split(' ').slice(0,2).join(' '),
+        dataAiHint: effectiveVisualDescription, 
       });
     }
 
@@ -129,11 +135,12 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       description: description.trim(),
       price: price.trim(),
       category: category.trim(),
-      media: updatedMedia.length > 0 ? updatedMedia : undefined,
+      media: updatedMediaObjects.length > 0 ? updatedMediaObjects : undefined,
       displayOrder: parsedDisplayOrder,
       ingredients: ingredients.trim() || undefined,
       youMayAlsoLike: youMayAlsoLike,
       allergenTags: allergenTags,
+      _tempVisualDescriptionForSave: effectiveVisualDescription, // Store determined visual description
     };
     
     const ownerId = "admin@example.com"; 
@@ -338,4 +345,3 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
     </Dialog>
   );
 }
-

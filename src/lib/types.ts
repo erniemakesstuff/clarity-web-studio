@@ -18,10 +18,11 @@ export interface MenuItem extends MenuItemCore {
   category?: string;
   media?: MediaObject[];
   dietaryIcons?: DietaryIcon[];
-  ingredients?: string; // From BackendFoodServiceEntryJson.ingredients (string)
-  allergenTags?: string[]; // From BackendFoodServiceEntryJson.allergen_tags (string[])
-  youMayAlsoLike?: string[]; // From BackendFoodServiceEntryJson.you_may_also_like (string[])
-  displayOrder?: number; // From BackendFoodServiceEntryJson.display_order (number)
+  ingredients?: string; 
+  allergenTags?: string[]; 
+  youMayAlsoLike?: string[]; 
+  displayOrder?: number; 
+  _tempVisualDescriptionForSave?: string; // Internal helper for saving
 }
 
 export type DietaryIcon = "vegetarian" | "vegan" | "gluten-free" | "spicy";
@@ -47,7 +48,7 @@ export interface BackendDigitalMenuPollResponse {
   MenuID: string;
   State: DigitalMenuState;
   FoodServiceEntries?: ExtractedMenuItem[] | null;
-  ContextS3MediaUrls?: string | null;
+  ContextS3MediaUrls?: string | null; 
 }
 
 export interface PollWorkflowStatusResult {
@@ -61,7 +62,7 @@ export interface PollWorkflowStatusResult {
 export interface BackendFoodServiceEntryJson {
   food_category: string;
   name: string;
-  description: string;
+  description: string | null; // Allow null from backend
   ingredients: string | null;
   allergen_tags: string[] | null;
   source_media_blob_ref?: string | null;
