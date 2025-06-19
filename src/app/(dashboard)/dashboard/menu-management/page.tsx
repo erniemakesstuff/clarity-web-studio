@@ -52,7 +52,7 @@ export default function MenuManagementPage() {
         .sort() 
         .map(name => ({
           name,
-          items: categoriesMap[name].sort((a,b) => a.name.localeCompare(b.name)) 
+          items: categoriesMap[name].sort((a,b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity) || a.name.localeCompare(b.name)) 
         }));
       setMenuCategories(sortedCategories);
     } else {
@@ -192,6 +192,7 @@ export default function MenuManagementPage() {
       <EditMenuItemDialog
         item={itemToEdit}
         isOpen={isEditModalOpen}
+        allMenuItems={selectedMenuInstance?.menu || []}
         onOpenChange={setIsEditModalOpen}
         onSave={handleSaveMenuItem}
       />

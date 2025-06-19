@@ -23,15 +23,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface EditMenuItemDialogProps {
   item: MenuItem | null;
   isOpen: boolean;
+  allMenuItems: MenuItem[];
   onOpenChange: (isOpen: boolean) => void;
   onSave: (updatedItem: MenuItem) => void;
 }
 
-export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditMenuItemDialogProps) {
+export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, onSave }: EditMenuItemDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -39,7 +41,7 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
   const [primaryImageUrl, setPrimaryImageUrl] = useState("");
   const [displayOrder, setDisplayOrder] = useState<number | string>("");
   const [ingredients, setIngredients] = useState("");
-  const [youMayAlsoLike, setYouMayAlsoLike] = useState("");
+  const [youMayAlsoLike, setYouMayAlsoLike] = useState<string[]>([]);
   const [allergenTags, setAllergenTags] = useState<string[]>([]);
 
   const { toast } = useToast();
@@ -53,9 +55,10 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
       setPrimaryImageUrl(item.media && item.media.length > 0 && item.media[0].type === 'image' ? item.media[0].url : "");
       setDisplayOrder(item.displayOrder !== undefined ? item.displayOrder : "");
       setIngredients(item.ingredients || "");
-      setYouMayAlsoLike(item.youMayAlsoLike ? item.youMayAlsoLike.join(", ") : "");
+      setYouMayAlsoLike(item.youMayAlsoLike || []);
       setAllergenTags(item.allergenTags || []);
     } else if (!isOpen) {
+      // Reset form fields when dialog is closed or no item
       setName("");
       setDescription("");
       setPrice("");
@@ -63,7 +66,7 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
       setPrimaryImageUrl("");
       setDisplayOrder("");
       setIngredients("");
-      setYouMayAlsoLike("");
+      setYouMayAlsoLike([]);
       setAllergenTags([]);
     }
   }, [item, isOpen]);
@@ -115,7 +118,7 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
       media: updatedMedia.length > 0 ? updatedMedia : undefined,
       displayOrder: parsedDisplayOrder,
       ingredients: ingredients.trim() || undefined,
-      youMayAlsoLike: youMayAlsoLike.split(',').map(s => s.trim()).filter(s => s),
+      youMayAlsoLike: youMayAlsoLike, // Directly use the array of selected names
       allergenTags: allergenTags,
     });
     onOpenChange(false);
@@ -126,6 +129,16 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
       checked ? [...prev, allergen] : prev.filter(tag => tag !== allergen)
     );
   };
+
+  const handleYouMayAlsoLikeToggle = (itemName: string) => {
+    setYouMayAlsoLike(prev =>
+      prev.includes(itemName)
+        ? prev.filter(name => name !== itemName)
+        : [...prev, itemName]
+    );
+  };
+
+  const availableRecommendations = allMenuItems.filter(menuItem => menuItem.id !== item?.id);
 
   if (!item) return null;
 
@@ -208,20 +221,35 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
             </div>
             <Textarea id="edit-ingredients" value={ingredients} onChange={(e) => setIngredients(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Flour, sugar, eggs or Rich tomato sauce with herbs" />
           </div>
+          
           <div className="grid grid-cols-4 items-start gap-4">
             <div className="flex items-center justify-end col-span-1 pt-2">
-                <Label htmlFor="edit-recommend" className="text-right mr-1">Also Recommend</Label>
+                <Label className="text-right mr-1">Also Recommend</Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Suggest other menu items that pair well with this one (comma-separated names of other items on your menu).</p>
+                    <p className="max-w-xs">Suggest other menu items that pair well with this one by selecting them from the list.</p>
                   </TooltipContent>
                 </Tooltip>
             </div>
-            <Textarea id="edit-recommend" value={youMayAlsoLike} onChange={(e) => setYouMayAlsoLike(e.target.value)} className="col-span-3 min-h-[60px]" placeholder="e.g., Item A, Item B, Item C" />
+            <div className="col-span-3 space-y-2">
+                <div className="flex flex-wrap gap-2 p-2 border rounded-md min-h-[60px] bg-background">
+                    {availableRecommendations.length > 0 ? availableRecommendations.map(recItem => (
+                        <Badge
+                            key={recItem.id}
+                            variant={youMayAlsoLike.includes(recItem.name) ? "default" : "outline"}
+                            onClick={() => handleYouMayAlsoLikeToggle(recItem.name)}
+                            className="cursor-pointer select-none"
+                        >
+                            {recItem.name}
+                        </Badge>
+                    )) : <p className="text-sm text-muted-foreground">No other items available to recommend.</p>}
+                </div>
+            </div>
           </div>
+
           <div className="grid grid-cols-4 items-start gap-4">
             <div className="flex items-center justify-end col-span-1 pt-2">
                 <Label className="text-right mr-1">Allergens</Label>
@@ -239,11 +267,11 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
                 {COMMON_ALLERGENS.map(allergen => (
                   <div key={allergen} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`allergen-${allergen}`}
+                      id={`allergen-${allergen.replace(/\s+/g, '-')}`} // Ensure valid ID
                       checked={allergenTags.includes(allergen)}
                       onCheckedChange={(checked) => handleAllergenChange(allergen, !!checked)}
                     />
-                    <Label htmlFor={`allergen-${allergen}`} className="font-normal text-sm">{allergen}</Label>
+                    <Label htmlFor={`allergen-${allergen.replace(/\s+/g, '-')}`} className="font-normal text-sm">{allergen}</Label>
                   </div>
                 ))}
               </div>
@@ -267,4 +295,3 @@ export function EditMenuItemDialog({ item, isOpen, onOpenChange, onSave }: EditM
     </Dialog>
   );
 }
-
