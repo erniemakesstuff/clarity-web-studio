@@ -8,10 +8,10 @@ import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollRespons
 const API_BASE_URL = "https://api.bityfan.com";
 
 interface GetPresignedUrlParams {
-  ownerId: string;
+  ownerId: string; // Hashed
   menuId: string;
   mediaType: string; 
-  payload: string; 
+  payload: string; // base64 encoded image
 }
 
 interface GetPresignedUrlResult {
@@ -45,8 +45,10 @@ export async function getPresignedUploadUrl(
       body: JSON.stringify(requestBody),
     });
 
+    const responseText = await response.text();
+
     if (response.ok) {
-      const resultJson = await response.json();
+      const resultJson = JSON.parse(responseText);
       if (resultJson.mediaURL) {
         const finalMediaUrl = resultJson.mediaURL.split('?')[0];
         return { success: true, mediaURL: resultJson.mediaURL, finalMediaUrl: finalMediaUrl };
@@ -55,13 +57,11 @@ export async function getPresignedUploadUrl(
       }
     } else {
       let errorMessage = `Backend API Error (getting presigned URL): ${response.status} ${response.statusText}.`;
-      let responseBodyText = "";
       try {
-        responseBodyText = await response.text();
-        const errorData = JSON.parse(responseBodyText);
+        const errorData = JSON.parse(responseText);
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch (e) {
-         errorMessage += ` Raw response: ${responseBodyText.substring(0, 200)}`;
+         errorMessage += ` Raw response: ${responseText.substring(0, 200)}`;
       }
       return { success: false, message: errorMessage };
     }
@@ -85,7 +85,7 @@ interface StartWorkflowResult {
 }
 
 export async function startBackendWorkflow(
-  ownerId: string,
+  ownerId: string, // Hashed
   menuId: string,
   jwtToken: string | null
 ): Promise<StartWorkflowResult> {
@@ -136,14 +136,14 @@ export async function startBackendWorkflow(
 
 
 export async function pollWorkflowStatus(
-  ownerId: string,
+  ownerId: string, // Hashed
   menuId: string,
   jwtToken: string | null
 ): Promise<PollWorkflowStatusResult> {
   let response: Response;
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${encodeURIComponent(ownerId)}&menuId=${encodeURIComponent(menuId)}`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}`, {
       method: "GET",
       headers: {
         "Authorization": authorizationValue,
@@ -224,7 +224,7 @@ interface BackendFoodServiceEntry {
 }
 
 interface UpdateMenuItemOnBackendParams {
-  ownerId: string;
+  ownerId: string; // Hashed
   menuId: string;
   targetEntryName: string; 
   itemData: FrontendMenuItem; 
