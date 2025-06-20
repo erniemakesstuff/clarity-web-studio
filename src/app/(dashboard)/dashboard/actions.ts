@@ -12,12 +12,13 @@ interface FetchMenuInstancesResult {
 }
 
 export async function fetchMenuInstancesFromBackend(
-  ownerId: string,
+  ownerId: string, // This is expected to be the hashed ownerId
   jwtToken: string | null
 ): Promise<FetchMenuInstancesResult> {
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${encodeURIComponent(ownerId)}`, {
+    // Use ownerId directly as it's pre-hashed and should be URL-safe
+    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
       method: "GET",
       headers: {
         "Authorization": authorizationValue,
@@ -60,9 +61,11 @@ export async function fetchMenuInstancesFromBackend(
 
             const dietaryIcons: DietaryIcon[] = [];
             const foodCategoryLower = typeof entry.food_category === 'string' ? entry.food_category.toLowerCase() : '';
-            const backendAllergenTagsLower = (Array.isArray(entry.allergen_tags) ? entry.allergen_tags : [])
+            const backendAllergenTagsRaw = entry.allergen_tags;
+            const backendAllergenTagsLower = (Array.isArray(backendAllergenTagsRaw) ? backendAllergenTagsRaw : [])
               .map(tag => typeof tag === 'string' ? tag.toLowerCase() : '')
               .filter(tag => tag !== '');
+
 
             if (foodCategoryLower === "vegan") {
               dietaryIcons.push('vegan');
@@ -96,7 +99,7 @@ export async function fetchMenuInstancesFromBackend(
               _tempVisualDescriptionForSave: dataAiHint, 
             };
           } catch (transformError: any) {
-            console.error(`Error transforming menu item at index ${itemIndex} (Original Name: ${entry?.name}, Owner: ${ownerId}, Menu: ${digitalMenu?.MenuID}): ${transformError.message}`, transformError.stack);
+            console.error(`Error transforming menu item at index ${itemIndex} (Original Name: ${entry?.name}, Owner Hashed: ${ownerId}, Menu: ${digitalMenu?.MenuID}): ${transformError.message}`, transformError.stack);
             return null; 
           }
         }).filter((item): item is MenuItem => item !== null);
