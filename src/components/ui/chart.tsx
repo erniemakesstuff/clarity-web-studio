@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -88,7 +89,8 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    const sanitizedKey = key.replace(/\s+/g, "-").toLowerCase();
+    return color ? `  --color-${sanitizedKey}: ${color};` : null
   })
   .join("\n")}
 }

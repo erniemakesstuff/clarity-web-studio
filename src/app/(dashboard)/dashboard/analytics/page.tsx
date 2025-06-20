@@ -78,6 +78,7 @@ export default function AnalyticsPage() {
     });
 
     const chartConfig: ChartConfig = Array.from(allFoodNames).reduce((acc, foodName) => {
+      // The key in chartConfig remains the original foodName for labels and tooltips
       acc[foodName] = {
         label: foodName,
         color: generateColorFromString(foodName),
@@ -180,9 +181,18 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="month" angle={-45} textAnchor="end" height={70} interval={0} tick={{ fontSize: 12 }} />
                   <YAxis allowDecimals={false} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  {Object.keys(monthlySalesChartConfig).map((foodName) => (
-                    <Bar key={foodName} dataKey={foodName} fill={`var(--color-${foodName})`} radius={[4, 4, 0, 0]} stackId="a" />
-                  ))}
+                  {Object.keys(monthlySalesChartConfig).map((foodName) => {
+                    const sanitizedKeyForCssVar = foodName.replace(/\s+/g, "-").toLowerCase();
+                    return (
+                      <Bar 
+                        key={foodName} 
+                        dataKey={foodName} /* dataKey uses original foodName */
+                        fill={`var(--color-${sanitizedKeyForCssVar})`} /* fill uses sanitized name for CSS var */
+                        radius={[4, 4, 0, 0]} 
+                        stackId="a" 
+                      />
+                    );
+                  })}
                 </RechartsBarChart>
               </ChartContainer>
             ) : (
