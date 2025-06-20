@@ -33,6 +33,7 @@ interface AuthContextType {
   updateMenuItem: (menuInstanceId: string, updatedItem: MenuItem) => boolean;
   isLoadingMenuInstances: boolean;
   refreshMenuInstances: () => Promise<void>;
+  rawMenuApiResponseText: string | null; // New field to expose raw API response
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,9 +46,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [menuInstances, setMenuInstances] = useState<MenuInstance[]>([]);
   const [selectedMenuInstance, setSelectedMenuInstance] = useState<MenuInstance | null>(null);
   const [isLoadingMenuInstances, setIsLoadingMenuInstances] = useState(true);
+  const [rawMenuApiResponseText, setRawMenuApiResponseText] = useState<string | null>(null); // State for raw API response
   const { toast } = useToast();
 
-  // Hashed Owner ID for backend calls, generated once.
   const hashedOwnerIdForContext = generateDeterministicIdHash(RAW_OWNER_ID_FOR_CONTEXT);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
@@ -55,6 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setMenuInstances([]);
       setSelectedMenuInstance(null);
       setIsLoadingMenuInstances(false);
+      setRawMenuApiResponseText(null);
       localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
       localStorage.removeItem(MENU_INSTANCES_LS_KEY);
       localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
@@ -76,53 +78,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
         const foundMenuInstance = parsedInstances.find(m => m.id === storedMenuInstanceId);
         setSelectedMenuInstance(foundMenuInstance || (parsedInstances.length > 0 ? parsedInstances[0] : null));
+        // Raw response is not cached, so it will be null here unless fetched
+        setRawMenuApiResponseText(null); 
         setIsLoadingMenuInstances(false);
         return;
       } catch (e) {
         console.error("Failed to parse cached menu instances:", e);
-        // Proceed to fetch from backend if cache is corrupted
       }
     }
 
     const result = await fetchMenuInstancesFromBackend(hashedOwnerIdForContext, jwtToken);
-
-    if (RAW_OWNER_ID_FOR_CONTEXT === "admin@example.com" && result.rawResponseText) {
-      let analyticsDebugMessage = "No Analytics data found in raw response or failed to parse.";
-      let mainDebugMessage = `Status: ${result.success ? 'OK' : 'Error'}. Length: ${result.rawResponseText.length}. Full Resp: ${result.rawResponseText.substring(0, 250)}${result.rawResponseText.length > 250 ? '...' : ''}`;
-      try {
-        const backendDataArray = JSON.parse(result.rawResponseText) as BackendDigitalMenuJson[];
-        if (Array.isArray(backendDataArray) && backendDataArray.length > 0) {
-          // Find a menu that has analytics data, or default to the first one
-          const menuWithAnalytics = backendDataArray.find(menu => menu.Analytics && menu.Analytics.length > 0) || backendDataArray[0];
-          if (menuWithAnalytics && menuWithAnalytics.Analytics) {
-            const analyticsSnippet = menuWithAnalytics.Analytics.slice(0, 2); // Show first 2 entries
-            analyticsDebugMessage = `Analytics (first ${analyticsSnippet.length} entries): ${JSON.stringify(analyticsSnippet, null, 2).substring(0,1000)}`;
-            // Check a sample for FoodCategory to guide debugging
-            if (analyticsSnippet.length > 0 && 'FoodCategory' in analyticsSnippet[0]) {
-                analyticsDebugMessage += ` (First item has FoodCategory: '${analyticsSnippet[0].FoodCategory}')`;
-            } else if (analyticsSnippet.length > 0) {
-                analyticsDebugMessage += " (First item MISSING FoodCategory field)";
-            }
-
-          }
-        }
-      } catch (parseError) {
-        analyticsDebugMessage = "Failed to parse raw backend response to extract Analytics data.";
-      }
-      toast({
-        title: "Admin Debug: Raw Analytics",
-        description: analyticsDebugMessage,
-        variant: "default",
-        duration: 20000
-      });
-       toast({
-        title: "Admin Debug: Full Response Snippet",
-        description: mainDebugMessage,
-        variant: (!result.success) ? "destructive" : "default",
-        duration: 15000
-      });
-    }
-
+    setRawMenuApiResponseText(result.rawResponseText || null); // Store the raw response text
 
     if (result.success && result.menuInstances) {
       setMenuInstances(result.menuInstances);
@@ -140,12 +106,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setSelectedMenuInstance(newSelected);
             localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newSelected.id);
         }
-
       } else {
         setSelectedMenuInstance(null);
         localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
       }
     } else {
+      // Display general error toast if not admin or if admin and no raw response to show in textbox
       if (!(RAW_OWNER_ID_FOR_CONTEXT === "admin@example.com" && result.rawResponseText) && result.message) {
          toast({
             title: "Error Fetching Menus",
@@ -153,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             variant: "destructive",
          });
       }
-      if (forceRefresh || !cachedInstancesStr) {
+      if (forceRefresh || !cachedInstancesStr) { // If refreshing or no cache, clear local state
         setMenuInstances([]);
         setSelectedMenuInstance(null);
         localStorage.removeItem(MENU_INSTANCES_LS_KEY);
@@ -190,6 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setIsAuthenticated(false);
     setJwtToken(null);
+    setRawMenuApiResponseText(null); // Clear raw response on logout
     localStorage.removeItem(AUTH_STATUS_LS_KEY);
     localStorage.removeItem(JWT_TOKEN_LS_KEY);
     localStorage.removeItem(MENU_INSTANCES_LS_KEY);
@@ -293,7 +260,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       renameMenuInstance,
       updateMenuItem,
       isLoadingMenuInstances,
-      refreshMenuInstances
+      refreshMenuInstances,
+      rawMenuApiResponseText // Provide raw API response text
     }}>
       {children}
     </AuthContext.Provider>

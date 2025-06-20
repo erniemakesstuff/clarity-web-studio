@@ -3,7 +3,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChartBig, AlertTriangle, Activity, HelpCircle, Share2, ZoomIn } from "lucide-react";
+import { BarChartBig, AlertTriangle, Activity, HelpCircle, Share2, ZoomIn, Code2 } from "lucide-react";
 import { ReceiptUploadForm } from "@/components/dashboard/ReceiptUploadForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
@@ -14,26 +14,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { NetworkGraphChart } from "@/components/dashboard/analytics/NetworkGraphChart";
 import type { NetworkNode, NetworkLinkMap } from "@/components/dashboard/analytics/NetworkGraphChart";
+import { Textarea } from "@/components/ui/textarea";
 
+const DEV_USER_RAW_ID = "admin@example.com";
 
 // Helper for Heatmap cell color
 const getHeatmapColor = (value: number, maxValue: number): string => {
-  if (maxValue === 0 || value <= 0) return "hsl(var(--secondary))"; // Use secondary for no/low data
+  if (maxValue === 0 || value <= 0) return "hsl(var(--secondary))"; 
   const intensity = Math.min(1, value / maxValue);
-  // Using a teal-based sequential scale
-  // Base lightness (for low values, closer to background)
-  const baseLightness = 90; // Lighter for less intense
-  // Target lightness (for high values, more intense color)
-  const targetLightness = 30; // Darker for more intense
-  // Interpolate lightness
+  const baseLightness = 90; 
+  const targetLightness = 30; 
   const lightness = baseLightness - (baseLightness - targetLightness) * intensity;
-  return `hsl(180, 60%, ${lightness}%)`; // Hue 180 is Teal
+  return `hsl(180, 60%, ${lightness}%)`; 
 };
 
 const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload as any; // Cast to any to access xCat, yCat, count
-    if (!data || data.xCat === data.yCat || !data.count || data.count <= 0) return null; // Don't show for diagonal or zero count
+    const data = payload[0].payload as any; 
+    if (!data || data.xCat === data.yCat || !data.count || data.count <= 0) return null; 
     return (
       <div className="bg-background border border-border shadow-lg rounded-md p-3 text-sm">
         <p className="font-semibold text-foreground">{data.xCat} & {data.yCat}</p>
@@ -44,7 +42,6 @@ const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>)
   return null;
 };
 
-// Category Colors for Network Graph
 const CATEGORY_COLORS: Record<string, string> = {
   "Appetizers": "hsl(var(--chart-1))", 
   "Entrees": "hsl(var(--chart-2))", 
@@ -80,7 +77,7 @@ const getSafeCategory = (catString?: string | null): string => {
 
 
 export default function AnalyticsPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, rawMenuApiResponseText } = useAuth();
   const [itemForDetailedView, setItemForDetailedView] = useState<string | null>(null);
 
   const analyticsData: AnalyticsEntry[] | null | undefined = selectedMenuInstance?.analytics;
@@ -93,15 +90,19 @@ export default function AnalyticsPage() {
     const itemsMap = new Map<string, { name: string, category: string }>();
     analyticsData.forEach(entry => {
       const mainFoodName = entry.food_name?.trim();
-      const mainFoodCategory = getSafeCategory(entry.FoodCategory); // Use FoodCategory (PascalCase)
-      if (mainFoodName && mainFoodName.length > 0 && !itemsMap.has(mainFoodName)) {
-        itemsMap.set(mainFoodName, { name: mainFoodName, category: mainFoodCategory });
+      if (mainFoodName && mainFoodName.length > 0) {
+        const mainFoodCategory = getSafeCategory(entry.FoodCategory);
+        if (!itemsMap.has(mainFoodName)) {
+            itemsMap.set(mainFoodName, { name: mainFoodName, category: mainFoodCategory });
+        }
       }
       entry.purchased_with.forEach(pw => {
          const purchasedWithName = pw.food_name?.trim();
-         const purchasedWithCategory = getSafeCategory(pw.FoodCategory); // Use FoodCategory (PascalCase)
-         if (purchasedWithName && purchasedWithName.length > 0 && !itemsMap.has(purchasedWithName)) {
-           itemsMap.set(purchasedWithName, { name: purchasedWithName, category: purchasedWithCategory });
+         if (purchasedWithName && purchasedWithName.length > 0) {
+            const purchasedWithCategory = getSafeCategory(pw.FoodCategory);
+            if (!itemsMap.has(purchasedWithName)) {
+              itemsMap.set(purchasedWithName, { name: purchasedWithName, category: purchasedWithCategory });
+            }
          }
       });
     });
@@ -165,7 +166,7 @@ export default function AnalyticsPage() {
       const name = entry.food_name.trim();
       if (name && name.length > 0) {
         foodItemDetails.set(name, {
-          category: getSafeCategory(entry.FoodCategory), // Use FoodCategory (PascalCase)
+          category: getSafeCategory(entry.FoodCategory),
           total_purchase_count: entry.purchase_count,
         });
 
@@ -178,7 +179,7 @@ export default function AnalyticsPage() {
             linksMap.get(name)?.push({ target: linkedName, count: pw.purchase_count });
             if (!foodItemDetails.has(linkedName)) {
                 const linkedItemAnalyticsEntry = analyticsData.find(e => e.food_name.trim() === linkedName);
-                const categoryForLinkedNode = getSafeCategory(pw.FoodCategory ?? linkedItemAnalyticsEntry?.FoodCategory); // Prefer pw.FoodCategory, then fallback
+                const categoryForLinkedNode = getSafeCategory(pw.FoodCategory ?? linkedItemAnalyticsEntry?.FoodCategory);
 
                 foodItemDetails.set(linkedName, {
                     category: categoryForLinkedNode,
@@ -202,10 +203,10 @@ export default function AnalyticsPage() {
     
     const finalNodes: NetworkNode[] = nodes.map((node, i, arr) => {
         const angle = (i / arr.length) * 2 * Math.PI;
-        const radius = Math.min(250, arr.length * 15); // Adjust radius based on node count
+        const radius = Math.min(250, arr.length * 15); 
         return {
             ...node,
-            x: 300 + radius * Math.cos(angle), // Ensure chart center (e.g. 300,200) matches ScatterChart dimensions/margins
+            x: 300 + radius * Math.cos(angle), 
             y: 200 + radius * Math.sin(angle),
         };
     });
@@ -392,7 +393,7 @@ export default function AnalyticsPage() {
                 
                 const chartDataForDetail = selectedItemData.purchased_with
                   .sort((a, b) => b.purchase_count - a.purchase_count)
-                  .slice(0, 10) // Show top 10
+                  .slice(0, 10) 
                   .map(pw => ({ name: pw.food_name, count: pw.purchase_count, category: getSafeCategory(pw.FoodCategory) }));
 
                 const detailChartConfig = chartDataForDetail.reduce((acc, item) => {
@@ -453,6 +454,28 @@ export default function AnalyticsPage() {
       
       <ReceiptUploadForm />
       {renderContent()}
+
+      {rawOwnerId === DEV_USER_RAW_ID && rawMenuApiResponseText && (
+        <Card className="shadow-lg mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+                <Code2 className="mr-2 h-6 w-6 text-muted-foreground" />
+                Dev: Raw API Response (Menu Data)
+            </CardTitle>
+            <CardDescription>
+              This is the raw JSON text received from the menu fetch API for the currently selected or loaded menu(s).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              readOnly
+              value={rawMenuApiResponseText}
+              className="h-96 font-mono text-xs bg-secondary/30 border-border"
+              placeholder="No raw API response available..."
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
