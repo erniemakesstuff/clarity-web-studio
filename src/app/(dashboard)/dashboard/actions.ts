@@ -9,16 +9,20 @@ interface FetchMenuInstancesResult {
   success: boolean;
   menuInstances?: MenuInstance[];
   message?: string;
+  rawResponseText?: string; // Added for debugging
 }
 
 export async function fetchMenuInstancesFromBackend(
   ownerId: string, // This is expected to be the hashed ownerId
   jwtToken: string | null
 ): Promise<FetchMenuInstancesResult> {
+  let response: Response | undefined = undefined;
+  let responseBodyText: string = "";
+
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
     // Use ownerId directly as it's pre-hashed and should be URL-safe
-    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
       method: "GET",
       headers: {
         "Authorization": authorizationValue,
@@ -26,10 +30,38 @@ export async function fetchMenuInstancesFromBackend(
       },
     });
 
+    responseBodyText = await response.text();
+
     if (response.ok) {
-      const backendDigitalMenus: BackendDigitalMenuJson[] = await response.json();
+      let backendDigitalMenus: BackendDigitalMenuJson[];
+      try {
+        backendDigitalMenus = JSON.parse(responseBodyText) as BackendDigitalMenuJson[];
+        if (!Array.isArray(backendDigitalMenus)) {
+            // If the backend returns a single object instead of an array for a single menu query (which seems to be the case for /menu?ownerId=X&menuId=Y)
+            // but for /menu?ownerId=X it should be an array. We will try to handle both.
+            // For now, assuming it's always an array as per original PRD for multiple menus.
+            // If backend sends a single object when an array is expected for /menu?ownerId=X
+             return { success: false, message: "Backend returned a single object, but an array of menus was expected for this owner.", menuInstances: [], rawResponseText: responseBodyText };
+        }
+
+      } catch (parseError: any) {
+        console.error(`Error parsing JSON response from backend for ownerId ${ownerId}: ${parseError.message}`, responseBodyText);
+        return { success: false, message: `Failed to parse successful JSON response from backend. Error: ${parseError.message}`, menuInstances: [], rawResponseText: responseBodyText };
+      }
       
       const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
+        // Defensive check for digitalMenu structure
+        if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
+            console.warn(`Skipping invalid menu structure at index ${menuIndex} for owner ${ownerId}. MenuID: ${digitalMenu?.MenuID}`);
+            // Return a placeholder or skip. For now, returning a minimal valid structure to avoid breaking .map
+            return { 
+                id: `invalid-menu-${menuIndex}-${Date.now()}`, 
+                name: `Invalid Menu Data ${menuIndex + 1}`, 
+                menu: [],
+                s3ContextImageUrls: []
+            };
+        }
+
         const menuItems: MenuItem[] = (digitalMenu.FoodServiceEntries || []).map((entry, itemIndex) => {
           try {
             const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${itemIndex + 1}`;
@@ -111,7 +143,7 @@ export async function fetchMenuInstancesFromBackend(
             .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
         }
         
-        const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}`;
+        const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
 
         return {
           id: menuIdToUse,
@@ -120,12 +152,10 @@ export async function fetchMenuInstancesFromBackend(
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
         };
       });
-      return { success: true, menuInstances: transformedMenuInstances };
+      return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };
     } else {
       let errorMessage = `Backend API Error: ${response.status} ${response.statusText}.`;
-      let responseBodyText = "";
       try {
-        responseBodyText = await response.text();
         const errorData = JSON.parse(responseBodyText); 
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch (e) {
@@ -135,7 +165,7 @@ export async function fetchMenuInstancesFromBackend(
           errorMessage += ' Failed to read error response body.';
         }
       }
-      return { success: false, message: errorMessage };
+      return { success: false, message: errorMessage, menuInstances: [], rawResponseText: responseBodyText };
     }
   } catch (error: any) {
     let detailedErrorMessage = "Failed to communicate with the backend service while fetching menus.";
@@ -150,7 +180,9 @@ export async function fetchMenuInstancesFromBackend(
     } else if (error) {
         detailedErrorMessage = `An unexpected error occurred: ${String(error)}`;
     }
-    return { success: false, message: detailedErrorMessage, menuInstances: [] };
+    // Ensure rawResponseText is included even in this catch block, if available from a partially failed attempt
+    return { success: false, message: detailedErrorMessage, menuInstances: [], rawResponseText: responseBodyText || `Error occurred before response could be read: ${error.message}` };
   }
 }
     
+

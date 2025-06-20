@@ -21,8 +21,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   jwtToken: string | null;
-  rawOwnerId: string; // Expose raw owner ID if needed by other parts of app
-  hashedOwnerId: string; // Expose hashed owner ID
+  rawOwnerId: string; 
+  hashedOwnerId: string; 
   login: () => void;
   logout: () => void;
   menuInstances: MenuInstance[];
@@ -82,8 +82,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Use the hashedOwnerId for backend calls
     const result = await fetchMenuInstancesFromBackend(hashedOwnerIdForContext, jwtToken);
+
+    if (result.rawResponseText) {
+      const isSuccessButEmpty = result.success && (!result.menuInstances || result.menuInstances.length === 0);
+      toast({
+        title: "Backend Response (Debug)",
+        description: `Status: ${result.success ? 'OK' : 'Error'}. Length: ${result.rawResponseText.length}. Data: ${result.rawResponseText.substring(0, 500)}${result.rawResponseText.length > 500 ? '...' : ''}`,
+        variant: (!result.success || isSuccessButEmpty) ? "destructive" : "default",
+        duration: 15000 
+      });
+    }
 
     if (result.success && result.menuInstances) {
       setMenuInstances(result.menuInstances);
@@ -107,11 +116,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
       }
     } else {
-      toast({
-        title: "Error Fetching Menus",
-        description: result.message || "Could not load your menus from the server.",
-        variant: "destructive",
-      });
+      // Error toast already shown if rawResponseText was present. 
+      // If not, show a generic one if message exists.
+      if (!result.rawResponseText && result.message) {
+         toast({
+            title: "Error Fetching Menus",
+            description: result.message,
+            variant: "destructive",
+         });
+      }
+      // If forcing refresh or cache was bad, clear local state.
       if (forceRefresh || !cachedInstancesStr) {
         setMenuInstances([]); 
         setSelectedMenuInstance(null);
@@ -265,3 +279,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
