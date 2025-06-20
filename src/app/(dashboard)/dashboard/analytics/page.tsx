@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
@@ -8,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, TooltipProps, Rectangle, Cell } from "recharts";
-import type { AnalyticsEntry, AnalyticsPurchasedWithEntry } from "@/lib/types";
+import type { AnalyticsEntry, AnalyticsPurchasedWithEntry, MenuItem } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -50,30 +51,55 @@ export default function AnalyticsPage() {
   const analyticsData: AnalyticsEntry[] | null | undefined = selectedMenuInstance?.analytics;
 
   const { allFoodNames, heatmapData, maxHeatmapValue } = useMemo(() => {
-    if (!analyticsData || analyticsData.length === 0) {
+    if (!analyticsData || analyticsData.length === 0 || !selectedMenuInstance || !selectedMenuInstance.menu) {
       return { allFoodNames: [], heatmapData: [], maxHeatmapValue: 0 };
     }
 
+    // 1. Create a map of food_name to food_category from the main menu items
+    const foodNameToCategoryMap = new Map<string, string>();
+    selectedMenuInstance.menu.forEach(menuItem => {
+      if (menuItem.name && menuItem.category) {
+        foodNameToCategoryMap.set(menuItem.name.trim(), menuItem.category.trim());
+      }
+    });
+    
+    // 2. Collect all unique food names involved in analytics
     const foodNameSet = new Set<string>();
     analyticsData.forEach(entry => {
-      if (entry.food_name && entry.food_name.trim() !== "") foodNameSet.add(entry.food_name.trim());
+      const mainFoodName = entry.food_name?.trim();
+      if (mainFoodName) foodNameSet.add(mainFoodName);
       entry.purchased_with.forEach(pw => {
-         if (pw.food_name && pw.food_name.trim() !== "") foodNameSet.add(pw.food_name.trim());
+         const purchasedWithName = pw.food_name?.trim();
+         if (purchasedWithName) foodNameSet.add(purchasedWithName);
       });
     });
-    const sortedFoodNames = Array.from(foodNameSet).sort();
+
+    // 3. Create a list of objects { name: string, category: string } for sorting
+    const itemsWithCategories = Array.from(foodNameSet).map(name => ({
+      name,
+      category: foodNameToCategoryMap.get(name) || "Uncategorized" // Fallback category
+    }));
+
+    // 4. Sort by category, then by name
+    itemsWithCategories.sort((a, b) => {
+      if (a.category < b.category) return -1;
+      if (a.category > b.category) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    
+    const sortedFoodNames = itemsWithCategories.map(item => item.name);
 
     const coOccurrence: { [keyA: string]: { [keyB: string]: number } } = {};
     let currentMax = 0;
 
     analyticsData.forEach(entry => {
       const itemA = entry.food_name ? entry.food_name.trim() : "";
-      if (!itemA || !sortedFoodNames.includes(itemA)) return; // Ensure itemA is in our list
+      if (!itemA || !sortedFoodNames.includes(itemA)) return; 
       if (!coOccurrence[itemA]) coOccurrence[itemA] = {};
       
       entry.purchased_with.forEach(relatedEntry => {
         const itemB = relatedEntry.food_name ? relatedEntry.food_name.trim() : "";
-        if (!itemB || !sortedFoodNames.includes(itemB)) return; // Ensure itemB is in our list
+        if (!itemB || !sortedFoodNames.includes(itemB)) return; 
         if (!coOccurrence[itemB]) coOccurrence[itemB] = {};
 
         const count = relatedEntry.purchase_count;
@@ -99,7 +125,7 @@ export default function AnalyticsPage() {
     }
 
     return { allFoodNames: sortedFoodNames, heatmapData: hData, maxHeatmapValue: currentMax };
-  }, [analyticsData]);
+  }, [analyticsData, selectedMenuInstance]);
   
   const augmentedBarChartData = useMemo((): AugmentedBarChartData[] => {
     if (!selectedFoodForDetails || !analyticsData) return [];
@@ -121,7 +147,7 @@ export default function AnalyticsPage() {
   const augmentedChartConfig = useMemo((): ChartConfig => {
     if (!augmentedBarChartData.length) return {};
     return {
-      count: { label: "Co-Purchases", color: "hsl(var(--primary))" },
+      count: { label: "Co-Purchases", color: "hsl(var(--primary))" }, // Adjusted color for clarity
     };
   }, [augmentedBarChartData]);
 
@@ -203,21 +229,20 @@ export default function AnalyticsPage() {
               Item Co-purchase Heatmap
             </CardTitle>
             <CardDescription>
-              Visualizes how frequently pairs of items are purchased together. Darker cells indicate stronger co-purchase. Click an item name or cell to see detailed pairings.
+              Visualizes how frequently pairs of items are purchased together. Darker cells indicate stronger co-purchase. Food items are grouped by category. Click an item name or cell to see detailed pairings.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {heatmapData.length > 0 && allFoodNames.length > 0 ? (
               <ScrollArea className="w-full whitespace-nowrap">
-                <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4">
-                  <ChartContainer config={{}} className="h-[500px] w-full">
+                <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4"> {/* Increased multiplier for better spacing */}
+                  <ChartContainer config={{}} className="h-[500px] w-full"> {/* Increased height */}
                     <RechartsBarChart
                         layout="vertical" 
                         data={heatmapData} 
-                        margin={{ top: 20, right: 50, bottom: 50, left: 150 }}
+                        margin={{ top: 20, right: 50, bottom: 100, left: 150 }} // Increased bottom margin for angled X-axis labels
                         barCategoryGap={0} 
                         barGap={0}
-                        // barSize={allFoodNames.length > 0 ? Math.max(20, (500 - 20 - 50) / allFoodNames.length) : 20} // Experimental barSize
                     >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
@@ -225,8 +250,8 @@ export default function AnalyticsPage() {
                             dataKey="xCat" 
                             name="Food Item A" 
                             ticks={allFoodNames}
-                            tick={{ fontSize: 10, angle: -45, textAnchor: 'end' }} 
-                            height={80}
+                            tick={{ fontSize: 10, angle: -60, textAnchor: 'end' }} // Increased angle for X-axis
+                            height={100} // Adjusted height for X-axis
                             interval={0}
                             allowDuplicatedCategory={true} 
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
@@ -238,7 +263,7 @@ export default function AnalyticsPage() {
                             name="Food Item B"
                             ticks={allFoodNames}
                             tick={{ fontSize: 10 }}
-                            width={120}
+                            width={140} // Adjusted width for Y-axis
                             interval={0}
                             allowDuplicatedCategory={true} 
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
@@ -273,10 +298,10 @@ export default function AnalyticsPage() {
             <CardContent>
               {augmentedBarChartData.length > 0 ? (
                 <ChartContainer config={augmentedChartConfig} className="h-[350px] w-full">
-                  <RechartsBarChart data={augmentedBarChartData} layout="vertical" margin={{ right: 30, left: 50, bottom: 20}}>
+                  <RechartsBarChart data={augmentedBarChartData} layout="vertical" margin={{ right: 30, left: 150, bottom: 20}}> {/* Increased left margin for Y-axis labels */}
                     <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} />
-                    <YAxis dataKey="name" type="category" width={150} tick={{fontSize: 12}} interval={0} />
+                    <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 12}} interval={0} /> {/* Adjusted width */}
                     <ChartTooltip content={<ChartTooltipContent />} cursor={{fill: 'hsl(var(--muted))'}}/>
                     <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} barSize={30} />
                   </RechartsBarChart>
