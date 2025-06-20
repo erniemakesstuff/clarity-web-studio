@@ -14,7 +14,8 @@ interface FetchPublicMenuResult {
 
 export async function fetchPublicMenuData(ownerId: string, menuId: string): Promise<FetchPublicMenuResult> {
   try {
-    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${encodeURIComponent(ownerId)}&menuId=${encodeURIComponent(menuId)}`, {
+    // Removed encodeURIComponent for ownerId and menuId
+    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
@@ -24,6 +25,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
 
     if (response.ok) {
       const digitalMenu: BackendDigitalMenuJson = await response.json();
+      
       const currentMenuIdActual = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : menuId; 
 
       const menuItems: MenuItem[] = (digitalMenu.FoodServiceEntries || [])
