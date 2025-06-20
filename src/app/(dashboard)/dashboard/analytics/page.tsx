@@ -46,28 +46,37 @@ const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>)
 
 // Category Colors for Network Graph
 const CATEGORY_COLORS: Record<string, string> = {
-  "Appetizers": "hsl(var(--chart-1))", // Teal-ish
-  "Entrees": "hsl(var(--chart-2))", // Orange-ish
-  "Main Courses": "hsl(var(--chart-2))", // Alias for Entrees
-  "Drinks": "hsl(var(--chart-3))", // Blue-ish
-  "Desserts": "hsl(var(--chart-4))", // Pink-ish
-  "Sides": "hsl(var(--chart-5))", // Green-ish
-  "Salads": "hsl(39, 90%, 60%)", // yellowish-orange
-  "Pizzas": "hsl(10, 80%, 60%)", // reddish
-  "Pastas": "hsl(45, 85%, 65%)", // gold
-  "Soups": "hsl(190, 70%, 55%)", // light blue
-  "Burgers": "hsl(25, 75%, 55%)", // brownish-orange
-  "Sandwiches": "hsl(60, 60%, 50%)", // olive
-  "Seafood": "hsl(210, 70%, 60%)", // blue
-  "Kids Menu": "hsl(300, 70%, 70%)", // pinkish-purple
-  "Other": "hsl(var(--muted-foreground))", // Grey for uncategorized or 'Other'
+  "Appetizers": "hsl(var(--chart-1))", 
+  "Entrees": "hsl(var(--chart-2))", 
+  "Main Courses": "hsl(var(--chart-2))", 
+  "Drinks": "hsl(var(--chart-3))", 
+  "Desserts": "hsl(var(--chart-4))", 
+  "Sides": "hsl(var(--chart-5))", 
+  "Salads": "hsl(39, 90%, 60%)", 
+  "Pizzas": "hsl(10, 80%, 60%)", 
+  "Pastas": "hsl(45, 85%, 65%)", 
+  "Soups": "hsl(190, 70%, 55%)", 
+  "Burgers": "hsl(25, 75%, 55%)", 
+  "Sandwiches": "hsl(60, 60%, 50%)", 
+  "Seafood": "hsl(210, 70%, 60%)", 
+  "Kids Menu": "hsl(300, 70%, 70%)", 
+  "Vegan": "hsl(120, 50%, 50%)",
+  "Vegetarian": "hsl(90, 50%, 50%)",
+  "Grills": "hsl(0, 60%, 50%)",
+  "Soups and Salads": "hsl(150, 60%, 50%)",
+  "Other": "hsl(var(--muted-foreground))", 
 };
-const DEFAULT_CATEGORY_COLOR = "hsl(var(--muted))"; // A default fallback
+const DEFAULT_CATEGORY_COLOR = "hsl(var(--muted))"; 
 
 function getCategoryColorForGraph(category?: string): string {
   if (!category) return DEFAULT_CATEGORY_COLOR;
   return CATEGORY_COLORS[category] || DEFAULT_CATEGORY_COLOR;
 }
+
+const getSafeCategory = (catString?: string | null): string => {
+  const trimmed = catString?.trim();
+  return (trimmed && trimmed.length > 0) ? trimmed : "Other";
+};
 
 
 export default function AnalyticsPage() {
@@ -84,14 +93,14 @@ export default function AnalyticsPage() {
     const itemsMap = new Map<string, { name: string, category: string }>();
     analyticsData.forEach(entry => {
       const mainFoodName = entry.food_name?.trim();
-      const mainFoodCategory = entry.FoodCategory?.trim() || "Other";
-      if (mainFoodName && !itemsMap.has(mainFoodName)) {
+      const mainFoodCategory = getSafeCategory(entry.FoodCategory); // Use FoodCategory (PascalCase)
+      if (mainFoodName && mainFoodName.length > 0 && !itemsMap.has(mainFoodName)) {
         itemsMap.set(mainFoodName, { name: mainFoodName, category: mainFoodCategory });
       }
       entry.purchased_with.forEach(pw => {
          const purchasedWithName = pw.food_name?.trim();
-         const purchasedWithCategory = pw.FoodCategory?.trim() || "Other";
-         if (purchasedWithName && !itemsMap.has(purchasedWithName)) {
+         const purchasedWithCategory = getSafeCategory(pw.FoodCategory); // Use FoodCategory (PascalCase)
+         if (purchasedWithName && purchasedWithName.length > 0 && !itemsMap.has(purchasedWithName)) {
            itemsMap.set(purchasedWithName, { name: purchasedWithName, category: purchasedWithCategory });
          }
       });
@@ -154,9 +163,9 @@ export default function AnalyticsPage() {
 
     analyticsData.forEach(entry => {
       const name = entry.food_name.trim();
-      if (name) {
+      if (name && name.length > 0) {
         foodItemDetails.set(name, {
-          category: entry.FoodCategory?.trim() || "Other",
+          category: getSafeCategory(entry.FoodCategory), // Use FoodCategory (PascalCase)
           total_purchase_count: entry.purchase_count,
         });
 
@@ -165,13 +174,15 @@ export default function AnalyticsPage() {
         }
         entry.purchased_with.forEach(pw => {
           const linkedName = pw.food_name.trim();
-          if (linkedName) {
+          if (linkedName && linkedName.length > 0) {
             linksMap.get(name)?.push({ target: linkedName, count: pw.purchase_count });
             if (!foodItemDetails.has(linkedName)) {
-                const linkedItemEntry = analyticsData.find(e => e.food_name.trim() === linkedName);
+                const linkedItemAnalyticsEntry = analyticsData.find(e => e.food_name.trim() === linkedName);
+                const categoryForLinkedNode = getSafeCategory(pw.FoodCategory ?? linkedItemAnalyticsEntry?.FoodCategory); // Prefer pw.FoodCategory, then fallback
+
                 foodItemDetails.set(linkedName, {
-                    category: pw.FoodCategory?.trim() || linkedItemEntry?.FoodCategory?.trim() || "Other",
-                    total_purchase_count: linkedItemEntry?.purchase_count || 0,
+                    category: categoryForLinkedNode,
+                    total_purchase_count: linkedItemAnalyticsEntry?.purchase_count || 0,
                 });
             }
           }
@@ -191,10 +202,10 @@ export default function AnalyticsPage() {
     
     const finalNodes: NetworkNode[] = nodes.map((node, i, arr) => {
         const angle = (i / arr.length) * 2 * Math.PI;
-        const radius = Math.min(250, arr.length * 15);
+        const radius = Math.min(250, arr.length * 15); // Adjust radius based on node count
         return {
             ...node,
-            x: 300 + radius * Math.cos(angle),
+            x: 300 + radius * Math.cos(angle), // Ensure chart center (e.g. 300,200) matches ScatterChart dimensions/margins
             y: 200 + radius * Math.sin(angle),
         };
     });
@@ -291,7 +302,7 @@ export default function AnalyticsPage() {
               Item Co-purchase Heatmap
             </CardTitle>
             <CardDescription>
-              Visualizes how frequently pairs of items are purchased together. Darker cells indicate stronger co-purchase. Food items are grouped by category.
+              Visualizes how frequently pairs of items are purchased together. Darker cells indicate stronger co-purchase. Food items are grouped by category. Click on a cell to see detailed co-purchases for that item.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -360,6 +371,73 @@ export default function AnalyticsPage() {
             )}
           </CardContent>
         </Card>
+
+        {itemForDetailedView && (
+          <Card className="shadow-lg mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl">
+                <ZoomIn className="mr-3 h-7 w-7 text-primary" />
+                Detailed Co-purchases for: {itemForDetailedView}
+              </CardTitle>
+              <CardDescription>
+                Items most frequently bought with {itemForDetailedView}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const selectedItemData = analyticsData.find(entry => entry.food_name.trim() === itemForDetailedView);
+                if (!selectedItemData || selectedItemData.purchased_with.length === 0) {
+                  return <p className="text-muted-foreground">No specific co-purchase data found for {itemForDetailedView}.</p>;
+                }
+                
+                const chartDataForDetail = selectedItemData.purchased_with
+                  .sort((a, b) => b.purchase_count - a.purchase_count)
+                  .slice(0, 10) // Show top 10
+                  .map(pw => ({ name: pw.food_name, count: pw.purchase_count, category: getSafeCategory(pw.FoodCategory) }));
+
+                const detailChartConfig = chartDataForDetail.reduce((acc, item) => {
+                  acc[item.name.replace(/\s+/g, "-").toLowerCase()] = { 
+                    label: item.name, 
+                    color: getCategoryColorForGraph(item.category) 
+                  };
+                  return acc;
+                }, {} as any);
+
+
+                return (
+                  <ChartContainer config={detailChartConfig} className="h-[300px] w-full">
+                    <RechartsBarChart data={chartDataForDetail} layout="vertical" margin={{ right: 20, left:100 }}>
+                      <CartesianGrid horizontal={false} />
+                       <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={90} interval={0} />
+                      <XAxis dataKey="count" type="number" />
+                      <ChartTooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-background border p-2 shadow-lg rounded-md text-sm">
+                                <p className="font-bold text-foreground">{`${payload[0].payload.name}`}</p>
+                                <p className="text-muted-foreground">{`Co-purchased: ${payload[0].value} times`}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="count" layout="vertical" radius={4} barSize={20}>
+                         {chartDataForDetail.map((entry, index) => (
+                            <Cell 
+                                key={`cell-detail-${index}`} 
+                                fill={getCategoryColorForGraph(entry.category)} 
+                            />
+                         ))}
+                      </Bar>
+                    </RechartsBarChart>
+                  </ChartContainer>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
       </>
     );
   };
