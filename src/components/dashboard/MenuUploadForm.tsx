@@ -22,7 +22,7 @@ interface QueuedItem {
   file: File;
   previewUrl: string;
   source: 'upload' | 'capture';
-  base64?: string;
+  // base64?: string; // No longer needed for presigned URL request
   s3UploadUrl?: string;
   finalMediaUrl?: string;
   uploadSuccess?: boolean;
@@ -270,20 +270,13 @@ export function MenuUploadForm() {
     const menuId = selectedMenuInstance.id;
     const itemsToProcess: QueuedItem[] = [];
 
-    setProgressMessage("Preparing image uploads (1/4)...");
+    setProgressMessage("Requesting upload URLs (1/4)...");
     for (let i = 0; i < queuedItems.length; i++) {
       const item = queuedItems[i];
       try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(item.file);
-        });
-        item.base64 = base64;
-
+        // Removed base64 conversion here
         const presignedResult = await getPresignedUploadUrl(
-          { ownerId: ownerIdToUse, menuId, mediaType: item.file.type, payload: base64 },
+          { ownerId: ownerIdToUse, menuId, mediaType: item.file.type }, // No payload sent
           jwtToken
         );
         if (!presignedResult.success || !presignedResult.mediaURL) {
@@ -331,7 +324,7 @@ export function MenuUploadForm() {
         const s3Response = await fetch(item.s3UploadUrl, {
           method: 'PUT',
           headers: { 'Content-Type': item.file.type },
-          body: item.file,
+          body: item.file, // Actual file object is uploaded
         });
         if (!s3Response.ok) {
           throw new Error(`S3 upload failed for ${item.file.name}: ${s3Response.status} ${s3Response.statusText}`);

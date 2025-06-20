@@ -150,23 +150,14 @@ export function ReceiptUploadForm() {
     setUploadProgress(0);
 
     try {
-      // 1. Get base64 for presigned URL request
-      const base64Payload = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]); // Get only base64 part
-        reader.onerror = reject;
-        reader.readAsDataURL(selectedFile);
-      });
-      
       setUploadProgress(10);
 
-      // 2. Get presigned S3 URL from our backend
+      // 1. Get presigned S3 URL from our backend (without sending file payload)
       const presignedUrlResult = await getReceiptPresignedUploadUrl(
         {
           ownerId: hashedOwnerId,
           menuId: selectedMenuInstance.id,
           mediaType: selectedFile.type,
-          payload: base64Payload,
         },
         jwtToken
       );
@@ -176,11 +167,11 @@ export function ReceiptUploadForm() {
       }
       setUploadProgress(30);
 
-      // 3. Upload the image to S3
+      // 2. Upload the image to S3 using the presigned URL
       const s3Response = await fetch(presignedUrlResult.presignedUrl, {
         method: 'PUT',
         headers: { 'Content-Type': selectedFile.type },
-        body: selectedFile,
+        body: selectedFile, // The actual file object is sent here
       });
 
       if (!s3Response.ok) {
@@ -191,7 +182,7 @@ export function ReceiptUploadForm() {
       setIsUploading(false);
       setIsReconciling(true);
 
-      // 4. Call reconcile endpoint
+      // 3. Call reconcile endpoint
       const reconcileResult = await reconcileReceiptWithBackend(
         {
           ownerId: hashedOwnerId,
@@ -353,4 +344,3 @@ export function ReceiptUploadForm() {
     </Card>
   );
 }
-

@@ -9,7 +9,7 @@ interface GetReceiptPresignedUrlParams {
   ownerId: string; // Hashed
   menuId: string;
   mediaType: string;
-  payload: string; // base64 encoded image
+  // payload: string; // Removed: base64 encoded image is not sent to get the presigned URL
 }
 
 interface GetReceiptPresignedUrlResult {
@@ -30,7 +30,7 @@ export async function getReceiptPresignedUploadUrl(
       ownerId: params.ownerId,
       menuId: params.menuId,
       mediaType: params.mediaType,
-      payload: params.payload,
+      // payload: params.payload, // Removed
     };
 
     const response = await fetch(`${API_BASE_URL}/ris/v1/receipt/context`, {
@@ -70,7 +70,7 @@ export async function getReceiptPresignedUploadUrl(
     } else if (error.message && error.message.includes("ECONNREFUSED")) {
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for receipt presigned URL.`;
     } else if (error.message && error.message.toLowerCase().includes("terminated")) {
-        detailedErrorMessage = `The PUT request to ${API_BASE_URL}/ris/v1/receipt/context for a presigned URL was unexpectedly terminated. This could indicate a network issue, a problem with the external service, or the service rejecting the request (e.g., due to request size if a large image was uploaded). Please check the backend logs for this specific endpoint and verify any request body size limits. Original error: ${error.message}`;
+        detailedErrorMessage = `The PUT request to ${API_BASE_URL}/ris/v1/receipt/context for a presigned URL was unexpectedly terminated. This could indicate a network issue, or the service rejecting the request. Ensure the backend endpoint is not expecting a large payload for this URL generation step. Original error: ${error.message}`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (requesting receipt presigned URL): ${error.message}`;
     }
@@ -132,7 +132,7 @@ export async function reconcileReceiptWithBackend(
       }
       return { success: false, message: errorMessage };
     }
-  } catch (error: any) {
+  } catch (error: any) {    
     let detailedErrorMessage = "Failed to communicate with the backend service while reconciling receipt.";
     if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
         detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for receipt reconcile.`;

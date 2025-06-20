@@ -11,7 +11,7 @@ interface GetPresignedUrlParams {
   ownerId: string; // Hashed
   menuId: string;
   mediaType: string; 
-  payload: string; // base64 encoded image
+  // payload: string; // Removed: base64 encoded image is not sent to get the presigned URL
 }
 
 interface GetPresignedUrlResult {
@@ -32,7 +32,7 @@ export async function getPresignedUploadUrl(
       ownerId: params.ownerId,
       menuId: params.menuId,
       mediaType: params.mediaType, 
-      payload: params.payload,
+      // payload: params.payload, // Removed
     };
 
     const response = await fetch(`${API_BASE_URL}/ris/v1/menu/context`, {
@@ -71,6 +71,8 @@ export async function getPresignedUploadUrl(
         detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for presigned URL. Please check server status and network connectivity.`;
     } else if (error.message && error.message.includes("ECONNREFUSED")) {
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for presigned URL. Please ensure the service is running.`;
+    } else if (error.message && error.message.toLowerCase().includes("terminated")) {
+        detailedErrorMessage = `The PUT request to ${API_BASE_URL}/ris/v1/menu/context for a presigned URL was unexpectedly terminated. Ensure the backend endpoint is not expecting a large payload for this URL generation step. Original error: ${error.message}`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (requesting presigned URL): ${error.message}`;
     }
