@@ -84,61 +84,56 @@ export default function AnalyticsPage() {
     const itemsMap = new Map<string, { name: string, category: string }>();
     analyticsData.forEach(entry => {
       const mainFoodName = entry.food_name?.trim();
-      const mainFoodCategory = entry.FoodCategory?.trim() || "Uncategorized";
+      const mainFoodCategory = entry.FoodCategory?.trim() || "Other";
       if (mainFoodName && !itemsMap.has(mainFoodName)) {
         itemsMap.set(mainFoodName, { name: mainFoodName, category: mainFoodCategory });
       }
-      // Also gather items mentioned in 'purchased_with' to ensure all items are on axes
       entry.purchased_with.forEach(pw => {
          const purchasedWithName = pw.food_name?.trim();
-         const purchasedWithCategory = pw.FoodCategory?.trim() || "Uncategorized";
+         const purchasedWithCategory = pw.FoodCategory?.trim() || "Other";
          if (purchasedWithName && !itemsMap.has(purchasedWithName)) {
            itemsMap.set(purchasedWithName, { name: purchasedWithName, category: purchasedWithCategory });
          }
       });
     });
 
-    // Sort items: first by category, then by name within each category
     const sortedItems = Array.from(itemsMap.values()).sort((a, b) => {
       if (a.category < b.category) return -1;
       if (a.category > b.category) return 1;
       return a.name.localeCompare(b.name);
     });
 
-    const foodNames = sortedItems.map(item => item.name); // Now sorted by category then name
+    const foodNames = sortedItems.map(item => item.name); 
 
     const coOccurrence: { [keyA: string]: { [keyB: string]: number } } = {};
     let currentMax = 0;
 
     analyticsData.forEach(entry => {
       const itemA = entry.food_name?.trim();
-      if (!itemA || !foodNames.includes(itemA)) return; // Ensure itemA is in our sorted list
+      if (!itemA || !foodNames.includes(itemA)) return; 
       if (!coOccurrence[itemA]) coOccurrence[itemA] = {};
 
       entry.purchased_with.forEach(relatedEntry => {
         const itemB = relatedEntry.food_name?.trim();
-        if (!itemB || !foodNames.includes(itemB)) return; // Ensure itemB is in our sorted list
-        if (!coOccurrence[itemB]) coOccurrence[itemB] = {}; // Initialize if itemB hasn't been seen as a primary key
+        if (!itemB || !foodNames.includes(itemB)) return; 
+        if (!coOccurrence[itemB]) coOccurrence[itemB] = {}; 
         
         const count = relatedEntry.purchase_count;
         
-        // Add to coOccurrence matrix (symmetrically)
         coOccurrence[itemA][itemB] = (coOccurrence[itemA][itemB] || 0) + count;
-        if (itemA !== itemB) { // Avoid double-counting diagonal for max value calculation
+        if (itemA !== itemB) { 
             coOccurrence[itemB][itemA] = (coOccurrence[itemB][itemA] || 0) + count;
         }
         if (itemA !== itemB && count > currentMax) currentMax = count;
       });
     });
 
-    // Construct heatmapData ensuring N*N entries
     const hData = [];
     if (foodNames.length > 0) {
       for (let i = 0; i < foodNames.length; i++) {
           for (let j = 0; j < foodNames.length; j++) {
               const nameA = foodNames[i];
               const nameB = foodNames[j];
-              // For diagonal or if no explicit co-occurrence, count is 0
               const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0);
               hData.push({ xCat: nameA, yCat: nameB, count, _cellSize: 1 });
           }
@@ -153,35 +148,30 @@ export default function AnalyticsPage() {
       return { networkNodes: [], networkLinksMap: new Map() };
     }
 
-    const nodes: Omit<NetworkNode, 'x' | 'y'>[] = []; // Nodes before position assignment
+    const nodes: Omit<NetworkNode, 'x' | 'y'>[] = [];
     const linksMap: NetworkLinkMap = new Map();
     const foodItemDetails = new Map<string, { category: string, total_purchase_count: number }>();
 
-    // First pass: aggregate all food items and their total purchase counts and categories
     analyticsData.forEach(entry => {
       const name = entry.food_name.trim();
-      if (name) { // Ensure name is not empty
+      if (name) {
         foodItemDetails.set(name, {
-          category: entry.FoodCategory || "Uncategorized",
-          total_purchase_count: entry.purchase_count, // This is the total for this item
+          category: entry.FoodCategory?.trim() || "Other",
+          total_purchase_count: entry.purchase_count,
         });
 
-        // Initialize links for this node
         if (!linksMap.has(name)) {
           linksMap.set(name, []);
         }
         entry.purchased_with.forEach(pw => {
           const linkedName = pw.food_name.trim();
-          if (linkedName) { // Ensure linked name is not empty
-            // Add link to map (this map is used by the tooltip)
+          if (linkedName) {
             linksMap.get(name)?.push({ target: linkedName, count: pw.purchase_count });
-            // Also ensure the linked item exists in foodItemDetails if not already processed
             if (!foodItemDetails.has(linkedName)) {
-                 // Try to find the main entry for this linked item to get its total purchase_count
                 const linkedItemEntry = analyticsData.find(e => e.food_name.trim() === linkedName);
                 foodItemDetails.set(linkedName, {
-                    category: pw.FoodCategory || linkedItemEntry?.FoodCategory || "Uncategorized",
-                    total_purchase_count: linkedItemEntry?.purchase_count || 0, // Default to 0 if not found as a main entry
+                    category: pw.FoodCategory?.trim() || linkedItemEntry?.FoodCategory?.trim() || "Other",
+                    total_purchase_count: linkedItemEntry?.purchase_count || 0,
                 });
             }
           }
@@ -189,25 +179,23 @@ export default function AnalyticsPage() {
       }
     });
 
-    // Create node objects from aggregated details
     foodItemDetails.forEach((details, name) => {
       nodes.push({
         id: name,
         name: name,
         category: details.category,
-        value: details.total_purchase_count, // for ZAxis sizing
+        value: details.total_purchase_count,
         color: getCategoryColorForGraph(details.category),
       });
     });
     
-    // Assign x, y positions (simple circular layout for now)
     const finalNodes: NetworkNode[] = nodes.map((node, i, arr) => {
         const angle = (i / arr.length) * 2 * Math.PI;
-        const radius = Math.min(250, arr.length * 15); // Adjust radius based on node count
+        const radius = Math.min(250, arr.length * 15);
         return {
             ...node,
-            x: 300 + radius * Math.cos(angle), // Chart center X = 300
-            y: 200 + radius * Math.sin(angle), // Chart center Y = 200
+            x: 300 + radius * Math.cos(angle),
+            y: 200 + radius * Math.sin(angle),
         };
     });
 
@@ -216,14 +204,11 @@ export default function AnalyticsPage() {
 
 
   const handleHeatmapCellClick = useCallback((data: any) => {
-    // If a string is passed, assume it's an axis label click (food item name)
     if (typeof data === 'string') {
         setItemForDetailedView(data);
-    } else if (data && data.xCat) { // If object, assume it's cell data from tooltip/click
-        setItemForDetailedView(data.xCat); // Could be xCat or yCat depending on interaction
+    } else if (data && data.xCat) {
+        setItemForDetailedView(data.xCat);
     }
-    // For now, this detailed view is removed in favor of network graph tooltips
-    // console.log("Heatmap cell/label clicked for:", typeof data === 'string' ? data : data?.xCat);
   }, []);
 
 
@@ -312,43 +297,38 @@ export default function AnalyticsPage() {
           <CardContent>
             {heatmapData.length > 0 && allFoodNames.length > 0 ? (
               <ScrollArea className="w-full whitespace-nowrap">
-                {/* Adjust minWidth based on number of items for better viewing */}
-                <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4"> {/* Increased per-item width */}
-                  <ChartContainer config={{}} className="h-[500px] w-full"> {/* Increased height for better label visibility */}
+                <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4"> 
+                  <ChartContainer config={{}} className="h-[500px] w-full"> 
                     <RechartsBarChart
                         layout="vertical"
-                        data={heatmapData} // Data for the chart structure
-                        margin={{ top: 20, right: 50, bottom: 100, left: 150 }} // Adjusted margins
-                        barCategoryGap={0} // No gap between categories (for heatmap appearance)
-                        barGap={0} // No gap between bars in the same category
+                        data={heatmapData}
+                        margin={{ top: 20, right: 50, bottom: 100, left: 150 }} 
+                        barCategoryGap={0} 
+                        barGap={0} 
                     >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                             type="category"
-                            dataKey="xCat" // Data key for x-axis categories
+                            dataKey="xCat" 
                             name="Food Item A"
                             ticks={allFoodNames}
                             tick={{ fontSize: 10, angle: -60, textAnchor: 'end' }}
-                            height={100} // Increased height for angled labels
-                            interval={0} // Show all ticks
-                            allowDuplicatedCategory={true} // Important for heatmaps
-                            // onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)} // Optional: click on axis label
-                            // className="cursor-pointer"
+                            height={100} 
+                            interval={0} 
+                            allowDuplicatedCategory={true}
                         />
                         <YAxis
                             type="category"
-                            dataKey="yCat" // Data key for y-axis categories
+                            dataKey="yCat" 
                             name="Food Item B"
                             ticks={allFoodNames}
                             tick={{ fontSize: 10 }}
-                            width={140} // Increased width for y-axis labels
-                            interval={0} // Show all ticks
-                            allowDuplicatedCategory={true} // Important for heatmaps
-                            // onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)} // Optional: click on axis label
-                            // className="cursor-pointer"
+                            width={140} 
+                            interval={0} 
+                            allowDuplicatedCategory={true}
                         />
                          <ChartTooltip content={<CustomHeatmapTooltip />} cursor={{ strokeDasharray: '3 3', fill: 'transparent' }}/>
-                         <Bar dataKey="_cellSize" isAnimationActive={false} barSize={40}> {/* Use _cellSize for bar dimension */}
+                         <Bar dataKey="_cellSize" isAnimationActive={false} barSize={40}> 
                            {heatmapCellsToRender}
                          </Bar>
                     </RechartsBarChart>
@@ -380,29 +360,6 @@ export default function AnalyticsPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Detailed view for heatmap click - can be repurposed or removed if network graph tooltip is sufficient */}
-        {/* 
-        {itemForDetailedView && (
-          <Card className="shadow-lg mt-8">
-            <CardHeader>
-              <CardTitle className="flex items-center text-2xl">
-                <ZoomIn className="mr-3 h-7 w-7 text-primary" />
-                Details for: <span className="text-primary ml-2">{itemForDetailedView}</span>
-              </CardTitle>
-              <CardDescription>
-                This section can show more specific details or related data for "{itemForDetailedView}" if needed.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-               <p className="text-muted-foreground">
-                 Further details for "{itemForDetailedView}" could be displayed here,
-                 such as its top co-purchased items (which is also available in the network graph tooltip).
-               </p>
-            </CardContent>
-          </Card>
-        )}
-        */}
       </>
     );
   };
