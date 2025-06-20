@@ -47,8 +47,8 @@ export async function getReceiptPresignedUploadUrl(
 
     if (response.ok) {
       const resultJson = JSON.parse(responseText);
-      if (resultJson.mediaURL) { // Assuming backend returns mediaURL for presigned part
-        const finalMediaUrl = resultJson.mediaURL.split('?')[0]; // Assuming final URL is the base URL
+      if (resultJson.mediaURL) { 
+        const finalMediaUrl = resultJson.mediaURL.split('?')[0]; 
         return { success: true, presignedUrl: resultJson.mediaURL, finalMediaUrl: finalMediaUrl };
       } else {
         return { success: false, message: "Backend did not return a mediaURL in the expected format for receipt." };
@@ -65,10 +65,12 @@ export async function getReceiptPresignedUploadUrl(
     }
   } catch (error: any) {
     let detailedErrorMessage = "Failed to communicate with the backend service while requesting receipt presigned URL.";
-     if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
+    if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
         detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for receipt presigned URL.`;
     } else if (error.message && error.message.includes("ECONNREFUSED")) {
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for receipt presigned URL.`;
+    } else if (error.message && error.message.toLowerCase().includes("terminated")) {
+        detailedErrorMessage = `The request to the backend service for a presigned URL was unexpectedly terminated. This could be a network issue or a problem with the external service at ${API_BASE_URL}. Original error: ${error.message}`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (requesting receipt presigned URL): ${error.message}`;
     }
@@ -85,7 +87,7 @@ interface ReceiptReconcileParams {
 interface ReceiptReconcileResult {
   success: boolean;
   message?: string;
-  reconciliationData?: any; // Define more specifically if backend returns data
+  reconciliationData?: any; 
 }
 
 export async function reconcileReceiptWithBackend(
@@ -100,7 +102,7 @@ export async function reconcileReceiptWithBackend(
       imageUrl: params.imageUrl,
     };
 
-    const response = await fetch(`${API_BASE_URL}/ris/v1/receipt/reconcile`, { // Corrected endpoint
+    const response = await fetch(`${API_BASE_URL}/ris/v1/receipt/reconcile`, { 
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -117,7 +119,6 @@ export async function reconcileReceiptWithBackend(
       try {
         reconciliationData = responseText ? JSON.parse(responseText) : {};
       } catch (e) {
-        // If response is OK but not JSON, or empty
         reconciliationData = { info: "Receipt submitted for reconciliation."}
       }
       return { success: true, message: "Receipt submitted for reconciliation.", reconciliationData };
@@ -137,9 +138,12 @@ export async function reconcileReceiptWithBackend(
         detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for receipt reconcile.`;
     } else if (error.message && error.message.includes("ECONNREFUSED")) {
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for receipt reconcile.`;
+    } else if (error.message && error.message.toLowerCase().includes("terminated")) {
+        detailedErrorMessage = `The request to the backend service for receipt reconciliation was unexpectedly terminated. This could be a network issue or a problem with the external service at ${API_BASE_URL}. Original error: ${error.message}`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (reconciling receipt): ${error.message}`;
     }
     return { success: false, message: detailedErrorMessage };
   }
 }
+
