@@ -20,7 +20,7 @@ import {
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical, PlusCircle, Sparkles } from "lucide-react";
+import { LayoutDashboard, Utensils, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical, PlusCircle, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -38,13 +38,7 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: <LayoutDashboard /> },
-  { href: "/dashboard/menu-management", label: "Menu Management", icon: <Utensils /> },
-  { href: "/dashboard/content-generation", label: "Marketing Assistant", icon: <Sparkles /> },
-  { href: "/dashboard/analytics", label: "Analytics", icon: <BarChart /> },
-  { href: "/dashboard/hypothesis-tests", label: "Hypothesis Tests", icon: <FlaskConical /> },
-];
+const ADMIN_USER_RAW_ID = "admin@example.com"; // Define admin user ID
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const {
@@ -54,39 +48,42 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     menuInstances,
     selectedMenuInstance,
     selectMenuInstance,
-    isLoadingMenuInstances
+    isLoadingMenuInstances,
+    rawOwnerId, // Get rawOwnerId for conditional rendering
   } = useAuth();
-  // useAuthRedirect hook is not directly used here for the loading state decision,
-  // as its primary role is redirection, which Next.js handles after router.replace.
-  // The isAuthLoading and isAuthenticated states from useAuth are sufficient.
+
   const pathname = usePathname_();
   const router = useRouter();
 
-  // Handle initial authentication loading and redirection cases first.
-  // These might show a full-page loader or handle redirection.
   if (isAuthLoading) {
     return <div className="flex h-screen items-center justify-center"><p>Loading authentication...</p></div>;
   }
 
   if (!isAuthenticated) {
-    // This case should ideally be caught by a higher-level redirect mechanism
-    // or route protection. If execution reaches here and not authenticated,
-    // it's often a sign that navigation to a protected route occurred before
-    // authentication status was fully resolved or redirection took effect.
-    // For robustness, explicitly redirect if not authenticated and auth is no longer loading.
-    // Note: Direct router.replace() in render can be problematic.
-    // Consider using a useEffect in a wrapper or relying on middleware/route guards.
-    // For this fix, we assume a redirect will happen if needed, or a login page is shown.
-    // If still rendering, show a message.
-     if (typeof window !== 'undefined') { // Ensure router.replace is client-side
+     if (typeof window !== 'undefined') { 
         router.replace("/signin");
      }
     return <div className="flex h-screen items-center justify-center"><p>Redirecting to login...</p></div>;
   }
+  
+  const isActualAdmin = rawOwnerId === ADMIN_USER_RAW_ID;
 
-  // If authenticated, render the main dashboard layout.
-  // isLoadingMenuInstances will be handled by showing a Skeleton for the menu dropdown,
-  // without unmounting the main children content.
+  const baseNavItems: NavItem[] = [
+    { href: "/dashboard", label: "Overview", icon: <LayoutDashboard /> },
+    { href: "/dashboard/menu-management", label: "Menu Management", icon: <Utensils /> },
+  ];
+
+  const adminNavItems: NavItem[] = isActualAdmin ? [
+    { href: "/dashboard/content-generation", label: "WIP: Marketing Assistant", icon: <Sparkles /> },
+  ] : [];
+
+  const commonNavItems: NavItem[] = [
+    { href: "/dashboard/analytics", label: "Analytics", icon: <BarChart /> },
+    { href: "/dashboard/hypothesis-tests", label: "Hypothesis Tests", icon: <FlaskConical /> },
+  ];
+
+  const navItems: NavItem[] = [...baseNavItems, ...adminNavItems, ...commonNavItems];
+
 
   const pageTitle = navItems.find(item => pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href)))?.label || "Dashboard";
 

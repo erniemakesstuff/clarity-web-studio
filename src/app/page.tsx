@@ -22,7 +22,7 @@ export default function HomePage() {
             </p>
             <div className="space-x-4">
               <Button size="lg" asChild>
-                <Link href="/menu/demo">View Demo Menu</Link>
+                <Link href="/menu/demo-owner-hash/demo-menu-id">View Demo Menu</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="/signin">Menu Portal</Link>
@@ -55,8 +55,8 @@ export default function HomePage() {
               />
               <FeatureCard
                 icon={<Sparkles className="h-10 w-10 text-primary" />}
-                title="AI Marketing Assistant"
-                description="Get AI assistance drafting engaging marketing content like blog posts and social media updates from your menu data."
+                title="WIP: AI Marketing Assistant"
+                description="Get AI assistance drafting marketing content (e.g., blog posts, social media updates). This feature is currently in development."
               />
             </div>
           </div>
@@ -85,7 +85,7 @@ export default function HomePage() {
               <ul className="space-y-2 text-muted-foreground">
                 <li className="flex items-center"><Zap size={20} className="text-primary mr-2"/> Track trending items and popular choices.</li>
                 <li className="flex items-center"><BarChart size={20} className="text-primary mr-2"/> Monitor upsell conversion rates and optimize suggestions.</li>
-                <li className="flex items-center"><Sparkles size={20} className="text-primary mr-2"/> Draft marketing content with AI assistance.</li>
+                <li className="flex items-center"><Sparkles size={20} className="text-primary mr-2"/> Draft marketing content with AI assistance (WIP).</li>
               </ul>
             </div>
           </div>

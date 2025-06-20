@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input"; // Added import
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { generateMarketingContent, type GenerateMarketingContentInput, type GenerateMarketingContentOutput } from "@/ai/flows/generate-marketing-content";
 import { Sparkles, Loader2, FileText, Wand2 } from "lucide-react";
@@ -40,7 +40,7 @@ export function ContentGeneratorForm() {
       const input: GenerateMarketingContentInput = {
         menuText,
         contentType,
-        tone: tone || undefined, // Pass undefined if empty
+        tone: tone || undefined, 
       };
       const result: GenerateMarketingContentOutput = await generateMarketingContent(input);
       setGeneratedContent(result.content);
@@ -67,10 +67,10 @@ export function ContentGeneratorForm() {
       <CardHeader>
         <CardTitle className="flex items-center text-2xl">
           <Sparkles className="mr-3 h-7 w-7 text-primary" />
-          AI Marketing Assistant
+          WIP: AI Marketing Assistant
         </CardTitle>
         <CardDescription>
-          Provide your menu text (or key items) and let AI help you draft engaging marketing content. You can then refine and post it.
+          Provide your menu text (or key items) and let AI help you draft engaging marketing content. You can then refine and post it. This feature is a work in progress.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
