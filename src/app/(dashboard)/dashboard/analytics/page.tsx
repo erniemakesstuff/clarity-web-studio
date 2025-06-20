@@ -7,7 +7,7 @@ import { BarChartBig, AlertTriangle, Activity, HelpCircle, ZoomIn } from "lucide
 import { ReceiptUploadForm } from "@/components/dashboard/ReceiptUploadForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, TooltipProps, Rectangle, Cell } from "recharts";
 import type { AnalyticsEntry, AnalyticsPurchasedWithEntry } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,7 +100,7 @@ export default function AnalyticsPage() {
         const count = relatedEntry.purchase_count;
         
         coOccurrence[itemA][itemB] = (coOccurrence[itemA][itemB] || 0) + count;
-        // Ensure symmetry if data isn't perfectly symmetrical, though problem desc implies it is
+        // Ensure symmetry if data isn't perfectly symmetrical
         if (itemA !== itemB) { 
             coOccurrence[itemB][itemA] = (coOccurrence[itemB][itemA] || 0) + count;
         }
@@ -113,19 +113,16 @@ export default function AnalyticsPage() {
         for (let j = 0; j < sortedFoodNames.length; j++) {
             const nameA = sortedFoodNames[i];
             const nameB = sortedFoodNames[j];
-            const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ; // No self-correlation, or set to total purchases if desired
-            if (nameA !== nameB && count > 0 ) { // Only add if there's a co-purchase
-                 hData.push({ xCat: nameA, yCat: nameB, count });
-            } else if (nameA === nameB) { // Add self-entries for axis generation
-                 hData.push({ xCat: nameA, yCat: nameB, count: 0 });
-            }
+            // For the heatmap data, ensure all cells are present for the Bar component to map over.
+            // The filtering for rendering will happen when generating Cell components.
+            const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ;
+            hData.push({ xCat: nameA, yCat: nameB, count });
         }
     }
     // If hData is empty but sortedFoodNames isn't, create dummy entries for axis generation
     if (hData.length === 0 && sortedFoodNames.length > 0) {
         sortedFoodNames.forEach(name => hData.push({ xCat: name, yCat: name, count: 0 }));
     }
-
 
     return { allFoodNames: sortedFoodNames, heatmapData: hData, maxHeatmapValue: currentMax };
   }, [analyticsData]);
@@ -140,11 +137,10 @@ export default function AnalyticsPage() {
   }, [selectedFoodForDetails, analyticsData]);
 
   const handleHeatmapCellClick = useCallback((data: any) => {
-    // data might be from axis (string) or cell payload (object)
     if (typeof data === 'string') {
         setSelectedFoodForDetails(data);
     } else if (data && data.xCat) {
-        setSelectedFoodForDetails(data.xCat); // Prioritize xCat, could also use yCat
+        setSelectedFoodForDetails(data.xCat); 
     }
   }, []);
 
@@ -154,6 +150,19 @@ export default function AnalyticsPage() {
       count: { label: "Co-Purchases", color: "hsl(var(--primary))" },
     };
   }, [augmentedBarChartData]);
+
+  const heatmapCellsToRender = useMemo(() => {
+    return heatmapData
+      .filter(entry => entry.xCat !== entry.yCat && entry.count > 0) // Filter out self-correlations and zero counts
+      .map((entry) => (
+        <Cell
+          key={`heatmap-cell-${entry.xCat}-${entry.yCat}`} // Unique key based on item pair
+          fill={getHeatmapColor(entry.count, maxHeatmapValue)}
+          onClick={() => handleHeatmapCellClick(entry)}
+          className="cursor-pointer hover:opacity-70"
+        />
+      ));
+  }, [heatmapData, maxHeatmapValue, handleHeatmapCellClick]);
 
 
   const renderContent = () => {
@@ -225,9 +234,9 @@ export default function AnalyticsPage() {
               <ScrollArea className="w-full whitespace-nowrap">
                 <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4">
                   <ChartContainer config={{}} className="h-[500px] w-full">
-                    <RechartsBarChart // Using BarChart for axes, but Scatter for points
-                        layout="vertical" // To make Y-axis food names horizontal
-                        data={heatmapData} // Dummy data for axes structure
+                    <RechartsBarChart
+                        layout="vertical" 
+                        data={heatmapData} 
                         margin={{ top: 20, right: 50, bottom: 50, left: 150 }}
                     >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false}/>
@@ -258,29 +267,9 @@ export default function AnalyticsPage() {
                             className="cursor-pointer"
                         />
                          <ChartTooltip content={<CustomHeatmapTooltip />} cursor={{ strokeDasharray: '3 3', fill: 'transparent' }}/>
-                        
-                        {/* Custom rendering for heatmap cells */}
-                        {/* Recharts doesn't have a direct heatmap. We simulate with Scatter or by drawing rects.
-                            This approach uses a Bar component with custom Cell rendering for each point in heatmapData.
-                            This is a bit of a hack for recharts to get categorical axes and clickable cells.
-                        */}
                          <Bar dataKey="count" isAnimationActive={false}>
-                            {heatmapData.map((entry, index) => {
-                                if (entry.xCat === entry.yCat || entry.count === 0) return null; // Skip self or zero counts
-                                return (
-                                    <Cell 
-                                        key={`cell-${index}`} 
-                                        fill={getHeatmapColor(entry.count, maxHeatmapValue)} 
-                                        onClick={() => handleHeatmapCellClick(entry)}
-                                        className="cursor-pointer hover:opacity-70"
-                                    />
-                                );
-                            })}
-                        </Bar>
-                        {/* This is a placeholder to make recharts render the scatter plot correctly with categories.
-                            The actual heatmap cells are drawn manually or via custom shapes if using Scatter.
-                            Let's try a direct approach. Recharts Scatter might be better.
-                        */}
+                           {heatmapCellsToRender}
+                         </Bar>
                     </RechartsBarChart>
                   </ChartContainer>
                 </div>
@@ -338,6 +327,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-
-    
