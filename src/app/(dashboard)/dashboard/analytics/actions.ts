@@ -47,11 +47,11 @@ export async function getReceiptPresignedUploadUrl(
 
     if (response.ok) {
       const resultJson = JSON.parse(responseText);
-      if (resultJson.mediaURL) { 
-        const finalMediaUrl = resultJson.mediaURL.split('?')[0]; 
-        return { success: true, presignedUrl: resultJson.mediaURL, finalMediaUrl: finalMediaUrl };
+      if (resultJson.uploadURL) { 
+        const finalMediaUrl = resultJson.uploadURL.split('?')[0]; 
+        return { success: true, presignedUrl: resultJson.uploadURL, finalMediaUrl: finalMediaUrl };
       } else {
-        return { success: false, message: "Backend did not return a mediaURL in the expected format for receipt." };
+        return { success: false, message: "Backend did not return an 'uploadURL' in the expected format for receipt." };
       }
     } else {
       let errorMessage = `Backend API Error (getting receipt presigned URL): ${response.status} ${response.statusText}.`;
