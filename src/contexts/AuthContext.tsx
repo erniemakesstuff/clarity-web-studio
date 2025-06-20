@@ -6,6 +6,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { MenuInstance, MenuItem } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
 import { useToast } from "@/hooks/use-toast";
+import { generateDeterministicIdHash } from "@/lib/hash-utils";
 
 
 const MENU_INSTANCES_LS_KEY = "clarityMenuUserMenuInstances";
@@ -14,11 +15,14 @@ const SELECTED_MENU_INSTANCE_LS_KEY = "clarityMenuSelectedMenuInstance";
 const AUTH_STATUS_LS_KEY = "clarityMenuAuth";
 const JWT_TOKEN_LS_KEY = "clarityMenuJwtToken";
 const MENU_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const RAW_OWNER_ID_FOR_CONTEXT = "admin@example.com"; // Define raw owner ID once
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   jwtToken: string | null;
+  rawOwnerId: string; // Expose raw owner ID if needed by other parts of app
+  hashedOwnerId: string; // Expose hashed owner ID
   login: () => void;
   logout: () => void;
   menuInstances: MenuInstance[];
@@ -26,7 +30,7 @@ interface AuthContextType {
   selectMenuInstance: (menuId: string) => void;
   addMenuInstance: (name: string) => MenuInstance; 
   renameMenuInstance: (menuId: string, newName: string) => boolean; 
-  updateMenuItem: (menuInstanceId: string, updatedItem: MenuItem) => boolean; // New
+  updateMenuItem: (menuInstanceId: string, updatedItem: MenuItem) => boolean;
   isLoadingMenuInstances: boolean;
   refreshMenuInstances: () => Promise<void>;
 }
@@ -43,6 +47,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingMenuInstances, setIsLoadingMenuInstances] = useState(true);
   const { toast } = useToast();
 
+  const hashedOwnerIdForContext = generateDeterministicIdHash(RAW_OWNER_ID_FOR_CONTEXT);
+
   const loadMenuData = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated) {
       setMenuInstances([]);
@@ -57,7 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setIsLoadingMenuInstances(true);
-    const ownerId = "admin@example.com"; 
     
     const cachedTimestampStr = localStorage.getItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
     const cachedInstancesStr = localStorage.getItem(MENU_INSTANCES_LS_KEY);
@@ -77,7 +82,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
+    // Use the hashedOwnerId for backend calls
+    const result = await fetchMenuInstancesFromBackend(hashedOwnerIdForContext, jwtToken);
 
     if (result.success && result.menuInstances) {
       setMenuInstances(result.menuInstances);
@@ -115,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, jwtToken, toast, selectedMenuInstance?.id]);
+  }, [isAuthenticated, jwtToken, toast, selectedMenuInstance?.id, hashedOwnerIdForContext]);
 
 
   useEffect(() => {
@@ -133,7 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated, loadMenuData]); 
 
   const login = () => {
-    const mockTokenValue = "mock-jwt-for-admin@example.com-" + Date.now();
+    const mockTokenValue = "mock-jwt-for-" + RAW_OWNER_ID_FOR_CONTEXT + "-" + Date.now();
     setIsAuthenticated(true);
     setJwtToken(mockTokenValue);
     localStorage.setItem(AUTH_STATUS_LS_KEY, "true");
@@ -202,7 +208,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const updatedMenu = instance.menu.map(item =>
           item.id === updatedItem.id ? updatedItem : item
         );
-        // Check if the menu actually changed to avoid unnecessary updates
         if (JSON.stringify(updatedMenu) !== JSON.stringify(instance.menu)) {
             success = true;
         }
@@ -235,6 +240,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthenticated,
       isLoading,
       jwtToken,
+      rawOwnerId: RAW_OWNER_ID_FOR_CONTEXT,
+      hashedOwnerId: hashedOwnerIdForContext,
       login,
       logout,
       menuInstances,

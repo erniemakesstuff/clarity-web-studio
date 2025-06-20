@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMenuItemOnBackend } from "@/app/(dashboard)/dashboard/menu-management/actions";
 import { cn } from "@/lib/utils";
-
+// Removed generateDeterministicIdHash import, will use hashedOwnerId from AuthContext
 
 interface EditMenuItemDialogProps {
   item: MenuItem | null;
@@ -50,7 +50,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
   const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance } = useAuth(); 
+  const { jwtToken, selectedMenuInstance, hashedOwnerId } = useAuth(); // Use hashedOwnerId from context
 
   useEffect(() => {
     if (item && isOpen) {
@@ -64,7 +64,6 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       setYouMayAlsoLike(item.youMayAlsoLike || []);
       setAllergenTags(item.allergenTags || []);
     } else if (!isOpen) {
-      // Reset form when dialog closes or item is null
       setName("");
       setDescription("");
       setPrice("");
@@ -116,9 +115,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
     setIsSaving(true);
 
     const originalDataAiHint = item.media?.[0]?.dataAiHint;
-    // Determine the effective visual description: prioritize original hint, then new name (truncated).
     const effectiveVisualDescription = originalDataAiHint || name.trim().toLowerCase().split(' ').slice(0,2).join(' ') || "food item";
-
 
     const updatedMediaObjects: MediaObject[] = [];
     if (primaryImageUrl.trim()) {
@@ -140,13 +137,12 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       ingredients: ingredients.trim() || undefined,
       youMayAlsoLike: youMayAlsoLike,
       allergenTags: allergenTags,
-      _tempVisualDescriptionForSave: effectiveVisualDescription, // Store determined visual description
+      _tempVisualDescriptionForSave: effectiveVisualDescription,
     };
     
-    const ownerId = "admin@example.com"; 
-
+    // Use hashedOwnerId from AuthContext for backend call
     const backendResult = await updateMenuItemOnBackend({
-        ownerId: ownerId,
+        ownerId: hashedOwnerId,
         menuId: selectedMenuInstance.id,
         targetEntryName: item.name, 
         itemData: updatedItemFromDialog,

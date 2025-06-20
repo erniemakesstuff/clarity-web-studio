@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { EditMenuItemDialog } from "@/components/dashboard/EditMenuItemDialog";
 import Link from "next/link";
+import { generateDeterministicIdHash } from "@/lib/hash-utils";
 
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
@@ -31,14 +32,21 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
   spicy: "Spicy",
 };
 
-const DASHBOARD_OWNER_ID = "admin@example.com"; // Assuming this is the owner for dashboard context
+const DASHBOARD_RAW_OWNER_ID = "admin@example.com"; 
 
 export default function MenuManagementPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem, rawOwnerId } = useAuth(); // Use rawOwnerId from AuthContext for consistency
   const { toast } = useToast();
   const [menuCategories, setMenuCategories] = useState<MenuCategoryType[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<MenuItem | null>(null);
+  const [hashedOwnerIdForLink, setHashedOwnerIdForLink] = useState("");
+
+  useEffect(() => {
+    if (rawOwnerId) { // rawOwnerId from AuthContext is used here
+      setHashedOwnerIdForLink(generateDeterministicIdHash(rawOwnerId));
+    }
+  }, [rawOwnerId]);
 
   useEffect(() => {
     if (selectedMenuInstance && selectedMenuInstance.menu.length > 0) {
@@ -126,9 +134,9 @@ export default function MenuManagementPage() {
               {selectedMenuInstance ? `Items for "${selectedMenuInstance.name}"` : "No menu selected or menu is empty."}
             </CardDescription>
           </div>
-          {selectedMenuInstance && (
+          {selectedMenuInstance && hashedOwnerIdForLink && (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/menu/${DASHBOARD_OWNER_ID}/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
+              <Link href={`/menu/${hashedOwnerIdForLink}/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
                 <Eye className="mr-2 h-4 w-4" /> View As Customer
               </Link>
             </Button>

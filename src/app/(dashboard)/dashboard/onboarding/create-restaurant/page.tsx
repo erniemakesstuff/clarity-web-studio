@@ -11,11 +11,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Utensils, PlusCircle, ArrowLeft } from "lucide-react";
 import { createMenuOnBackend } from "./actions";
+// Removed generateDeterministicIdHash import, will use hashedOwnerId from AuthContext
 
 export default function CreateMenuPage() {
   const [menuName, setMenuName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { addMenuInstance, jwtToken } = useAuth(); // Added jwtToken
+  const { addMenuInstance, jwtToken, hashedOwnerId } = useAuth(); // Use hashedOwnerId from context
   const router = useRouter();
   const { toast } = useToast();
 
@@ -33,11 +34,8 @@ export default function CreateMenuPage() {
 
     setIsLoading(true);
 
-    // Mock ownerId, in a real app this would come from the authenticated user's session
-    const ownerId = "admin@example.com";
-
-    // Pass jwtToken to the server action
-    const result = await createMenuOnBackend(ownerId, trimmedMenuName, jwtToken);
+    // Use hashedOwnerId from AuthContext for backend call
+    const result = await createMenuOnBackend(hashedOwnerId, trimmedMenuName, jwtToken);
 
     if (result.success && result.menuId) {
       const newMenu = addMenuInstance(trimmedMenuName);

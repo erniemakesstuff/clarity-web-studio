@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -14,6 +15,7 @@ import type { ExtractedMenuItem } from "@/lib/types";
 import Image from "next/image";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { generateDeterministicIdHash } from "@/lib/hash-utils";
 
 interface QueuedItem {
   id: string;
@@ -29,7 +31,9 @@ interface QueuedItem {
 const MAX_CONCURRENT_UPLOADS = 3;
 const POLLING_INTERVAL_MS = 10000;
 const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
-const DEV_USER_ID = "admin@example.com"; // For developer-specific features
+
+// Use raw ID for the developer check, and hashed ID for backend calls
+const DEV_USER_RAW_ID = "admin@example.com"; 
 
 export function MenuUploadForm() {
   const [queuedItems, setQueuedItems] = useState<QueuedItem[]>([]);
@@ -42,7 +46,7 @@ export function MenuUploadForm() {
   const [processedImageUrls, setProcessedImageUrls] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance, refreshMenuInstances } = useAuth();
+  const { jwtToken, selectedMenuInstance, refreshMenuInstances, rawOwnerId, hashedOwnerId } = useAuth();
 
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -51,7 +55,9 @@ export function MenuUploadForm() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isDeveloperUser = DEV_USER_ID === "admin@example.com"; // Simple check for dev user
+  const isDeveloperUser = rawOwnerId === DEV_USER_RAW_ID;
+  const devUserHashedIdToUse = generateDeterministicIdHash(DEV_USER_RAW_ID);
+
 
   useEffect(() => {
     if (selectedMenuInstance && selectedMenuInstance.s3ContextImageUrls && selectedMenuInstance.s3ContextImageUrls.length > 0 && !isProcessing && workflowOutcome === null) {
@@ -179,8 +185,8 @@ export function MenuUploadForm() {
     pollingTimeoutRef.current = null;
   },[]);
 
-  const doPollWorkflowStatus = useCallback(async (ownerId: string, menuId: string): Promise<boolean> => {
-    const pollResult = await pollWorkflowStatusAction(ownerId, menuId, jwtToken);
+  const doPollWorkflowStatus = useCallback(async (ownerIdForPoll: string, menuId: string): Promise<boolean> => {
+    const pollResult = await pollWorkflowStatusAction(ownerIdForPoll, menuId, jwtToken);
 
     if (!pollResult.success) {
       setProcessingError(pollResult.message || "Failed to get workflow status.");
@@ -188,7 +194,7 @@ export function MenuUploadForm() {
       cleanupPolling();
       setIsProcessing(false);
       setWorkflowOutcome('failure');
-      setCurrentProgress(100); // Ensure progress bar completes on error
+      setCurrentProgress(100); 
       return false;
     }
 
@@ -212,7 +218,7 @@ export function MenuUploadForm() {
         setCurrentProgress(100);
         setExtractedItems(pollResult.menuItems || []);
         setProcessedImageUrls(pollResult.s3ContextImageUrls || []);
-        if(!isProcessing) { // Avoid double toast if already set by handleSubmit
+        if(!isProcessing) { 
           toast({
             title: "Menu Processed Successfully!",
             description: `${pollResult.menuItems?.length || 0} items found.`,
@@ -227,7 +233,7 @@ export function MenuUploadForm() {
       case "Failed":
         setCurrentProgress(100);
         setProcessingError(pollResult.message || "Backend workflow failed to process the menu.");
-        if(!isProcessing) { // Avoid double toast
+        if(!isProcessing) { 
           toast({ title: "Workflow Failed", description: pollResult.message || "The backend failed to process your menu.", variant: "destructive" });
         }
         cleanupPolling();
@@ -260,7 +266,7 @@ export function MenuUploadForm() {
     setCurrentProgress(0);
     setProgressMessage("Starting process...");
 
-    const ownerId = DEV_USER_ID;
+    const ownerIdToUse = hashedOwnerId; // Use hashedOwnerId from AuthContext
     const menuId = selectedMenuInstance.id;
     const itemsToProcess: QueuedItem[] = [];
 
@@ -277,7 +283,7 @@ export function MenuUploadForm() {
         item.base64 = base64;
 
         const presignedResult = await getPresignedUploadUrl(
-          { ownerId, menuId, mediaType: item.file.type, payload: base64 },
+          { ownerId: ownerIdToUse, menuId, mediaType: item.file.type, payload: base64 },
           jwtToken
         );
         if (!presignedResult.success || !presignedResult.mediaURL) {
@@ -302,7 +308,7 @@ export function MenuUploadForm() {
 
     let workflowStartedSuccessfully = false;
     try {
-      const workflowStartResult = await startBackendWorkflow(ownerId, menuId, jwtToken);
+      const workflowStartResult = await startBackendWorkflow(ownerIdToUse, menuId, jwtToken);
       if (!workflowStartResult.success) {
         throw new Error(workflowStartResult.message || "Failed to start backend workflow.");
       }
@@ -371,11 +377,11 @@ export function MenuUploadForm() {
     if (workflowStartedSuccessfully && successfulUploadsCount > 0) {
       cleanupPolling();
 
-      let shouldContinuePolling = await doPollWorkflowStatus(ownerId, menuId);
+      let shouldContinuePolling = await doPollWorkflowStatus(ownerIdToUse, menuId);
 
       if (shouldContinuePolling) {
         pollingIntervalRef.current = setInterval(async () => {
-          const continuePollingAfterInterval = await doPollWorkflowStatus(ownerId, menuId);
+          const continuePollingAfterInterval = await doPollWorkflowStatus(ownerIdToUse, menuId);
           if (!continuePollingAfterInterval) {
             cleanupPolling();
           }
@@ -387,9 +393,9 @@ export function MenuUploadForm() {
              if (workflowOutcome !== 'success' && workflowOutcome !== 'failure') {
                 setProcessingError("Workflow polling timed out. Please check status later or refresh.");
                 toast({ title: "Polling Timeout", description: "Workflow took too long to respond.", variant: "destructive" });
-                setIsProcessing(false); // Ensure this is set
-                setWorkflowOutcome('failure'); // Ensure this is set
-                setCurrentProgress(100); // Ensure progress bar completes
+                setIsProcessing(false); 
+                setWorkflowOutcome('failure'); 
+                setCurrentProgress(100); 
              }
           }
         }, POLLING_TIMEOUT_MS);
@@ -415,11 +421,11 @@ export function MenuUploadForm() {
     setCurrentProgress(0);
     setProgressMessage("Manually starting workflow...");
 
-    const ownerId = DEV_USER_ID;
+    const ownerIdToUse = devUserHashedIdToUse; // Use dev user's hashed ID for this manual action
     const menuId = selectedMenuInstance.id;
 
     try {
-      const workflowStartResult = await startBackendWorkflow(ownerId, menuId, jwtToken);
+      const workflowStartResult = await startBackendWorkflow(ownerIdToUse, menuId, jwtToken);
       if (!workflowStartResult.success) {
         throw new Error(workflowStartResult.message || "Failed to start backend workflow manually.");
       }
@@ -428,11 +434,11 @@ export function MenuUploadForm() {
       setCurrentProgress(50);
       
       cleanupPolling();
-      let shouldContinuePolling = await doPollWorkflowStatus(ownerId, menuId);
+      let shouldContinuePolling = await doPollWorkflowStatus(ownerIdToUse, menuId);
 
       if (shouldContinuePolling) {
         pollingIntervalRef.current = setInterval(async () => {
-          const continuePollingAfterInterval = await doPollWorkflowStatus(ownerId, menuId);
+          const continuePollingAfterInterval = await doPollWorkflowStatus(ownerIdToUse, menuId);
           if (!continuePollingAfterInterval) {
             cleanupPolling();
           }
@@ -677,7 +683,6 @@ export function MenuUploadForm() {
             <p>Workflow completed, finalizing results...</p>
          </div>
        )}
-       {/* Display pre-existing context images if no active workflow and images exist */}
         {!isProcessing && workflowOutcome === null && processedImageUrls.length > 0 && (
           <div className="p-6 border-t">
             <h3 className="text-xl font-semibold mb-4 flex items-center">
@@ -702,4 +707,3 @@ export function MenuUploadForm() {
     </Card>
   );
 }
-

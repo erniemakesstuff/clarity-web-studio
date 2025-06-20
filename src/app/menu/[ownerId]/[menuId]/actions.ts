@@ -12,9 +12,10 @@ interface FetchPublicMenuResult {
   message?: string;
 }
 
+// ownerId received here is expected to be the hashed ID
 export async function fetchPublicMenuData(ownerId: string, menuId: string): Promise<FetchPublicMenuResult> {
   try {
-    // Removed encodeURIComponent for ownerId and menuId
+    // Use ownerId and menuId directly as they are expected to be correctly formatted (ownerId hashed)
     const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}`, {
       method: "GET",
       headers: {
@@ -95,7 +96,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
               _tempVisualDescriptionForSave: dataAiHint, 
             };
           } catch (transformError: any) {
-            console.error(`Error transforming public menu item at index ${index} (Original Name: ${entry?.name}, Owner: ${ownerId}, Menu: ${menuId}): ${transformError.message}`, transformError.stack);
+            console.error(`Error transforming public menu item at index ${index} (Original Name: ${entry?.name}, Owner Hashed: ${ownerId}, Menu: ${menuId}): ${transformError.message}`, transformError.stack);
             return null; 
           }
         }).filter((item): item is MenuItem => item !== null);
@@ -133,4 +134,3 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
     return { success: false, menu: [], restaurantName: menuId, message: detailedErrorMessage };
   }
 }
-    
