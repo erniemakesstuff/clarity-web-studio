@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
@@ -69,12 +68,12 @@ export default function AnalyticsPage() {
 
     analyticsData.forEach(entry => {
       const itemA = entry.food_name ? entry.food_name.trim() : "";
-      if (!itemA) return;
+      if (!itemA || !sortedFoodNames.includes(itemA)) return; // Ensure itemA is in our list
       if (!coOccurrence[itemA]) coOccurrence[itemA] = {};
       
       entry.purchased_with.forEach(relatedEntry => {
         const itemB = relatedEntry.food_name ? relatedEntry.food_name.trim() : "";
-        if (!itemB) return;
+        if (!itemB || !sortedFoodNames.includes(itemB)) return; // Ensure itemB is in our list
         if (!coOccurrence[itemB]) coOccurrence[itemB] = {};
 
         const count = relatedEntry.purchase_count;
@@ -94,7 +93,7 @@ export default function AnalyticsPage() {
               const nameA = sortedFoodNames[i];
               const nameB = sortedFoodNames[j];
               const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ;
-              hData.push({ xCat: nameA, yCat: nameB, count, _cellSize: 1 }); // Added _cellSize
+              hData.push({ xCat: nameA, yCat: nameB, count, _cellSize: 1 });
           }
       }
     }
@@ -217,9 +216,10 @@ export default function AnalyticsPage() {
                         data={heatmapData} 
                         margin={{ top: 20, right: 50, bottom: 50, left: 150 }}
                         barCategoryGap={0} 
-                        barGap={0} 
+                        barGap={0}
+                        // barSize={allFoodNames.length > 0 ? Math.max(20, (500 - 20 - 50) / allFoodNames.length) : 20} // Experimental barSize
                     >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false}/>
+                        <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
                             type="category" 
                             dataKey="xCat" 
@@ -229,7 +229,6 @@ export default function AnalyticsPage() {
                             height={80}
                             interval={0}
                             allowDuplicatedCategory={true} 
-                            domain={allFoodNames}
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
                             className="cursor-pointer"
                         />
@@ -242,12 +241,11 @@ export default function AnalyticsPage() {
                             width={120}
                             interval={0}
                             allowDuplicatedCategory={true} 
-                            domain={allFoodNames}
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
                             className="cursor-pointer"
                         />
                          <ChartTooltip content={<CustomHeatmapTooltip />} cursor={{ strokeDasharray: '3 3', fill: 'transparent' }}/>
-                         <Bar dataKey="_cellSize" isAnimationActive={false}>
+                         <Bar dataKey="_cellSize" isAnimationActive={false} barSize={40}>
                            {heatmapCellsToRender}
                          </Bar>
                     </RechartsBarChart>
