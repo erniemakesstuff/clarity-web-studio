@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingMenuInstances, setIsLoadingMenuInstances] = useState(true);
   const { toast } = useToast();
 
+  // Hashed Owner ID for backend calls, generated once.
   const hashedOwnerIdForContext = generateDeterministicIdHash(RAW_OWNER_ID_FOR_CONTEXT);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
@@ -79,15 +80,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return; 
       } catch (e) {
         console.error("Failed to parse cached menu instances:", e);
+        // Proceed to fetch from backend if cache is corrupted
       }
     }
     
     const result = await fetchMenuInstancesFromBackend(hashedOwnerIdForContext, jwtToken);
 
-    if (result.rawResponseText) {
+    // Conditional toast for debugging, only for the admin user
+    if (RAW_OWNER_ID_FOR_CONTEXT === "admin@example.com" && result.rawResponseText) {
       const isSuccessButEmpty = result.success && (!result.menuInstances || result.menuInstances.length === 0);
       toast({
-        title: "Backend Response (Debug)",
+        title: "Backend Response (Admin Debug)",
         description: `Status: ${result.success ? 'OK' : 'Error'}. Length: ${result.rawResponseText.length}. Data: ${result.rawResponseText.substring(0, 500)}${result.rawResponseText.length > 500 ? '...' : ''}`,
         variant: (!result.success || isSuccessButEmpty) ? "destructive" : "default",
         duration: 15000 
@@ -103,8 +106,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
         const currentSelectedStillValid = result.menuInstances.find(m => m.id === selectedMenuInstance?.id);
         if (currentSelectedStillValid) {
+            // If current selection is still valid in the new list, keep it.
+            // Potentially update its data if the backend returned a fresh version.
             setSelectedMenuInstance(currentSelectedStillValid); 
         } else {
+            // If current selection is no longer valid, or no selection, try to use stored ID or default.
             const foundMenuInstance = result.menuInstances.find(m => m.id === storedMenuInstanceId);
             const newSelected = foundMenuInstance || result.menuInstances[0];
             setSelectedMenuInstance(newSelected);
@@ -116,9 +122,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
       }
     } else {
-      // Error toast already shown if rawResponseText was present. 
-      // If not, show a generic one if message exists.
-      if (!result.rawResponseText && result.message) {
+      // Only show a generic error toast if the admin debug toast wasn't already shown
+      // (i.e., if rawResponseText was not present or not admin) AND there's a message.
+      if (!(RAW_OWNER_ID_FOR_CONTEXT === "admin@example.com" && result.rawResponseText) && result.message) {
          toast({
             title: "Error Fetching Menus",
             description: result.message,
@@ -135,7 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, jwtToken, toast, selectedMenuInstance?.id, hashedOwnerIdForContext]);
+  }, [isAuthenticated, jwtToken, toast, selectedMenuInstance?.id, hashedOwnerIdForContext]); // Ensure hashedOwnerIdForContext is in dependency array
 
 
   useEffect(() => {
@@ -143,21 +149,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedJwtToken = localStorage.getItem(JWT_TOKEN_LS_KEY);
     if (storedAuthStatus === "true") {
       setIsAuthenticated(true);
-      setJwtToken(storedJwtToken);
+      setJwtToken(storedJwtToken); // Load JWT token for the authenticated user
     }
-    setIsLoading(false);
+    setIsLoading(false); // Done loading initial auth state
   }, []);
 
+  // Load menu data whenever isAuthenticated changes or on initial load if already authenticated.
   useEffect(() => {
     loadMenuData();
-  }, [isAuthenticated, loadMenuData]); 
+  }, [isAuthenticated, loadMenuData]); // loadMenuData is now memoized with useCallback
 
   const login = () => {
+    // For mock purposes, generate a simple JWT-like string
     const mockTokenValue = "mock-jwt-for-" + RAW_OWNER_ID_FOR_CONTEXT + "-" + Date.now();
     setIsAuthenticated(true);
     setJwtToken(mockTokenValue);
     localStorage.setItem(AUTH_STATUS_LS_KEY, "true");
     localStorage.setItem(JWT_TOKEN_LS_KEY, mockTokenValue);
+    // Menu data will be loaded by the useEffect watching isAuthenticated
   };
 
   const logout = () => {
@@ -165,6 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setJwtToken(null);
     localStorage.removeItem(AUTH_STATUS_LS_KEY);
     localStorage.removeItem(JWT_TOKEN_LS_KEY);
+    // Clear menu data on logout
     localStorage.removeItem(MENU_INSTANCES_LS_KEY);
     localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
     localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
@@ -180,17 +190,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // This function should likely call a backend endpoint to persist the new menu instance.
+  // For now, it updates local state and localStorage.
   const addMenuInstance = (name: string): MenuInstance => {
+    // Create a somewhat unique ID for the new menu instance
     const newMenuInstance: MenuInstance = {
-      id: name.toLowerCase().replace(/\s+/g, '-') + '-menu-' + Date.now(), 
+      id: name.toLowerCase().replace(/\s+/g, '-') + '-menu-' + Date.now(), // Example ID
       name: name,
-      menu: [],
+      menu: [], // Starts with an empty menu
     };
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
-    setSelectedMenuInstance(newMenuInstance);
+    setSelectedMenuInstance(newMenuInstance); // Select the newly added menu
     localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); 
+    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); // Invalidate cache
     localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newMenuInstance.id);
     return newMenuInstance;
   };
@@ -201,13 +214,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       m.id === menuId ? { ...m, name: newName } : m
     );
     
+    // Check if actual change occurred to avoid unnecessary state updates/localStorage writes
     if (JSON.stringify(updatedMenuInstances) !== JSON.stringify(menuInstances)) {
       setMenuInstances(updatedMenuInstances);
       localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); 
+      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); // Invalidate cache
       success = true;
     }
 
+    // If the renamed instance was the selected one, update the selectedMenuInstance state
     if (selectedMenuInstance?.id === menuId) {
       const newSelected = updatedMenuInstances.find(m => m.id === menuId);
       setSelectedMenuInstance(newSelected || null);
@@ -219,9 +234,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let success = false;
     const updatedMenuInstances = menuInstances.map(instance => {
       if (instance.id === menuInstanceId) {
+        // Find and update the specific item in the menu
         const updatedMenu = instance.menu.map(item =>
           item.id === updatedItem.id ? updatedItem : item
         );
+        // Check if actual change occurred
         if (JSON.stringify(updatedMenu) !== JSON.stringify(instance.menu)) {
             success = true;
         }
@@ -233,8 +250,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (success) {
       setMenuInstances(updatedMenuInstances);
       localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
+      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString()); // Invalidate cache
 
+      // If the updated menu instance was the selected one, update the selectedMenuInstance state
       if (selectedMenuInstance?.id === menuInstanceId) {
         const newSelectedInstance = updatedMenuInstances.find(m => m.id === menuInstanceId);
         setSelectedMenuInstance(newSelectedInstance || null);
@@ -245,7 +263,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
   const refreshMenuInstances = useCallback(async () => {
-    await loadMenuData(true); 
+    await loadMenuData(true); // Pass true to force a refresh from backend
   }, [loadMenuData]);
 
 
@@ -254,8 +272,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthenticated,
       isLoading,
       jwtToken,
-      rawOwnerId: RAW_OWNER_ID_FOR_CONTEXT,
-      hashedOwnerId: hashedOwnerIdForContext,
+      rawOwnerId: RAW_OWNER_ID_FOR_CONTEXT, // Expose raw owner ID
+      hashedOwnerId: hashedOwnerIdForContext, // Expose hashed owner ID
       login,
       logout,
       menuInstances,
@@ -280,3 +298,17 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
+// Helper Hook for redirecting if not authenticated, can be used in page components
+// This is not part of the AuthContext itself but uses it.
+// Example usage: useAuthRedirect(); in a dashboard page.
+// import { useEffect } from "react";
+// import { useRouter } from "next/navigation";
+// export function useAuthRedirect(redirectTo = "/signin") {
+//   const { isAuthenticated, isLoading } = useAuth();
+//   const router = useRouter();
+//   useEffect(() => {
+//     if (!isLoading && !isAuthenticated) {
+//       router.replace(redirectTo);
+//     }
+//   }, [isAuthenticated, isLoading, router, redirectTo]);
+// }
