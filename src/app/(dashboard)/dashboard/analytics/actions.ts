@@ -70,7 +70,7 @@ export async function getReceiptPresignedUploadUrl(
     } else if (error.message && error.message.includes("ECONNREFUSED")) {
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for receipt presigned URL.`;
     } else if (error.message && error.message.toLowerCase().includes("terminated")) {
-        detailedErrorMessage = `The request to the backend service for a presigned URL was unexpectedly terminated. This could be a network issue or a problem with the external service at ${API_BASE_URL}. Original error: ${error.message}`;
+        detailedErrorMessage = `The PUT request to ${API_BASE_URL}/ris/v1/receipt/context for a presigned URL was unexpectedly terminated. This could indicate a network issue, a problem with the external service, or the service rejecting the request (e.g., due to request size if a large image was uploaded). Please check the backend logs for this specific endpoint and verify any request body size limits. Original error: ${error.message}`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (requesting receipt presigned URL): ${error.message}`;
     }
@@ -139,7 +139,7 @@ export async function reconcileReceiptWithBackend(
     } else if (error.message && error.message.includes("ECONNREFUSED")) {
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for receipt reconcile.`;
     } else if (error.message && error.message.toLowerCase().includes("terminated")) {
-        detailedErrorMessage = `The request to the backend service for receipt reconciliation was unexpectedly terminated. This could be a network issue or a problem with the external service at ${API_BASE_URL}. Original error: ${error.message}`;
+        detailedErrorMessage = `The POST request to ${API_BASE_URL}/ris/v1/receipt/reconcile was unexpectedly terminated. This could be a network issue or a problem with the external service. Please check the backend logs for this specific endpoint. Original error: ${error.message}`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (reconciling receipt): ${error.message}`;
     }
