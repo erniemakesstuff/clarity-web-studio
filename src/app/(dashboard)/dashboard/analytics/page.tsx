@@ -16,20 +16,18 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 // Helper for Heatmap cell color
 const getHeatmapColor = (value: number, maxValue: number): string => {
-  if (maxValue === 0 || value <= 0) return "hsl(var(--secondary))"; // Use secondary for no co-purchase or zero/negative
-  const intensity = Math.min(1, value / maxValue); // Normalize to 0-1
-  // Using primary color's HSL, vary lightness. Darker for higher intensity.
+  if (maxValue === 0 || value <= 0) return "hsl(var(--secondary))"; 
+  const intensity = Math.min(1, value / maxValue); 
   const baseLightness = 90; 
   const targetLightness = 30; 
   const lightness = baseLightness - (baseLightness - targetLightness) * intensity;
-  return `hsl(180, 60%, ${lightness}%)`; // Example: Teal
+  return `hsl(180, 60%, ${lightness}%)`; 
 };
 
 
 const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload; 
-    // Only show tooltip for meaningful cells (not self, positive count)
     if (!data || data.xCat === data.yCat || data.count <= 0) return null; 
     return (
       <div className="bg-background border border-border shadow-lg rounded-md p-3 text-sm">
@@ -70,13 +68,13 @@ export default function AnalyticsPage() {
     let currentMax = 0;
 
     analyticsData.forEach(entry => {
-      const itemA = entry.food_name;
-      if (!itemA || itemA.trim() === "") return;
+      const itemA = entry.food_name ? entry.food_name.trim() : "";
+      if (!itemA) return;
       if (!coOccurrence[itemA]) coOccurrence[itemA] = {};
       
       entry.purchased_with.forEach(relatedEntry => {
-        const itemB = relatedEntry.food_name;
-        if (!itemB || itemB.trim() === "") return;
+        const itemB = relatedEntry.food_name ? relatedEntry.food_name.trim() : "";
+        if (!itemB) return;
         if (!coOccurrence[itemB]) coOccurrence[itemB] = {};
 
         const count = relatedEntry.purchase_count;
@@ -90,17 +88,15 @@ export default function AnalyticsPage() {
     });
     
     const hData = [];
-    for (let i = 0; i < sortedFoodNames.length; i++) {
-        for (let j = 0; j < sortedFoodNames.length; j++) {
-            const nameA = sortedFoodNames[i];
-            const nameB = sortedFoodNames[j];
-            const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ;
-            hData.push({ xCat: nameA, yCat: nameB, count });
-        }
-    }
-
-    if (hData.length === 0 && sortedFoodNames.length > 0) {
-        sortedFoodNames.forEach(name => hData.push({ xCat: name, yCat: name, count: 0 }));
+    if (sortedFoodNames.length > 0) {
+      for (let i = 0; i < sortedFoodNames.length; i++) {
+          for (let j = 0; j < sortedFoodNames.length; j++) {
+              const nameA = sortedFoodNames[i];
+              const nameB = sortedFoodNames[j];
+              const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ;
+              hData.push({ xCat: nameA, yCat: nameB, count });
+          }
+      }
     }
 
     return { allFoodNames: sortedFoodNames, heatmapData: hData, maxHeatmapValue: currentMax };
@@ -116,9 +112,9 @@ export default function AnalyticsPage() {
   }, [selectedFoodForDetails, analyticsData]);
 
   const handleHeatmapCellClick = useCallback((data: any) => {
-    if (typeof data === 'string') { // Clicked on axis label
+    if (typeof data === 'string') { 
         setSelectedFoodForDetails(data);
-    } else if (data && data.xCat) { // Clicked on cell payload
+    } else if (data && data.xCat) { 
         setSelectedFoodForDetails(data.xCat); 
     }
   }, []);
@@ -220,8 +216,8 @@ export default function AnalyticsPage() {
                         layout="vertical" 
                         data={heatmapData} 
                         margin={{ top: 20, right: 50, bottom: 50, left: 150 }}
-                        barCategoryGap={0} // Ensure cells touch
-                        barGap={0} // Ensure cells touch
+                        barCategoryGap={0} 
+                        barGap={0} 
                     >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false}/>
                         <XAxis 
@@ -232,7 +228,7 @@ export default function AnalyticsPage() {
                             tick={{ fontSize: 10, angle: -45, textAnchor: 'end' }} 
                             height={80}
                             interval={0}
-                            allowDuplicatedCategory={false}
+                            allowDuplicatedCategory={true} 
                             domain={allFoodNames}
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
                             className="cursor-pointer"
@@ -245,7 +241,7 @@ export default function AnalyticsPage() {
                             tick={{ fontSize: 10 }}
                             width={120}
                             interval={0}
-                            allowDuplicatedCategory={false}
+                            allowDuplicatedCategory={true} 
                             domain={allFoodNames}
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
                             className="cursor-pointer"
@@ -311,6 +307,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-
-    
