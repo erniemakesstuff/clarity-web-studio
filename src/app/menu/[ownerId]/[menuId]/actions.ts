@@ -8,7 +8,7 @@ const API_BASE_URL = "https://api.bityfan.com";
 interface FetchPublicMenuResult {
   success: boolean;
   menu?: MenuItem[];
-  restaurantName?: string; 
+  restaurantName?: string;
   message?: string;
 }
 
@@ -19,75 +19,88 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
       headers: {
         "Accept": "application/json",
       },
-      cache: 'no-store', 
+      cache: 'no-store',
     });
 
     if (response.ok) {
       const digitalMenu: BackendDigitalMenuJson = await response.json();
-      
-      const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, index) => {
-        const formattedPrice = `$${(entry.price / 100).toFixed(2)}`;
+      const currentMenuId = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : menuId; 
 
-        const mediaObjects: MediaObject[] = [];
-        const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
-        
-        let dataAiHint = 'food item'; 
+      const menuItems: MenuItem[] = (digitalMenu.FoodServiceEntries || [])
+        .map((entry, index) => {
+          const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${index + 1}`;
+          const itemDescription = typeof entry.description === 'string' ? entry.description : "";
+          const itemPrice = typeof entry.price === 'number' ? entry.price : 0;
+          const formattedPrice = `$${(itemPrice / 100).toFixed(2)}`;
 
-        if (entry.visual_description && entry.visual_description.trim() !== '') {
-            dataAiHint = entry.visual_description.split(/\s+/).slice(0, 2).join(' ');
-        } else if (entry.name && entry.name.trim() !== '') {
-            dataAiHint = entry.name.split(/\s+/).slice(0, 2).join(' ');
-        }
+          const mediaObjects: MediaObject[] = [];
+          const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
 
-        if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
-          mediaObjects.push({
-            type: 'image',
-            url: imageUrl,
-            dataAiHint: dataAiHint,
-          });
-        }
+          let dataAiHint = 'food item'; // Default hint
+          const visualDesc = typeof entry.visual_description === 'string' ? entry.visual_description.trim() : '';
+          const entryNameForHint = typeof entry.name === 'string' ? entry.name.trim() : '';
 
-        const dietaryIcons: DietaryIcon[] = [];
-        const backendAllergenTagsLower = (entry.allergen_tags || []).map(tag => tag.toLowerCase());
+          if (visualDesc) {
+              dataAiHint = visualDesc.split(/\s+/).slice(0, 2).join(' ');
+          } else if (entryNameForHint) {
+              dataAiHint = entryNameForHint.split(/\s+/).slice(0, 2).join(' ');
+          }
+          if (dataAiHint.trim() === '') dataAiHint = 'food item'; // Final fallback
 
-        if (entry.food_category?.toLowerCase() === "vegan") {
-          dietaryIcons.push('vegan');
-        }
-        if (entry.food_category?.toLowerCase() === "vegetarian" || dietaryIcons.includes('vegan')) {
-          dietaryIcons.push('vegetarian');
-        }
-        if (entry.food_category?.toLowerCase().includes("gluten free") || backendAllergenTagsLower.includes("gluten-free") || backendAllergenTagsLower.includes("gluten free")) {
-          dietaryIcons.push('gluten-free');
-        }
-        if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
-          dietaryIcons.push('spicy');
-        }
-        
-        const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
+          if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+            mediaObjects.push({
+              type: 'image',
+              url: imageUrl,
+              dataAiHint: dataAiHint,
+            });
+          }
 
-        return {
-          id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`,
-          name: entry.name,
-          description: entry.description || "",
-          price: formattedPrice,
-          category: entry.food_category || "Other",
-          media: mediaObjects.length > 0 ? mediaObjects : undefined,
-          dietaryIcons: uniqueDietaryIcons.length > 0 ? uniqueDietaryIcons : undefined,
-          ingredients: entry.ingredients || undefined,
-          allergenTags: entry.allergen_tags || undefined,
-          youMayAlsoLike: entry.you_may_also_like || undefined,
-          displayOrder: entry.display_order,
-        };
-      });
+          const dietaryIcons: DietaryIcon[] = [];
+          const foodCategoryLower = typeof entry.food_category === 'string' ? entry.food_category.toLowerCase() : '';
+          const backendAllergenTagsLower = (Array.isArray(entry.allergen_tags) ? entry.allergen_tags : [])
+            .map(tag => typeof tag === 'string' ? tag.toLowerCase() : '')
+            .filter(tag => tag !== '');
 
-      return { success: true, menu: menuItems, restaurantName: digitalMenu.MenuID };
+          if (foodCategoryLower === "vegan") {
+            dietaryIcons.push('vegan');
+          }
+          if (foodCategoryLower === "vegetarian" || dietaryIcons.includes('vegan')) { // Vegan implies vegetarian
+            dietaryIcons.push('vegetarian');
+          }
+          if (foodCategoryLower.includes("gluten free") || backendAllergenTagsLower.includes("gluten-free") || backendAllergenTagsLower.includes("gluten free")) {
+            dietaryIcons.push('gluten-free');
+          }
+          if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
+            dietaryIcons.push('spicy');
+          }
+
+          const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
+          const safeItemNameForId = itemName.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+
+          return {
+            id: `${safeItemNameForId}-${currentMenuId}-${index}`,
+            name: itemName,
+            description: itemDescription,
+            price: formattedPrice,
+            category: typeof entry.food_category === 'string' ? entry.food_category : "Other",
+            media: mediaObjects.length > 0 ? mediaObjects : undefined,
+            dietaryIcons: uniqueDietaryIcons.length > 0 ? uniqueDietaryIcons : undefined,
+            ingredients: typeof entry.ingredients === 'string' ? entry.ingredients : undefined,
+            allergenTags: Array.isArray(entry.allergen_tags) ? entry.allergen_tags.filter(tag => typeof tag === 'string') as string[] : undefined,
+            youMayAlsoLike: Array.isArray(entry.you_may_also_like) ? entry.you_may_also_like.filter(yml => typeof yml === 'string') as string[] : undefined,
+            displayOrder: typeof entry.display_order === 'number' ? entry.display_order : undefined,
+            _tempVisualDescriptionForSave: dataAiHint, 
+          };
+        });
+
+      return { success: true, menu: menuItems, restaurantName: currentMenuId };
     } else {
       let errorMessage = `Backend API Error fetching public menu: ${response.status} ${response.statusText}.`;
       try {
         const errorData = await response.json();
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch (e) { /* Failed to parse error */ }
-      return { success: false, message: errorMessage };
+      return { success: false, menu: [], restaurantName: menuId, message: errorMessage };
     }
   } catch (error: any) {
     let detailedErrorMessage = "Failed to communicate with the backend service while fetching public menu.";
@@ -96,6 +109,6 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred: ${error.message}`;
     }
-    return { success: false, message: detailedErrorMessage };
+    return { success: false, menu: [], restaurantName: menuId, message: detailedErrorMessage };
   }
 }

@@ -29,63 +29,71 @@ export async function fetchMenuInstancesFromBackend(
       const backendDigitalMenus: BackendDigitalMenuJson[] = await response.json();
       
       const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map(digitalMenu => {
-        const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, index) => {
-          const formattedPrice = `$${(entry.price / 100).toFixed(2)}`;
+        const menuItems: MenuItem[] = (digitalMenu.FoodServiceEntries || []).map((entry, index) => {
+          const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${index + 1}`;
+          const itemDescription = typeof entry.description === 'string' ? entry.description : "";
+          const itemPrice = typeof entry.price === 'number' ? entry.price : 0;
+          const formattedPrice = `$${(itemPrice / 100).toFixed(2)}`;
 
           const mediaObjects: MediaObject[] = [];
           const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
           
-          if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
-            let hint = '';
-            const descriptionWords = entry.visual_description?.split(/\s+/) || [];
-            const nameWords = entry.name?.split(/\s+/) || [];
+          let dataAiHint = 'food item'; // Default hint
+          const visualDesc = typeof entry.visual_description === 'string' ? entry.visual_description.trim() : '';
+          const entryNameForHint = typeof entry.name === 'string' ? entry.name.trim() : '';
 
-            if (descriptionWords.length > 0 && descriptionWords[0]) {
-                hint = descriptionWords.slice(0, 2).join(' ');
-            } else if (nameWords.length > 0 && nameWords[0]) {
-                hint = nameWords.slice(0, 2).join(' ');
-            }
-            if (hint.trim() === '') hint = 'food item';
+          if (visualDesc) {
+              dataAiHint = visualDesc.split(/\s+/).slice(0, 2).join(' ');
+          } else if (entryNameForHint) {
+              dataAiHint = entryNameForHint.split(/\s+/).slice(0, 2).join(' ');
+          }
+          if (dataAiHint.trim() === '') dataAiHint = 'food item'; // Final fallback
 
+          if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
             mediaObjects.push({
               type: 'image',
               url: imageUrl,
-              dataAiHint: hint,
+              dataAiHint: dataAiHint,
             });
           }
 
           const dietaryIcons: DietaryIcon[] = [];
-          const backendAllergenTagsLower = (entry.allergen_tags || []).map(tag => tag.toLowerCase());
+          const foodCategoryLower = typeof entry.food_category === 'string' ? entry.food_category.toLowerCase() : '';
+          const backendAllergenTagsLower = (Array.isArray(entry.allergen_tags) ? entry.allergen_tags : [])
+            .map(tag => typeof tag === 'string' ? tag.toLowerCase() : '')
+            .filter(tag => tag !== '');
 
-          if (entry.food_category?.toLowerCase() === "vegan") {
+          if (foodCategoryLower === "vegan") {
             dietaryIcons.push('vegan');
           }
-          if (entry.food_category?.toLowerCase() === "vegetarian") {
+          if (foodCategoryLower === "vegetarian" || dietaryIcons.includes('vegan')) {
             dietaryIcons.push('vegetarian');
           }
-          // Check for "gluten-free" in food_category OR allergen_tags for more robustness
-          if (entry.food_category?.toLowerCase().includes("gluten free") || backendAllergenTagsLower.includes("gluten-free") || backendAllergenTagsLower.includes("gluten free")) {
+          if (foodCategoryLower.includes("gluten free") || backendAllergenTagsLower.includes("gluten-free") || backendAllergenTagsLower.includes("gluten free")) {
             dietaryIcons.push('gluten-free');
           }
-          
           if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
             dietaryIcons.push('spicy');
           }
           
           const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
+          const safeItemNameForId = itemName.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+          const currentMenuId = typeof digitalMenu.MenuID === 'string' ? digitalMenu.MenuID : 'unknown-menu';
+
 
           return {
-            id: `${entry.name.replace(/\s+/g, '-')}-${digitalMenu.MenuID}-${index}`,
-            name: entry.name,
-            description: entry.description || "",
+            id: `${safeItemNameForId}-${currentMenuId}-${index}`,
+            name: itemName,
+            description: itemDescription,
             price: formattedPrice,
-            category: entry.food_category || "Other",
+            category: typeof entry.food_category === 'string' ? entry.food_category : "Other",
             media: mediaObjects.length > 0 ? mediaObjects : undefined,
             dietaryIcons: uniqueDietaryIcons.length > 0 ? uniqueDietaryIcons : undefined,
-            ingredients: entry.ingredients || undefined,
-            allergenTags: entry.allergen_tags || undefined,
-            youMayAlsoLike: entry.you_may_also_like || undefined,
-            displayOrder: entry.display_order,
+            ingredients: typeof entry.ingredients === 'string' ? entry.ingredients : undefined,
+            allergenTags: Array.isArray(entry.allergen_tags) ? entry.allergen_tags.filter(tag => typeof tag === 'string') as string[] : undefined,
+            youMayAlsoLike: Array.isArray(entry.you_may_also_like) ? entry.you_may_also_like.filter(yml => typeof yml === 'string') as string[] : undefined,
+            displayOrder: typeof entry.display_order === 'number' ? entry.display_order : undefined,
+            _tempVisualDescriptionForSave: dataAiHint, 
           };
         });
 
@@ -95,10 +103,13 @@ export async function fetchMenuInstancesFromBackend(
             .map(url => url.trim())
             .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')));
         }
+        
+        const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${index}`;
+
 
         return {
-          id: digitalMenu.MenuID,
-          name: digitalMenu.MenuID, 
+          id: menuIdToUse,
+          name: menuIdToUse, 
           menu: menuItems,
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
         };
