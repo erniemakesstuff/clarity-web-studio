@@ -27,8 +27,8 @@ const getHeatmapColor = (value: number, maxValue: number): string => {
 
 const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload; 
-    if (!data || data.xCat === data.yCat || data.count <= 0) return null; 
+    const data = payload[0].payload as any; // Cast to any to access custom props like xCat, yCat, count
+    if (!data || data.xCat === data.yCat || !data.count || data.count <= 0) return null; 
     return (
       <div className="bg-background border border-border shadow-lg rounded-md p-3 text-sm">
         <p className="font-semibold text-foreground">{data.xCat} & {data.yCat}</p>
@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
               const nameA = sortedFoodNames[i];
               const nameB = sortedFoodNames[j];
               const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ;
-              hData.push({ xCat: nameA, yCat: nameB, count });
+              hData.push({ xCat: nameA, yCat: nameB, count, _cellSize: 1 }); // Added _cellSize
           }
       }
     }
@@ -247,7 +247,7 @@ export default function AnalyticsPage() {
                             className="cursor-pointer"
                         />
                          <ChartTooltip content={<CustomHeatmapTooltip />} cursor={{ strokeDasharray: '3 3', fill: 'transparent' }}/>
-                         <Bar dataKey="count" isAnimationActive={false}>
+                         <Bar dataKey="_cellSize" isAnimationActive={false}>
                            {heatmapCellsToRender}
                          </Bar>
                     </RechartsBarChart>
@@ -307,3 +307,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
