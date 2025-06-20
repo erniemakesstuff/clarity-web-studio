@@ -1,112 +1,159 @@
 
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChartBig, ScatterChart as ScatterIcon, TrendingUp, AlertTriangle } from "lucide-react";
+import { BarChartBig, AlertTriangle, Activity, HelpCircle, ZoomIn } from "lucide-react";
 import { ReceiptUploadForm } from "@/components/dashboard/ReceiptUploadForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, ScatterChart, Scatter, ZAxis, Label as RechartsLabel, TooltipProps } from "recharts";
-import type { AnalyticsEntry } from "@/lib/types";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, TooltipProps, Rectangle, Cell } from "recharts";
+import type { AnalyticsEntry, AnalyticsPurchasedWithEntry } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-// Helper function to generate a color from a string
-const generateColorFromString = (str: string) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-  return `#${"00000".substring(0, 6 - c.length)}${c}`;
+// Helper for Heatmap cell color
+const getHeatmapColor = (value: number, maxValue: number): string => {
+  if (maxValue === 0 || value === 0) return "hsl(var(--secondary))"; // Use secondary for no co-purchase
+  const intensity = Math.min(1, value / maxValue); // Normalize to 0-1
+  // Using primary color's HSL, vary lightness. Darker for higher intensity.
+  // HSL for Teal: ~180, 100%, 25% (for --primary)
+  // We want to go from a light teal/gray to a strong teal.
+  const baseLightness = 90; // Start very light (almost white/gray for 0)
+  const targetLightness = 30; // Target darker teal for max value
+  const lightness = baseLightness - (baseLightness - targetLightness) * intensity;
+  return `hsl(180, 60%, ${lightness}%)`;
 };
 
-// Custom Tooltip for Scatter Plot
-const CustomScatterTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+interface HeatmapCellProps {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fill?: string;
+  payload?: any; // This will contain { xCat, yCat, count }
+  onClick?: (data: any) => void;
+}
+
+const CustomHeatmapCell: React.FC<HeatmapCellProps> = ({ x, y, width, height, fill, payload, onClick }) => {
+  if (x === undefined || y === undefined || width === undefined || height === undefined) {
+    return null;
+  }
+  const handleClick = () => {
+    if (onClick && payload) {
+      onClick(payload);
+    }
+  };
+  return <Rectangle x={x} y={y} width={width} height={height} fill={fill} onClick={handleClick} className="cursor-pointer hover:opacity-80" />;
+};
+
+const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
+    const data = payload[0].payload; // { xCat: 'ItemA', yCat: 'ItemB', count: 5 }
+    if (data.xCat === data.yCat) return null; // Don't show tooltip for item vs itself if count is 0 or not meaningful
     return (
       <div className="bg-background border border-border shadow-lg rounded-md p-3 text-sm">
-        <p className="font-semibold text-foreground">{data.name}</p>
-        <p className="text-muted-foreground">Main Item Count: <span className="font-medium text-foreground">{data.x}</span></p>
-        <p className="text-muted-foreground">Related Item Count: <span className="font-medium text-foreground">{data.y}</span></p>
-        <p className="text-muted-foreground">Co-purchased: <span className="font-medium text-foreground">{data.z}</span> times</p>
+        <p className="font-semibold text-foreground">{data.xCat} & {data.yCat}</p>
+        <p className="text-muted-foreground">Co-purchased: <span className="font-medium text-foreground">{data.count}</span> times</p>
       </div>
     );
   }
   return null;
 };
 
+interface AugmentedBarChartData {
+  name: string;
+  count: number;
+}
+
 export default function AnalyticsPage() {
   const { selectedMenuInstance, isLoadingMenuInstances } = useAuth();
+  const [selectedFoodForDetails, setSelectedFoodForDetails] = useState<string | null>(null);
 
   const analyticsData: AnalyticsEntry[] | null | undefined = selectedMenuInstance?.analytics;
 
-  const { monthlySalesData, monthlySalesChartConfig } = useMemo(() => {
+  const { allFoodNames, heatmapData, maxHeatmapValue } = useMemo(() => {
     if (!analyticsData || analyticsData.length === 0) {
-      return { monthlySalesData: [], monthlySalesChartConfig: {} };
+      return { allFoodNames: [], heatmapData: [], maxHeatmapValue: 0 };
     }
 
-    const salesByMonth: Record<string, Record<string, number>> = {};
-    const allFoodNames = new Set<string>();
+    const foodNameSet = new Set<string>();
+    analyticsData.forEach(entry => {
+      foodNameSet.add(entry.food_name);
+      entry.purchased_with.forEach(pw => foodNameSet.add(pw.food_name));
+    });
+    const sortedFoodNames = Array.from(foodNameSet).sort();
+
+    const coOccurrence: { [keyA: string]: { [keyB: string]: number } } = {};
+    let currentMax = 0;
 
     analyticsData.forEach(entry => {
-      try {
-        const dateParts = entry.timestamp_day.split('/');
-        if (dateParts.length !== 3) {
-          console.warn("Invalid date format in analytics entry:", entry.timestamp_day);
-          return; 
-        }
-        const date = new Date(parseInt(dateParts[2]), parseInt(dateParts[0]) - 1, parseInt(dateParts[1]));
-        const monthYear = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+      const itemA = entry.food_name;
+      if (!coOccurrence[itemA]) coOccurrence[itemA] = {};
+      
+      entry.purchased_with.forEach(relatedEntry => {
+        const itemB = relatedEntry.food_name;
+        if (!coOccurrence[itemB]) coOccurrence[itemB] = {};
 
-        if (!salesByMonth[monthYear]) {
-          salesByMonth[monthYear] = { month: monthYear } as any;
+        const count = relatedEntry.purchase_count;
+        
+        coOccurrence[itemA][itemB] = (coOccurrence[itemA][itemB] || 0) + count;
+        // Ensure symmetry if data isn't perfectly symmetrical, though problem desc implies it is
+        if (itemA !== itemB) { 
+            coOccurrence[itemB][itemA] = (coOccurrence[itemB][itemA] || 0) + count;
         }
-        salesByMonth[monthYear][entry.food_name] = (salesByMonth[monthYear][entry.food_name] || 0) + entry.purchase_count;
-        allFoodNames.add(entry.food_name);
-      } catch (e) {
-        console.warn("Error parsing date:", entry.timestamp_day, e);
-      }
+        if (itemA !== itemB && count > currentMax) currentMax = count;
+      });
     });
     
-    const chartData = Object.values(salesByMonth).sort((a,b) => {
-        const dateA = new Date( (a as any).month.split(" ")[1], ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf((a as any).month.split(" ")[0]));
-        const dateB = new Date( (b as any).month.split(" ")[1], ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf((b as any).month.split(" ")[0]));
-        return dateA.getTime() - dateB.getTime();
-    });
-
-    const chartConfig: ChartConfig = Array.from(allFoodNames).reduce((acc, foodName) => {
-      // The key in chartConfig remains the original foodName for labels and tooltips
-      acc[foodName] = {
-        label: foodName,
-        color: generateColorFromString(foodName),
-      };
-      return acc;
-    }, {} as ChartConfig);
-
-    return { monthlySalesData: chartData, monthlySalesChartConfig: chartConfig };
-  }, [analyticsData]);
-
-  const scatterPlotData = useMemo(() => {
-    if (!analyticsData || analyticsData.length === 0) {
-      return [];
+    const hData = [];
+    for (let i = 0; i < sortedFoodNames.length; i++) {
+        for (let j = 0; j < sortedFoodNames.length; j++) {
+            const nameA = sortedFoodNames[i];
+            const nameB = sortedFoodNames[j];
+            const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ; // No self-correlation, or set to total purchases if desired
+            if (nameA !== nameB && count > 0 ) { // Only add if there's a co-purchase
+                 hData.push({ xCat: nameA, yCat: nameB, count });
+            } else if (nameA === nameB) { // Add self-entries for axis generation
+                 hData.push({ xCat: nameA, yCat: nameB, count: 0 });
+            }
+        }
     }
-    const foodItemPurchaseCounts: Record<string, number> = {};
-    analyticsData.forEach(entry => {
-      foodItemPurchaseCounts[entry.food_name] = entry.purchase_count;
-    });
+    // If hData is empty but sortedFoodNames isn't, create dummy entries for axis generation
+    if (hData.length === 0 && sortedFoodNames.length > 0) {
+        sortedFoodNames.forEach(name => hData.push({ xCat: name, yCat: name, count: 0 }));
+    }
 
-    return analyticsData.flatMap(mainEntry =>
-      mainEntry.purchased_with.map(relatedEntry => ({
-        x: mainEntry.purchase_count,
-        y: foodItemPurchaseCounts[relatedEntry.food_name] || 0,
-        z: relatedEntry.purchase_count,
-        name: `${mainEntry.food_name} + ${relatedEntry.food_name}`,
-      }))
-    ).filter(d => d.x > 0 && d.y > 0 && d.z > 0); // Filter out zero counts for cleaner plot
+
+    return { allFoodNames: sortedFoodNames, heatmapData: hData, maxHeatmapValue: currentMax };
   }, [analyticsData]);
+  
+  const augmentedBarChartData = useMemo((): AugmentedBarChartData[] => {
+    if (!selectedFoodForDetails || !analyticsData) return [];
+    const selectedEntry = analyticsData.find(entry => entry.food_name === selectedFoodForDetails);
+    if (!selectedEntry) return [];
+    return selectedEntry.purchased_with
+        .map(pw => ({ name: pw.food_name, count: pw.purchase_count }))
+        .sort((a, b) => b.count - a.count); // Sort by count descending
+  }, [selectedFoodForDetails, analyticsData]);
+
+  const handleHeatmapCellClick = useCallback((data: any) => {
+    // data might be from axis (string) or cell payload (object)
+    if (typeof data === 'string') {
+        setSelectedFoodForDetails(data);
+    } else if (data && data.xCat) {
+        setSelectedFoodForDetails(data.xCat); // Prioritize xCat, could also use yCat
+    }
+  }, []);
+
+  const augmentedChartConfig = useMemo((): ChartConfig => {
+    if (!augmentedBarChartData.length) return {};
+    return {
+      count: { label: "Co-Purchases", color: "hsl(var(--primary))" },
+    };
+  }, [augmentedBarChartData]);
 
 
   const renderContent = () => {
@@ -119,7 +166,7 @@ export default function AnalyticsPage() {
           </Card>
           <Card className="shadow-lg"><CardHeader><CardTitle>Loading Charts...</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <Skeleton className="h-[300px] w-full" />
+              <Skeleton className="h-[400px] w-full" />
               <Skeleton className="h-[300px] w-full" />
             </CardContent>
           </Card>
@@ -143,16 +190,16 @@ export default function AnalyticsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl">
-              <BarChartBig className="mr-3 h-7 w-7 text-primary" />
+              <Activity className="mr-3 h-7 w-7 text-primary" />
               Performance Insights
             </CardTitle>
             <CardDescription>
-              Track your menu performance, customer engagement, and upsell effectiveness.
+              Track item co-purchase patterns and specific item relationships.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-20 text-muted-foreground">
-              <TrendingUp className="mx-auto h-16 w-16 mb-6 opacity-50" />
+              <HelpCircle className="mx-auto h-16 w-16 mb-6 opacity-50" />
               <p className="text-xl">No Analytics Data Available</p>
               <p>Upload receipts or check back later once data is processed for this menu.</p>
             </div>
@@ -166,72 +213,113 @@ export default function AnalyticsPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center text-2xl">
-              <BarChartBig className="mr-3 h-7 w-7 text-primary" />
-              Monthly Sales by Item
+              <Activity className="mr-3 h-7 w-7 text-primary" />
+              Item Co-purchase Heatmap
             </CardTitle>
             <CardDescription>
-              Purchase counts of food items, grouped by month.
+              Visualizes how frequently pairs of items are purchased together. Darker cells indicate stronger co-purchase. Click an item name or cell to see detailed pairings.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {monthlySalesData.length > 0 ? (
-              <ChartContainer config={monthlySalesChartConfig} className="h-[400px] w-full">
-                <RechartsBarChart data={monthlySalesData} margin={{ top: 5, right: 20, left: -20, bottom: 50 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" angle={-45} textAnchor="end" height={70} interval={0} tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  {Object.keys(monthlySalesChartConfig).map((foodName) => {
-                    const sanitizedKeyForCssVar = foodName.replace(/\s+/g, "-").toLowerCase();
-                    return (
-                      <Bar 
-                        key={foodName} 
-                        dataKey={foodName} /* dataKey uses original foodName */
-                        fill={`var(--color-${sanitizedKeyForCssVar})`} /* fill uses sanitized name for CSS var */
-                        radius={[4, 4, 0, 0]} 
-                        stackId="a" 
-                      />
-                    );
-                  })}
-                </RechartsBarChart>
-              </ChartContainer>
+            {heatmapData.length > 0 && allFoodNames.length > 0 ? (
+              <ScrollArea className="w-full whitespace-nowrap">
+                <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4">
+                  <ChartContainer config={{}} className="h-[500px] w-full">
+                    <RechartsBarChart // Using BarChart for axes, but Scatter for points
+                        layout="vertical" // To make Y-axis food names horizontal
+                        data={heatmapData} // Dummy data for axes structure
+                        margin={{ top: 20, right: 50, bottom: 50, left: 150 }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false}/>
+                        <XAxis 
+                            type="category" 
+                            dataKey="xCat" 
+                            name="Food Item A" 
+                            ticks={allFoodNames}
+                            tick={{ fontSize: 10, angle: -45, textAnchor: 'end' }} 
+                            height={80}
+                            interval={0}
+                            allowDuplicatedCategory={false}
+                            domain={allFoodNames}
+                            onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
+                            className="cursor-pointer"
+                        />
+                        <YAxis 
+                            type="category" 
+                            dataKey="yCat" 
+                            name="Food Item B"
+                            ticks={allFoodNames}
+                            tick={{ fontSize: 10 }}
+                            width={120}
+                            interval={0}
+                            allowDuplicatedCategory={false}
+                            domain={allFoodNames}
+                            onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
+                            className="cursor-pointer"
+                        />
+                         <ChartTooltip content={<CustomHeatmapTooltip />} cursor={{ strokeDasharray: '3 3', fill: 'transparent' }}/>
+                        
+                        {/* Custom rendering for heatmap cells */}
+                        {/* Recharts doesn't have a direct heatmap. We simulate with Scatter or by drawing rects.
+                            This approach uses a Bar component with custom Cell rendering for each point in heatmapData.
+                            This is a bit of a hack for recharts to get categorical axes and clickable cells.
+                        */}
+                         <Bar dataKey="count" isAnimationActive={false}>
+                            {heatmapData.map((entry, index) => {
+                                if (entry.xCat === entry.yCat || entry.count === 0) return null; // Skip self or zero counts
+                                return (
+                                    <Cell 
+                                        key={`cell-${index}`} 
+                                        fill={getHeatmapColor(entry.count, maxHeatmapValue)} 
+                                        onClick={() => handleHeatmapCellClick(entry)}
+                                        className="cursor-pointer hover:opacity-70"
+                                    />
+                                );
+                            })}
+                        </Bar>
+                        {/* This is a placeholder to make recharts render the scatter plot correctly with categories.
+                            The actual heatmap cells are drawn manually or via custom shapes if using Scatter.
+                            Let's try a direct approach. Recharts Scatter might be better.
+                        */}
+                    </RechartsBarChart>
+                  </ChartContainer>
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
             ) : (
-              <p className="text-muted-foreground text-center py-4">No sales data to display for the bar chart.</p>
+              <p className="text-muted-foreground text-center py-4">No co-purchase data to display for the heatmap.</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center text-2xl">
-              <ScatterIcon className="mr-3 h-7 w-7 text-primary" />
-              Item Purchase Relationships
-            </CardTitle>
-            <CardDescription>
-              Relative density of items purchased together. X-axis: Main item purchases, Y-axis: Related item purchases, Size: Co-purchases.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {scatterPlotData.length > 0 ? (
-              <ChartContainer config={{}} className="h-[450px] w-full">
-                <ScatterChart margin={{ top: 20, right: 30, bottom: 60, left: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" dataKey="x" name="Main Item Purchase Count" unit="" allowDecimals={false}>
-                     <RechartsLabel value="Main Item Purchase Count" offset={-45} position="insideBottom" style={{textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: '0.875rem'}} />
-                  </XAxis>
-                  <YAxis type="number" dataKey="y" name="Related Item Purchase Count" unit="" allowDecimals={false}>
-                    <RechartsLabel value="Related Item Purchase Count" angle={-90} offset={-10} position="insideLeft" style={{textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: '0.875rem'}} />
-                  </YAxis>
-                  <ZAxis type="number" dataKey="z" range={[50, 1000]} name="Co-purchase Count" />
-                  <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomScatterTooltip />} />
-                  <Scatter name="Purchase Pairs" data={scatterPlotData} fill="hsl(var(--primary))" shape="circle" />
-                </ScatterChart>
-              </ChartContainer>
-            ) : (
-               <p className="text-muted-foreground text-center py-4">No relationship data to display for the scatter plot.</p>
-            )}
-          </CardContent>
-        </Card>
+        {selectedFoodForDetails && (
+          <Card className="shadow-lg mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl">
+                <ZoomIn className="mr-3 h-7 w-7 text-primary" />
+                Frequently Purchased With: <span className="text-primary ml-2">{selectedFoodForDetails}</span>
+              </CardTitle>
+              <CardDescription>
+                Items most commonly bought alongside "{selectedFoodForDetails}".
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {augmentedBarChartData.length > 0 ? (
+                <ChartContainer config={augmentedChartConfig} className="h-[350px] w-full">
+                  <RechartsBarChart data={augmentedBarChartData} layout="vertical" margin={{ right: 30, left: 50, bottom: 20}}>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis dataKey="name" type="category" width={150} tick={{fontSize: 12}} interval={0} />
+                    <ChartTooltip content={<ChartTooltipContent />} cursor={{fill: 'hsl(var(--muted))'}}/>
+                    <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} barSize={30} />
+                  </RechartsBarChart>
+                </ChartContainer>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No specific co-purchase data found for "{selectedFoodForDetails}".</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </>
     );
   };
@@ -241,7 +329,7 @@ export default function AnalyticsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground">
-          Upload receipts and track your menu performance, customer engagement, and upsell effectiveness.
+          Upload receipts and analyze item co-purchase patterns and relationships.
         </p>
       </div>
       
@@ -250,3 +338,6 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+
+    
