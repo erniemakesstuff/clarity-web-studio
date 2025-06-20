@@ -20,7 +20,7 @@ import {
 import { Logo } from "@/components/common/Logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical, PlusCircle } from "lucide-react";
+import { LayoutDashboard, Utensils, FileText, BarChart, LogOut, Settings, UserCircle, ChevronDown, Building, FlaskConical, PlusCircle, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -41,7 +41,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: <LayoutDashboard /> },
   { href: "/dashboard/menu-management", label: "Menu Management", icon: <Utensils /> },
-  { href: "/dashboard/content-generation", label: "Marketing Content", icon: <FileText /> },
+  { href: "/dashboard/content-generation", label: "Marketing Assistant", icon: <Sparkles /> },
   { href: "/dashboard/analytics", label: "Analytics", icon: <BarChart /> },
   { href: "/dashboard/hypothesis-tests", label: "Hypothesis Tests", icon: <FlaskConical /> },
 ];

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -44,8 +45,8 @@ export function ContentGeneratorForm() {
       const result: GenerateMarketingContentOutput = await generateMarketingContent(input);
       setGeneratedContent(result.content);
       toast({
-        title: "Content Generated Successfully!",
-        description: "Your marketing content is ready.",
+        title: "Content Draft Generated!",
+        description: "Your marketing content draft is ready for review and posting.",
         variant: "default",
         className: "bg-green-500 text-white"
       });
@@ -65,11 +66,11 @@ export function ContentGeneratorForm() {
     <Card className="w-full shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center text-2xl">
-          <Wand2 className="mr-3 h-7 w-7 text-primary" />
-          AI Marketing Content Generator
+          <Sparkles className="mr-3 h-7 w-7 text-primary" />
+          AI Marketing Assistant
         </CardTitle>
         <CardDescription>
-          Paste your menu text (or key items) and let AI create engaging marketing content for you.
+          Provide your menu text (or key items) and let AI help you draft engaging marketing content. You can then refine and post it.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -125,12 +126,12 @@ export function ContentGeneratorForm() {
             {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
+                Generating Draft...
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate Content
+                <Wand2 className="mr-2 h-4 w-4" />
+                Generate Content Draft
               </>
             )}
           </Button>
@@ -141,7 +142,7 @@ export function ContentGeneratorForm() {
         <div className="p-6 border-t">
           <h3 className="text-xl font-semibold mb-4 flex items-center">
             <FileText className="h-6 w-6 mr-2 text-primary" />
-            Generated Content
+            Generated Content Draft
           </h3>
           <div className="prose prose-sm sm:prose-base max-w-none p-4 border rounded-md bg-secondary/30 max-h-[500px] overflow-y-auto whitespace-pre-wrap">
             {generatedContent}

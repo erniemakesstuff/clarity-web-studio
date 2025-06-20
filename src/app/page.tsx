@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/layout/AppHeader";
 import Link from "next/link";
 import Image from "next/image";
-import { Zap, BarChart, FileText, UploadCloud, UtensilsCrossed } from "lucide-react";
+import { Zap, BarChart, UploadCloud, UtensilsCrossed, Sparkles } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -25,7 +25,7 @@ export default function HomePage() {
                 <Link href="/menu/demo">View Demo Menu</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/signin">Menu Portal</Link> 
+                <Link href="/signin">Menu Portal</Link>
               </Button>
             </div>
           </div>
@@ -54,14 +54,14 @@ export default function HomePage() {
                 description="Simply upload an image of your menu, and let our AI digitize it for you."
               />
               <FeatureCard
-                icon={<FileText className="h-10 w-10 text-primary" />}
-                title="Automated Content Generation"
-                description="Generate engaging marketing content like blog posts and recipes from your menu data."
+                icon={<Sparkles className="h-10 w-10 text-primary" />}
+                title="AI Marketing Assistant"
+                description="Get AI assistance drafting engaging marketing content like blog posts and social media updates from your menu data."
               />
             </div>
           </div>
         </section>
-        
+
         {/* How it works / Image section */}
         <section className="py-16 bg-secondary">
           <div className="container mx-auto px-6 flex flex-col lg:flex-row items-center gap-12">
@@ -80,12 +80,12 @@ export default function HomePage() {
                 Effortless Management, Powerful Results
               </h2>
               <p className="text-lg text-muted-foreground mb-4">
-                Our intuitive dashboard provides you with actionable insights into menu performance, upsell effectiveness, and customer preferences. Manage your digital menu, generate marketing materials, and watch your restaurant grow.
+                Our intuitive dashboard provides you with actionable insights into menu performance, upsell effectiveness, and customer preferences. Manage your digital menu, get help drafting marketing materials, and watch your restaurant grow.
               </p>
               <ul className="space-y-2 text-muted-foreground">
                 <li className="flex items-center"><Zap size={20} className="text-primary mr-2"/> Track trending items and popular choices.</li>
                 <li className="flex items-center"><BarChart size={20} className="text-primary mr-2"/> Monitor upsell conversion rates and optimize suggestions.</li>
-                <li className="flex items-center"><FileText size={20} className="text-primary mr-2"/> Create marketing content with a few clicks.</li>
+                <li className="flex items-center"><Sparkles size={20} className="text-primary mr-2"/> Draft marketing content with AI assistance.</li>
               </ul>
             </div>
           </div>

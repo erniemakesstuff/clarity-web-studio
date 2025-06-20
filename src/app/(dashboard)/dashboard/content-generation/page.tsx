@@ -5,9 +5,9 @@ export default function ContentGenerationPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Marketing Content Generation</h1>
+        <h1 className="text-3xl font-bold tracking-tight">AI Marketing Assistant</h1>
         <p className="text-muted-foreground">
-          Leverage AI to automatically create engaging blog posts, social media updates, or even recipe ideas based on your menu.
+          Leverage AI to get assistance with creating engaging blog posts, social media updates, or recipe ideas based on your menu. You'll then manually post the content.
         </p>
       </div>
       <ContentGeneratorForm />
