@@ -18,10 +18,10 @@ export interface MenuItem extends MenuItemCore {
   category?: string;
   media?: MediaObject[];
   dietaryIcons?: DietaryIcon[];
-  ingredients?: string; 
-  allergenTags?: string[]; 
-  youMayAlsoLike?: string[]; 
-  displayOrder?: number; 
+  ingredients?: string;
+  allergenTags?: string[];
+  youMayAlsoLike?: string[];
+  displayOrder?: number;
   _tempVisualDescriptionForSave?: string; // Internal helper for saving
 }
 
@@ -47,14 +47,30 @@ export interface BackendDigitalMenuPollResponse {
   OwnerID: string;
   MenuID: string;
   State: DigitalMenuState;
-  FoodServiceEntries?: ExtractedMenuItem[] | null; // Kept as PascalCase if this specific response uses it
-  ContextS3MediaUrls?: string | null; 
+  FoodServiceEntries?: ExtractedMenuItem[] | null;
+  ContextS3MediaUrls?: string | null;
+}
+
+// Analytics Data Structures
+export interface AnalyticsPurchasedWithEntry {
+  food_name: string;
+  purchase_count: number;
+}
+
+export interface AnalyticsEntry {
+  average_engagement: number;
+  engagement_sec: number | null;
+  food_name: string;
+  impressions: number;
+  purchased_with: AnalyticsPurchasedWithEntry[];
+  purchase_count: number;
+  timestamp_day: string; // "MM/DD/YYYY"
 }
 
 export interface BackendFoodServiceEntryJson {
   food_category: string;
   name: string;
-  description: string | null; // Allow null from backend
+  description: string | null;
   ingredients: string | null;
   allergen_tags: string[] | null;
   source_media_blob_ref?: string | null;
@@ -69,10 +85,10 @@ export interface BackendDigitalMenuJson {
   OwnerID: string;
   MenuID: string;
   ContextS3MediaUrls?: string | null;
-  food_service_entries: BackendFoodServiceEntryJson[] | null; // Corrected to lowercase
-  test_food_service_entries?: BackendFoodServiceEntryJson[] | null; // Corrected to lowercase
+  food_service_entries: BackendFoodServiceEntryJson[] | null;
+  test_food_service_entries?: BackendFoodServiceEntryJson[] | null;
   AllowABTesting?: boolean;
-  Analytics?: unknown[] | null;
+  Analytics?: AnalyticsEntry[] | null; // Updated to use defined type
   State?: DigitalMenuState;
 }
 
@@ -81,19 +97,19 @@ export interface MenuInstance {
   name: string;
   menu: MenuItem[];
   s3ContextImageUrls?: string[];
+  analytics?: AnalyticsEntry[] | null; // Added analytics data
 }
 
 export const FOOD_CATEGORIES = [
-  "Appetizers", "Soups", "Salads", "Main Courses", "Entrees", "Burgers", 
+  "Appetizers", "Soups", "Salads", "Main Courses", "Entrees", "Burgers",
   "Sandwiches", "Pizzas", "Pastas", "Seafood", "Sides", "Desserts", "Drinks", "Kids Menu", "Other"
 ];
 
 export const COMMON_ALLERGENS = [
   "Gluten", "Dairy", "Nuts", "Peanuts", "Shellfish", "Fish", "Soy", "Eggs",
-  "Sesame", "Celery", "Mustard", "Lupin", "Sulphites", "Spicy" 
+  "Sesame", "Celery", "Mustard", "Lupin", "Sulphites", "Spicy"
 ];
 
-// Retained for pollWorkflowStatus if its specific response structure differs
 export interface PollWorkflowStatusResult {
   success: boolean;
   state?: DigitalMenuState;

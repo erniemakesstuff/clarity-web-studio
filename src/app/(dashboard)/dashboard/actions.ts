@@ -1,7 +1,7 @@
 
 'use server';
 
-import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, BackendFoodServiceEntryJson } from '@/lib/types';
+import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, AnalyticsEntry } from '@/lib/types';
 
 const API_BASE_URL = "https://api.bityfan.com";
 
@@ -13,7 +13,7 @@ interface FetchMenuInstancesResult {
 }
 
 export async function fetchMenuInstancesFromBackend(
-  ownerId: string, 
+  ownerId: string,
   jwtToken: string | null
 ): Promise<FetchMenuInstancesResult> {
   let response: Response | undefined = undefined;
@@ -43,19 +43,20 @@ export async function fetchMenuInstancesFromBackend(
         console.error(`Error parsing JSON response from backend for ownerId ${ownerId}: ${parseError.message}`, responseBodyText);
         return { success: false, message: `Failed to parse successful JSON response from backend. Error: ${parseError.message}`, menuInstances: [], rawResponseText: responseBodyText };
       }
-      
+
       const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
         if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
             console.warn(`Skipping invalid menu structure at index ${menuIndex} for owner ${ownerId}. MenuID: ${digitalMenu?.MenuID}`);
-            return { 
-                id: `invalid-menu-${menuIndex}-${Date.now()}`, 
-                name: `Invalid Menu Data ${menuIndex + 1}`, 
+            return {
+                id: `invalid-menu-${menuIndex}-${Date.now()}`,
+                name: `Invalid Menu Data ${menuIndex + 1}`,
                 menu: [],
-                s3ContextImageUrls: []
+                s3ContextImageUrls: [],
+                analytics: [], // Ensure analytics is initialized
             };
         }
 
-        const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, itemIndex) => { // Changed to lowercase
+        const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, itemIndex) => {
           try {
             const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${itemIndex + 1}`;
             const itemDescription = typeof entry.description === 'string' ? entry.description : "";
@@ -64,8 +65,8 @@ export async function fetchMenuInstancesFromBackend(
 
             const mediaObjects: MediaObject[] = [];
             const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
-            
-            let dataAiHint = 'food item'; 
+
+            let dataAiHint = 'food item';
             const visualDesc = typeof entry.visual_description === 'string' ? entry.visual_description.trim() : '';
             const entryNameForHint = typeof entry.name === 'string' ? entry.name.trim() : '';
 
@@ -103,7 +104,7 @@ export async function fetchMenuInstancesFromBackend(
             if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
               dietaryIcons.push('spicy');
             }
-            
+
             const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
             const safeItemNameForId = itemName.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
             const currentMenuId = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `unknown-menu-${menuIndex}`;
@@ -120,11 +121,11 @@ export async function fetchMenuInstancesFromBackend(
               allergenTags: Array.isArray(entry.allergen_tags) ? entry.allergen_tags.filter(tag => typeof tag === 'string') as string[] : undefined,
               youMayAlsoLike: Array.isArray(entry.you_may_also_like) ? entry.you_may_also_like.filter(yml => typeof yml === 'string') as string[] : undefined,
               displayOrder: typeof entry.display_order === 'number' ? entry.display_order : undefined,
-              _tempVisualDescriptionForSave: dataAiHint, 
+              _tempVisualDescriptionForSave: dataAiHint,
             };
           } catch (transformError: any) {
             console.error(`Error transforming menu item at index ${itemIndex} (Original Name: ${entry?.name}, Owner Hashed: ${ownerId}, Menu: ${digitalMenu?.MenuID}): ${transformError.message}`, transformError.stack);
-            return null; 
+            return null;
           }
         }).filter((item): item is MenuItem => item !== null);
 
@@ -134,25 +135,26 @@ export async function fetchMenuInstancesFromBackend(
             .map(url => url.trim())
             .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
         }
-        
+
         const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
 
         return {
           id: menuIdToUse,
-          name: menuIdToUse, 
+          name: menuIdToUse,
           menu: menuItems,
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
+          analytics: digitalMenu.Analytics || [], // Pass analytics data
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };
     } else {
       let errorMessage = `Backend API Error: ${response.status} ${response.statusText}.`;
       try {
-        const errorData = JSON.parse(responseBodyText); 
+        const errorData = JSON.parse(responseBodyText);
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch (e) {
         if (responseBodyText) {
-          errorMessage += ` Raw response: ${responseBodyText.substring(0, 500)}`; 
+          errorMessage += ` Raw response: ${responseBodyText.substring(0, 500)}`;
         } else {
           errorMessage += ' Failed to read error response body.';
         }
@@ -161,7 +163,7 @@ export async function fetchMenuInstancesFromBackend(
     }
   } catch (error: any) {
     let detailedErrorMessage = "Failed to communicate with the backend service while fetching menus.";
-    if (error && typeof error.message === 'string') { 
+    if (error && typeof error.message === 'string') {
         if (error.message.toLowerCase().includes("failed to fetch")) {
             detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} to fetch menus. Please check server status and network connectivity.`;
         } else if (error.message.includes("ECONNREFUSED")) {
@@ -175,4 +177,3 @@ export async function fetchMenuInstancesFromBackend(
     return { success: false, message: detailedErrorMessage, menuInstances: [], rawResponseText: responseBodyText || `Error occurred before response could be read: ${error.message}` };
   }
 }
-    
