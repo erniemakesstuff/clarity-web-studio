@@ -102,7 +102,7 @@ export async function reconcileReceiptWithBackend(
       imageUrl: params.imageUrl,
     };
 
-    const response = await fetch(`${API_BASE_URL}/ris/v1/receipt/reconcile`, { 
+    const response = await fetch(`${API_BASE_URL}/ris/v1/menu/receipt/reconcile`, { // Updated endpoint
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -139,7 +139,7 @@ export async function reconcileReceiptWithBackend(
     } else if (error.message && error.message.includes("ECONNREFUSED")) {
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for receipt reconcile.`;
     } else if (error.message && error.message.toLowerCase().includes("terminated")) {
-        detailedErrorMessage = `The POST request to ${API_BASE_URL}/ris/v1/receipt/reconcile was unexpectedly terminated. This could be a network issue or a problem with the external service. Please check the backend logs for this specific endpoint. Original error: ${error.message}`;
+        detailedErrorMessage = `The POST request to ${API_BASE_URL}/ris/v1/menu/receipt/reconcile was unexpectedly terminated. This could be a network issue or a problem with the external service. Please check the backend logs for this specific endpoint. Original error: ${error.message}`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (reconciling receipt): ${error.message}`;
     }
