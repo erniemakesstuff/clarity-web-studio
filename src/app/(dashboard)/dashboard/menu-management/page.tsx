@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { MenuUploadForm } from "@/components/dashboard/MenuUploadForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff, Pencil } from "lucide-react";
+import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff, Pencil, Eye } from "lucide-react"; // Added Eye
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { MenuItem, DietaryIcon, MenuCategory as MenuCategoryType, MediaObject } from "@/lib/types";
@@ -14,6 +14,7 @@ import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { EditMenuItemDialog } from "@/components/dashboard/EditMenuItemDialog";
+import Link from "next/link"; // Added Link
 
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
@@ -86,18 +87,21 @@ export default function MenuManagementPage() {
       toast({ title: "Error", description: "No menu instance selected.", variant: "destructive" });
       return;
     }
-    const success = updateMenuItem(selectedMenuInstance.id, updatedItem);
+    // The updateMenuItem in AuthContext is now primarily for local state update.
+    // The backend persistence is handled within EditMenuItemDialog before this is called.
+    const success = updateMenuItem(selectedMenuInstance.id, updatedItem); 
     if (success) {
-      toast({
-        title: "Item Updated",
-        description: `"${updatedItem.name}" has been successfully updated.`,
-        variant: "default",
-        className: "bg-green-500 text-white",
-      });
+      // Toast for local update success can be here, or rely on toast from dialog's backend call
+      // For now, dialog handles backend toasts. This could be a confirmation of UI update.
+      // toast({
+      //   title: "UI Updated",
+      //   description: `Changes for "${updatedItem.name}" reflected locally.`,
+      // });
     } else {
+      // This case might be rare if backend succeeds but local update fails.
       toast({
-        title: "Update Failed",
-        description: `Could not update "${updatedItem.name}". Please try again.`,
+        title: "UI Update Issue",
+        description: `Could not fully update UI for "${updatedItem.name}". Backend changes may have succeeded. Please refresh.`,
         variant: "destructive",
       });
     }
@@ -118,14 +122,23 @@ export default function MenuManagementPage() {
       <MenuUploadForm />
 
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center text-2xl">
-            <ListChecks className="mr-3 h-7 w-7 text-primary" />
-            Current Menu Overview
-          </CardTitle>
-          <CardDescription>
-            {selectedMenuInstance ? `Items for "${selectedMenuInstance.name}"` : "No menu selected or menu is empty."}
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center text-2xl">
+              <ListChecks className="mr-3 h-7 w-7 text-primary" />
+              Current Menu Overview
+            </CardTitle>
+            <CardDescription>
+              {selectedMenuInstance ? `Items for "${selectedMenuInstance.name}"` : "No menu selected or menu is empty."}
+            </CardDescription>
+          </div>
+          {selectedMenuInstance && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/menu/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
+                <Eye className="mr-2 h-4 w-4" /> View As Customer
+              </Link>
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {isLoadingMenuInstances ? (
@@ -184,7 +197,7 @@ export default function MenuManagementPage() {
           ) : (
             <div className="text-center py-10 text-muted-foreground">
               <Utensils className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>{selectedMenuInstance ? "No items found in this menu." : "Please select a menu or upload one to see an overview."}</p>
+              <p>{selectedMenuInstance ? "No items found in this menu. Try uploading a menu image or ensure the backend processing has completed." : "Please select a menu or upload one to see an overview."}</p>
             </div>
           )}
         </CardContent>
@@ -199,4 +212,3 @@ export default function MenuManagementPage() {
     </div>
   );
 }
-

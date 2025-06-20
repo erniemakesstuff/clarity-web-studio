@@ -2,64 +2,19 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import type { MenuItem, MenuCategory, MediaObject } from "@/lib/types";
+import type { MenuItem, MenuCategory } from "@/lib/types";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { UpsellDialog } from "@/components/menu/UpsellDialog";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Utensils, Search, Soup, Pizza, Salad, Dessert, Coffee, Eye, LayoutGrid } from "lucide-react";
+import { Utensils, Search, Soup, Pizza, Salad, Dessert, Coffee, Eye, LayoutGrid, Loader2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { SwipeFeed } from "@/components/menu/SwipeFeed";
-
-
-// Mock data - replace with actual data fetching
-const mockMenu: MenuItem[] = [
-  { id: "1", name: "Margherita Pizza", description: "Classic delight with 100% real mozzarella cheese. Fresh basil, vine-ripened tomatoes, and a crispy thin crust.", price: "$12.99", category: "Pizzas", 
-    media: [
-      { type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "pizza food" },
-      { type: "video", url: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" }
-    ], 
-    dietaryIcons: ["vegetarian"] 
-  },
-  { id: "2", name: "Pepperoni Pizza", description: "A classic favorite with rich pepperoni and mozzarella. Perfectly baked to a golden brown.", price: "$14.99", category: "Pizzas", 
-    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "pizza food" }], 
-    dietaryIcons: [] 
-  },
-  { id: "3", name: "Caesar Salad", description: "Crisp romaine lettuce, parmesan cheese, and crunchy croutons tossed in our signature Caesar dressing.", price: "$9.50", category: "Salads", 
-    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "salad food" }], 
-    dietaryIcons: ["vegetarian"] 
-  },
-  { id: "4", name: "Spaghetti Carbonara", description: "Authentic Italian spaghetti with a creamy egg sauce, crispy pancetta, and freshly grated pecorino cheese.", price: "$15.00", category: "Pastas", 
-    media: [
-      { type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "pasta food" },
-      { type: "video", url: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" }
-    ], 
-    dietaryIcons: [] 
-  },
-  { id: "5", name: "Chocolate Lava Cake", description: "Warm, decadent chocolate cake with a gooey molten center, served with a scoop of premium vanilla ice cream.", price: "$8.00", category: "Desserts", 
-    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "dessert chocolate" }], 
-    dietaryIcons: ["vegetarian"] 
-  },
-  { id: "6", name: "Iced Latte", description: "Chilled espresso blended with smooth milk over ice. The perfect pick-me-up.", price: "$4.50", category: "Drinks", 
-    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "coffee drink" }], 
-    dietaryIcons: ["vegetarian", "gluten-free"] 
-  },
-  { id: "7", name: "Spicy Thai Green Curry", description: "Aromatic green curry with tender chicken, crisp bamboo shoots, bell peppers, and fresh basil in a rich coconut milk broth.", price: "$16.50", category: "Main Courses", 
-    media: [{ type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "curry food" }], 
-    dietaryIcons: ["spicy"] 
-  },
-  { id: "8", name: "Vegan Burger", description: "Delicious plant-based patty topped with fresh lettuce, ripe tomato, pickles, and our special vegan mayo, all on a toasted gluten-free bun.", price: "$13.00", category: "Burgers", 
-    media: [
-      { type: "image", url: "https://placehold.co/1280x720.png", dataAiHint: "burger food" },
-      { type: "video", url: "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" }
-    ], 
-    dietaryIcons: ["vegan", "gluten-free"] 
-  },
-];
-
+import { fetchPublicMenuData } from "./actions"; // Import the new action
+import { useToast } from "@/hooks/use-toast";
 
 const categoryIcons: Record<string, React.ReactNode> = {
   "All": <Utensils className="mr-2 h-5 w-5" />,
@@ -69,59 +24,101 @@ const categoryIcons: Record<string, React.ReactNode> = {
   "Desserts": <Dessert className="mr-2 h-5 w-5" />,
   "Drinks": <Coffee className="mr-2 h-5 w-5" />,
   "Main Courses": <Utensils className="mr-2 h-5 w-5" />,
-  "Burgers": <Utensils className="mr-2 h-5 w-5" />
+  "Burgers": <Utensils className="mr-2 h-5 w-5" />,
+  "Appetizers": <Utensils className="mr-2 h-5 w-5" />,
+  "Entrees": <Utensils className="mr-2 h-5 w-5" />,
+  "Seafood": <Utensils className="mr-2 h-5 w-5" />,
+  "Sides": <Utensils className="mr-2 h-5 w-5" />,
+  "Kids Menu": <Utensils className="mr-2 h-5 w-5" />,
+  "Other": <Utensils className="mr-2 h-5 w-5" />,
+  "Soups and Salads": <Salad className="mr-2 h-5 w-5" />,
+  "Sandwiches": <Utensils className="mr-2 h-5 w-5" />
 };
 
 
-export default function MenuPage({ params: paramsAsPromise }: { params: Promise<{ restaurantId: string }> }) {
-  const params = React.use(paramsAsPromise);
-
+export default function MenuPage({ params }: { params: { restaurantId: string } }) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [restaurantName, setRestaurantName] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   
   const [selectedItemForUpsell, setSelectedItemForUpsell] = useState<MenuItem | null>(null);
   const [isUpsellDialogOpen, setIsUpsellDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("All");
   const [viewMode, setViewMode] = useState<'feed' | 'category'>('feed');
-
+  const { toast } = useToast();
 
   useEffect(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      const shuffledMenu = [...mockMenu].sort(() => Math.random() - 0.5);
-      setMenuItems(shuffledMenu);
-      setFilteredItems(shuffledMenu); 
-      
-      const uniqueCategories = Array.from(new Set(mockMenu.map(item => item.category || "Other")));
-      const categorizedMenuData: MenuCategory[] = uniqueCategories.map(catName => ({
-        name: catName,
-        items: mockMenu.filter(item => (item.category || "Other") === catName)
-      }));
-      setCategories([{ name: "All", items: mockMenu }, ...categorizedMenuData]);
-
+    if (!params.restaurantId) {
       setIsLoading(false);
-    }, 1000);
-  }, [params.restaurantId]);
+      setFetchError("No restaurant ID provided.");
+      return;
+    }
+
+    setIsLoading(true);
+    setFetchError(null);
+
+    fetchPublicMenuData(params.restaurantId)
+      .then(result => {
+        if (result.success && result.menu) {
+          const fetchedMenuItems = result.menu;
+          setMenuItems(fetchedMenuItems);
+          setFilteredItems(fetchedMenuItems); 
+          setRestaurantName(result.restaurantName || params.restaurantId);
+          
+          const uniqueCategories = Array.from(new Set(fetchedMenuItems.map(item => item.category || "Other")));
+          const categorizedMenuData: MenuCategory[] = uniqueCategories
+            .sort()
+            .map(catName => ({
+              name: catName,
+              items: fetchedMenuItems.filter(item => (item.category || "Other") === catName)
+                                    .sort((a,b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity) || a.name.localeCompare(b.name))
+          }));
+          setCategories([{ name: "All", items: fetchedMenuItems.sort((a,b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity) || a.name.localeCompare(b.name)) }, ...categorizedMenuData]);
+          setActiveTab("All"); // Reset to "All" tab
+        } else {
+          setFetchError(result.message || "Failed to load menu data.");
+          toast({
+            title: "Error Loading Menu",
+            description: result.message || "Could not fetch the menu for this restaurant.",
+            variant: "destructive",
+          });
+        }
+      })
+      .catch(err => {
+        console.error("Fetch error in MenuPage:", err);
+        setFetchError("An unexpected error occurred while fetching the menu.");
+        toast({
+          title: "Network Error",
+          description: "Could not connect to the server to fetch the menu.",
+          variant: "destructive",
+        });
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [params.restaurantId, toast]);
 
   useEffect(() => {
     let itemsToFilter = menuItems; 
     
     if (viewMode === 'category') {
         itemsToFilter = activeTab === "All" 
-            ? mockMenu 
+            ? menuItems 
             : categories.find(c => c.name === activeTab)?.items || [];
     } else { 
-        itemsToFilter = menuItems;
+        itemsToFilter = menuItems; // Feed view uses all items for its internal logic
     }
     
     const lowercasedSearchTerm = searchTerm.toLowerCase();
-    const results = itemsToFilter.filter(item =>
+    // Ensure itemsToFilter is an array before calling filter
+    const results = Array.isArray(itemsToFilter) ? itemsToFilter.filter(item =>
       item.name.toLowerCase().includes(lowercasedSearchTerm) ||
-      item.description.toLowerCase().includes(lowercasedSearchTerm)
-    );
+      (item.description && item.description.toLowerCase().includes(lowercasedSearchTerm))
+    ) : [];
     setFilteredItems(results);
   }, [searchTerm, menuItems, activeTab, categories, viewMode]);
 
@@ -174,6 +171,22 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
     );
   }
 
+  if (fetchError) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <AppHeader />
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow flex flex-col items-center justify-center text-center">
+          <AlertTriangle className="h-16 w-16 text-destructive mb-6" />
+          <h1 className="text-3xl font-bold text-destructive mb-3">Oops! Something went wrong.</h1>
+          <p className="text-lg text-muted-foreground mb-2">{fetchError}</p>
+          <p className="text-sm text-muted-foreground">Please try refreshing the page or contact support if the issue persists.</p>
+          <Button onClick={() => window.location.reload()} className="mt-6">Refresh Page</Button>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <AppHeader />
@@ -181,10 +194,10 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
       {viewMode === 'feed' ? (
         <>
           <SwipeFeed 
-            items={menuItems} 
+            items={menuItems} // Pass all items for the feed source
             onUpsellClick={handleUpsellClick} 
             onItemViewed={handleItemViewed} 
-            allMenuItems={mockMenu} 
+            allMenuItems={menuItems} // Upsell context also uses all current menu items
           />
           <Button
             variant="outline"
@@ -200,10 +213,10 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
           <div className="text-center mb-10">
             <h1 className="text-4xl sm:text-5xl font-extrabold text-primary mb-3">
-              Our Menu
+              {restaurantName ? `${restaurantName}` : "Our Menu"}
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Explore our delicious offerings. Menu Configuration ID: {params.restaurantId}
+              Explore our delicious offerings.
             </p>
           </div>
 
@@ -229,36 +242,44 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
             </Button>
           </div>
           
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-            <TabsList className="flex flex-wrap justify-start mb-8 bg-muted p-1 rounded-lg shadow-sm">
-              {categories.map(category => (
-                <TabsTrigger 
-                  key={category.name} 
-                  value={category.name} 
-                  className="flex-initial data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md px-3 py-2 text-sm sm:text-base"
-                >
-                  {categoryIcons[category.name] || <Utensils className="mr-2 h-5 w-5" />}
-                  {category.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          {categories.length > 0 ? (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
+              <TabsList className="flex flex-wrap justify-start mb-8 bg-muted p-1 rounded-lg shadow-sm">
+                {categories.map(category => (
+                  <TabsTrigger 
+                    key={category.name} 
+                    value={category.name} 
+                    className="flex-initial data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md px-3 py-2 text-sm sm:text-base"
+                  >
+                    {categoryIcons[category.name] || <Utensils className="mr-2 h-5 w-5" />}
+                    {category.name} ({category.name === "All" ? menuItems.length : category.items.length})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-            {categories.map(category => (
-              <TabsContent key={category.name} value={category.name}>
-                {currentCategoryItems.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {currentCategoryItems.map(item => (
-                      <MenuItemCard key={item.id} item={item} onUpsellClick={handleUpsellClick} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-10 text-lg">
-                    No items found in this category{searchTerm && ' for your search criteria'}.
-                  </p>
-                )}
-              </TabsContent>
-            ))}
-          </Tabs>
+              {categories.map(category => (
+                <TabsContent key={category.name} value={category.name}>
+                  {currentCategoryItems.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {currentCategoryItems.map(item => (
+                        <MenuItemCard key={item.id} item={item} onUpsellClick={handleUpsellClick} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-10 text-lg">
+                      No items found in this category{searchTerm && ' for your search criteria'}.
+                    </p>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
+          ) : (
+             <div className="text-center py-20 text-muted-foreground">
+                <Utensils className="mx-auto h-16 w-16 mb-6 opacity-50" />
+                <p className="text-xl">Menu Coming Soon!</p>
+                <p>This restaurant's menu is currently being updated. Please check back later.</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -267,14 +288,14 @@ export default function MenuPage({ params: paramsAsPromise }: { params: Promise<
           isOpen={isUpsellDialogOpen}
           onOpenChange={setIsUpsellDialogOpen}
           selectedItem={selectedItemForUpsell}
-          menuItems={mockMenu} 
+          menuItems={menuItems} // Pass all current menu items for upsell context
         />
       )}
 
       {viewMode === 'category' && (
          <footer className="py-6 border-t bg-muted mt-auto">
             <div className="container mx-auto px-6 text-center text-muted-foreground text-sm">
-              Enjoy your meal with {params.restaurantId === 'demo' ? "Our Demo Menu" : `Menu Configuration ${params.restaurantId}`}!
+              Enjoy your meal at {restaurantName || `Menu ID: ${params.restaurantId}`}!
             </div>
           </footer>
       )}
