@@ -8,8 +8,8 @@ import { ReceiptUploadForm } from "@/components/dashboard/ReceiptUploadForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, TooltipProps, Rectangle, Cell } from "recharts";
-import type { AnalyticsEntry, AnalyticsPurchasedWithEntry, MenuItem } from "@/lib/types";
+import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, TooltipProps, Cell } from "recharts";
+import type { AnalyticsEntry } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -27,7 +27,7 @@ const getHeatmapColor = (value: number, maxValue: number): string => {
 
 const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload as any; // Cast to any to access custom props like xCat, yCat, count
+    const data = payload[0].payload as any; 
     if (!data || data.xCat === data.yCat || !data.count || data.count <= 0) return null; 
     return (
       <div className="bg-background border border-border shadow-lg rounded-md p-3 text-sm">
@@ -51,43 +51,36 @@ export default function AnalyticsPage() {
   const analyticsData: AnalyticsEntry[] | null | undefined = selectedMenuInstance?.analytics;
 
   const { allFoodNames, heatmapData, maxHeatmapValue } = useMemo(() => {
-    if (!analyticsData || analyticsData.length === 0 || !selectedMenuInstance || !selectedMenuInstance.menu) {
+    if (!analyticsData || analyticsData.length === 0) {
       return { allFoodNames: [], heatmapData: [], maxHeatmapValue: 0 };
     }
 
-    // 1. Create a map of food_name to food_category from the main menu items
-    const foodNameToCategoryMap = new Map<string, string>();
-    selectedMenuInstance.menu.forEach(menuItem => {
-      if (menuItem.name && menuItem.category) {
-        foodNameToCategoryMap.set(menuItem.name.trim(), menuItem.category.trim());
-      }
-    });
-    
-    // 2. Collect all unique food names involved in analytics
-    const foodNameSet = new Set<string>();
+    const itemsWithCategoriesMap = new Map<string, { name: string, category: string }>();
+
     analyticsData.forEach(entry => {
       const mainFoodName = entry.food_name?.trim();
-      if (mainFoodName) foodNameSet.add(mainFoodName);
+      const mainFoodCategory = entry.FoodCategory?.trim() || "Uncategorized";
+      if (mainFoodName && !itemsWithCategoriesMap.has(mainFoodName)) {
+        itemsWithCategoriesMap.set(mainFoodName, { name: mainFoodName, category: mainFoodCategory });
+      }
       entry.purchased_with.forEach(pw => {
          const purchasedWithName = pw.food_name?.trim();
-         if (purchasedWithName) foodNameSet.add(purchasedWithName);
+         const purchasedWithCategory = pw.FoodCategory?.trim() || "Uncategorized";
+         if (purchasedWithName && !itemsWithCategoriesMap.has(purchasedWithName)) {
+           itemsWithCategoriesMap.set(purchasedWithName, { name: purchasedWithName, category: purchasedWithCategory });
+         }
       });
     });
+    
+    const itemsWithCategoriesList = Array.from(itemsWithCategoriesMap.values());
 
-    // 3. Create a list of objects { name: string, category: string } for sorting
-    const itemsWithCategories = Array.from(foodNameSet).map(name => ({
-      name,
-      category: foodNameToCategoryMap.get(name) || "Uncategorized" // Fallback category
-    }));
-
-    // 4. Sort by category, then by name
-    itemsWithCategories.sort((a, b) => {
+    itemsWithCategoriesList.sort((a, b) => {
       if (a.category < b.category) return -1;
       if (a.category > b.category) return 1;
       return a.name.localeCompare(b.name);
     });
     
-    const sortedFoodNames = itemsWithCategories.map(item => item.name);
+    const sortedFoodNames = itemsWithCategoriesList.map(item => item.name);
 
     const coOccurrence: { [keyA: string]: { [keyB: string]: number } } = {};
     let currentMax = 0;
@@ -123,9 +116,8 @@ export default function AnalyticsPage() {
           }
       }
     }
-
     return { allFoodNames: sortedFoodNames, heatmapData: hData, maxHeatmapValue: currentMax };
-  }, [analyticsData, selectedMenuInstance]);
+  }, [analyticsData]);
   
   const augmentedBarChartData = useMemo((): AugmentedBarChartData[] => {
     if (!selectedFoodForDetails || !analyticsData) return [];
@@ -147,7 +139,7 @@ export default function AnalyticsPage() {
   const augmentedChartConfig = useMemo((): ChartConfig => {
     if (!augmentedBarChartData.length) return {};
     return {
-      count: { label: "Co-Purchases", color: "hsl(var(--primary))" }, // Adjusted color for clarity
+      count: { label: "Co-Purchases", color: "hsl(var(--primary))" }, 
     };
   }, [augmentedBarChartData]);
 
@@ -235,12 +227,12 @@ export default function AnalyticsPage() {
           <CardContent>
             {heatmapData.length > 0 && allFoodNames.length > 0 ? (
               <ScrollArea className="w-full whitespace-nowrap">
-                <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4"> {/* Increased multiplier for better spacing */}
-                  <ChartContainer config={{}} className="h-[500px] w-full"> {/* Increased height */}
+                <div style={{ minWidth: `${Math.max(600, allFoodNames.length * 70)}px` }} className="pb-4"> 
+                  <ChartContainer config={{}} className="h-[500px] w-full"> 
                     <RechartsBarChart
                         layout="vertical" 
                         data={heatmapData} 
-                        margin={{ top: 20, right: 50, bottom: 100, left: 150 }} // Increased bottom margin for angled X-axis labels
+                        margin={{ top: 20, right: 50, bottom: 100, left: 150 }} 
                         barCategoryGap={0} 
                         barGap={0}
                     >
@@ -250,8 +242,8 @@ export default function AnalyticsPage() {
                             dataKey="xCat" 
                             name="Food Item A" 
                             ticks={allFoodNames}
-                            tick={{ fontSize: 10, angle: -60, textAnchor: 'end' }} // Increased angle for X-axis
-                            height={100} // Adjusted height for X-axis
+                            tick={{ fontSize: 10, angle: -60, textAnchor: 'end' }} 
+                            height={100} 
                             interval={0}
                             allowDuplicatedCategory={true} 
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
@@ -263,7 +255,7 @@ export default function AnalyticsPage() {
                             name="Food Item B"
                             ticks={allFoodNames}
                             tick={{ fontSize: 10 }}
-                            width={140} // Adjusted width for Y-axis
+                            width={140} 
                             interval={0}
                             allowDuplicatedCategory={true} 
                             onClick={(e: any) => e.value && handleHeatmapCellClick(e.value)}
@@ -298,10 +290,10 @@ export default function AnalyticsPage() {
             <CardContent>
               {augmentedBarChartData.length > 0 ? (
                 <ChartContainer config={augmentedChartConfig} className="h-[350px] w-full">
-                  <RechartsBarChart data={augmentedBarChartData} layout="vertical" margin={{ right: 30, left: 150, bottom: 20}}> {/* Increased left margin for Y-axis labels */}
+                  <RechartsBarChart data={augmentedBarChartData} layout="vertical" margin={{ right: 30, left: 150, bottom: 20}}> 
                     <CartesianGrid horizontal={false} strokeDasharray="3 3" />
                     <XAxis type="number" allowDecimals={false} />
-                    <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 12}} interval={0} /> {/* Adjusted width */}
+                    <YAxis dataKey="name" type="category" width={140} tick={{fontSize: 12}} interval={0} /> 
                     <ChartTooltip content={<ChartTooltipContent />} cursor={{fill: 'hsl(var(--muted))'}}/>
                     <Bar dataKey="count" fill="var(--color-count)" radius={[0, 4, 4, 0]} barSize={30} />
                   </RechartsBarChart>
