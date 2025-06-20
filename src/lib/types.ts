@@ -51,14 +51,6 @@ export interface BackendDigitalMenuPollResponse {
   ContextS3MediaUrls?: string | null; 
 }
 
-export interface PollWorkflowStatusResult {
-  success: boolean;
-  state?: DigitalMenuState;
-  menuItems?: ExtractedMenuItem[];
-  s3ContextImageUrls?: string[];
-  message?: string;
-}
-
 export interface BackendFoodServiceEntryJson {
   food_category: string;
   name: string;
@@ -77,8 +69,8 @@ export interface BackendDigitalMenuJson {
   OwnerID: string;
   MenuID: string;
   ContextS3MediaUrls?: string | null;
-  food_service_entries: BackendFoodServiceEntryJson[] | null;
-  test_food_service_entries?: BackendFoodServiceEntryJson[] | null;
+  FoodServiceEntries: BackendFoodServiceEntryJson[] | null; // Corrected: Was food_service_entries
+  TestFoodServiceEntries?: BackendFoodServiceEntryJson[] | null; // Corrected: Was test_food_service_entries
   AllowABTesting?: boolean;
   Analytics?: unknown[] | null;
   State?: DigitalMenuState;
@@ -100,3 +92,4 @@ export const COMMON_ALLERGENS = [
   "Gluten", "Dairy", "Nuts", "Peanuts", "Shellfish", "Fish", "Soy", "Eggs",
   "Sesame", "Celery", "Mustard", "Lupin", "Sulphites", "Spicy" 
 ];
+

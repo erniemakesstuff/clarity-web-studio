@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { MenuUploadForm } from "@/components/dashboard/MenuUploadForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff, Pencil, Eye } from "lucide-react"; // Added Eye
+import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff, Pencil, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { MenuItem, DietaryIcon, MenuCategory as MenuCategoryType, MediaObject } from "@/lib/types";
@@ -14,7 +14,7 @@ import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { EditMenuItemDialog } from "@/components/dashboard/EditMenuItemDialog";
-import Link from "next/link"; // Added Link
+import Link from "next/link";
 
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
@@ -30,6 +30,8 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
   "gluten-free": "Gluten-Free",
   spicy: "Spicy",
 };
+
+const DASHBOARD_OWNER_ID = "admin@example.com"; // Assuming this is the owner for dashboard context
 
 export default function MenuManagementPage() {
   const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem } = useAuth();
@@ -87,18 +89,10 @@ export default function MenuManagementPage() {
       toast({ title: "Error", description: "No menu instance selected.", variant: "destructive" });
       return;
     }
-    // The updateMenuItem in AuthContext is now primarily for local state update.
-    // The backend persistence is handled within EditMenuItemDialog before this is called.
     const success = updateMenuItem(selectedMenuInstance.id, updatedItem); 
     if (success) {
-      // Toast for local update success can be here, or rely on toast from dialog's backend call
-      // For now, dialog handles backend toasts. This could be a confirmation of UI update.
-      // toast({
-      //   title: "UI Updated",
-      //   description: `Changes for "${updatedItem.name}" reflected locally.`,
-      // });
+      // UI update success handled by dialog's backend call toast
     } else {
-      // This case might be rare if backend succeeds but local update fails.
       toast({
         title: "UI Update Issue",
         description: `Could not fully update UI for "${updatedItem.name}". Backend changes may have succeeded. Please refresh.`,
@@ -134,7 +128,7 @@ export default function MenuManagementPage() {
           </div>
           {selectedMenuInstance && (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/menu/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
+              <Link href={`/menu/${DASHBOARD_OWNER_ID}/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
                 <Eye className="mr-2 h-4 w-4" /> View As Customer
               </Link>
             </Button>
