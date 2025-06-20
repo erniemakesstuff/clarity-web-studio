@@ -12,11 +12,11 @@ interface FetchPublicMenuResult {
   message?: string;
 }
 
-// ownerId received here is expected to be the hashed ID
 export async function fetchPublicMenuData(ownerId: string, menuId: string): Promise<FetchPublicMenuResult> {
+  let response: Response | undefined = undefined;
+  let responseBodyText: string = "";
   try {
-    // Use ownerId and menuId directly as they are expected to be correctly formatted (ownerId hashed)
-    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
@@ -24,12 +24,14 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
       cache: 'no-store',
     });
 
+    responseBodyText = await response.text();
+
     if (response.ok) {
-      const digitalMenu: BackendDigitalMenuJson = await response.json();
+      const digitalMenu: BackendDigitalMenuJson = JSON.parse(responseBodyText);
       
       const currentMenuIdActual = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : menuId; 
 
-      const menuItems: MenuItem[] = (digitalMenu.FoodServiceEntries || [])
+      const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []) // Changed to lowercase
         .map((entry, index) => {
           try {
             const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${index + 1}`;
@@ -61,7 +63,8 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
 
             const dietaryIcons: DietaryIcon[] = [];
             const foodCategoryLower = typeof entry.food_category === 'string' ? entry.food_category.toLowerCase() : '';
-            const backendAllergenTagsLower = (Array.isArray(entry.allergen_tags) ? entry.allergen_tags : [])
+            const backendAllergenTagsRaw = entry.allergen_tags;
+            const backendAllergenTagsLower = (Array.isArray(backendAllergenTagsRaw) ? backendAllergenTagsRaw : [])
               .map(tag => typeof tag === 'string' ? tag.toLowerCase() : '')
               .filter(tag => tag !== '');
 
@@ -104,17 +107,15 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
       return { success: true, menu: menuItems, restaurantName: currentMenuIdActual };
     } else {
       let errorMessage = `Backend API Error fetching public menu: ${response.status} ${response.statusText}.`;
-      let responseBodyText = "";
-      try {
-        responseBodyText = await response.text(); 
-        const errorData = JSON.parse(responseBodyText);
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) {
-        if (responseBodyText) {
-          errorMessage += ` Raw response: ${responseBodyText.substring(0, 500)}`;
-        } else {
-          errorMessage += ' Failed to read error response body.';
+      if (responseBodyText) {
+        try {
+          const errorData = JSON.parse(responseBodyText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (e) {
+            errorMessage += ` Raw response: ${responseBodyText.substring(0, 500)}`;
         }
+      } else {
+        errorMessage += ' Failed to read error response body.';
       }
       return { success: false, menu: [], restaurantName: menuId, message: errorMessage };
     }

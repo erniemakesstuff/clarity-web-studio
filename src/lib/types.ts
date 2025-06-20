@@ -47,7 +47,7 @@ export interface BackendDigitalMenuPollResponse {
   OwnerID: string;
   MenuID: string;
   State: DigitalMenuState;
-  FoodServiceEntries?: ExtractedMenuItem[] | null;
+  FoodServiceEntries?: ExtractedMenuItem[] | null; // Kept as PascalCase if this specific response uses it
   ContextS3MediaUrls?: string | null; 
 }
 
@@ -69,8 +69,8 @@ export interface BackendDigitalMenuJson {
   OwnerID: string;
   MenuID: string;
   ContextS3MediaUrls?: string | null;
-  FoodServiceEntries: BackendFoodServiceEntryJson[] | null; // Corrected: Was food_service_entries
-  TestFoodServiceEntries?: BackendFoodServiceEntryJson[] | null; // Corrected: Was test_food_service_entries
+  food_service_entries: BackendFoodServiceEntryJson[] | null; // Corrected to lowercase
+  test_food_service_entries?: BackendFoodServiceEntryJson[] | null; // Corrected to lowercase
   AllowABTesting?: boolean;
   Analytics?: unknown[] | null;
   State?: DigitalMenuState;
@@ -93,3 +93,11 @@ export const COMMON_ALLERGENS = [
   "Sesame", "Celery", "Mustard", "Lupin", "Sulphites", "Spicy" 
 ];
 
+// Retained for pollWorkflowStatus if its specific response structure differs
+export interface PollWorkflowStatusResult {
+  success: boolean;
+  state?: DigitalMenuState;
+  menuItems?: ExtractedMenuItem[];
+  s3ContextImageUrls?: string[];
+  message?: string;
+}

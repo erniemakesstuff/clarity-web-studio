@@ -9,11 +9,11 @@ interface FetchMenuInstancesResult {
   success: boolean;
   menuInstances?: MenuInstance[];
   message?: string;
-  rawResponseText?: string; // Added for debugging
+  rawResponseText?: string;
 }
 
 export async function fetchMenuInstancesFromBackend(
-  ownerId: string, // This is expected to be the hashed ownerId
+  ownerId: string, 
   jwtToken: string | null
 ): Promise<FetchMenuInstancesResult> {
   let response: Response | undefined = undefined;
@@ -21,7 +21,6 @@ export async function fetchMenuInstancesFromBackend(
 
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    // Use ownerId directly as it's pre-hashed and should be URL-safe
     response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
       method: "GET",
       headers: {
@@ -37,10 +36,6 @@ export async function fetchMenuInstancesFromBackend(
       try {
         backendDigitalMenus = JSON.parse(responseBodyText) as BackendDigitalMenuJson[];
         if (!Array.isArray(backendDigitalMenus)) {
-            // If the backend returns a single object instead of an array for a single menu query (which seems to be the case for /menu?ownerId=X&menuId=Y)
-            // but for /menu?ownerId=X it should be an array. We will try to handle both.
-            // For now, assuming it's always an array as per original PRD for multiple menus.
-            // If backend sends a single object when an array is expected for /menu?ownerId=X
              return { success: false, message: "Backend returned a single object, but an array of menus was expected for this owner.", menuInstances: [], rawResponseText: responseBodyText };
         }
 
@@ -50,10 +45,8 @@ export async function fetchMenuInstancesFromBackend(
       }
       
       const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
-        // Defensive check for digitalMenu structure
         if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
             console.warn(`Skipping invalid menu structure at index ${menuIndex} for owner ${ownerId}. MenuID: ${digitalMenu?.MenuID}`);
-            // Return a placeholder or skip. For now, returning a minimal valid structure to avoid breaking .map
             return { 
                 id: `invalid-menu-${menuIndex}-${Date.now()}`, 
                 name: `Invalid Menu Data ${menuIndex + 1}`, 
@@ -62,7 +55,7 @@ export async function fetchMenuInstancesFromBackend(
             };
         }
 
-        const menuItems: MenuItem[] = (digitalMenu.FoodServiceEntries || []).map((entry, itemIndex) => {
+        const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, itemIndex) => { // Changed to lowercase
           try {
             const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${itemIndex + 1}`;
             const itemDescription = typeof entry.description === 'string' ? entry.description : "";
@@ -97,7 +90,6 @@ export async function fetchMenuInstancesFromBackend(
             const backendAllergenTagsLower = (Array.isArray(backendAllergenTagsRaw) ? backendAllergenTagsRaw : [])
               .map(tag => typeof tag === 'string' ? tag.toLowerCase() : '')
               .filter(tag => tag !== '');
-
 
             if (foodCategoryLower === "vegan") {
               dietaryIcons.push('vegan');
@@ -180,9 +172,7 @@ export async function fetchMenuInstancesFromBackend(
     } else if (error) {
         detailedErrorMessage = `An unexpected error occurred: ${String(error)}`;
     }
-    // Ensure rawResponseText is included even in this catch block, if available from a partially failed attempt
     return { success: false, message: detailedErrorMessage, menuInstances: [], rawResponseText: responseBodyText || `Error occurred before response could be read: ${error.message}` };
   }
 }
     
-
