@@ -16,43 +16,21 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 // Helper for Heatmap cell color
 const getHeatmapColor = (value: number, maxValue: number): string => {
-  if (maxValue === 0 || value === 0) return "hsl(var(--secondary))"; // Use secondary for no co-purchase
+  if (maxValue === 0 || value <= 0) return "hsl(var(--secondary))"; // Use secondary for no co-purchase or zero/negative
   const intensity = Math.min(1, value / maxValue); // Normalize to 0-1
   // Using primary color's HSL, vary lightness. Darker for higher intensity.
-  // HSL for Teal: ~180, 100%, 25% (for --primary)
-  // We want to go from a light teal/gray to a strong teal.
-  const baseLightness = 90; // Start very light (almost white/gray for 0)
-  const targetLightness = 30; // Target darker teal for max value
+  const baseLightness = 90; 
+  const targetLightness = 30; 
   const lightness = baseLightness - (baseLightness - targetLightness) * intensity;
-  return `hsl(180, 60%, ${lightness}%)`;
+  return `hsl(180, 60%, ${lightness}%)`; // Example: Teal
 };
 
-interface HeatmapCellProps {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  fill?: string;
-  payload?: any; // This will contain { xCat, yCat, count }
-  onClick?: (data: any) => void;
-}
-
-const CustomHeatmapCell: React.FC<HeatmapCellProps> = ({ x, y, width, height, fill, payload, onClick }) => {
-  if (x === undefined || y === undefined || width === undefined || height === undefined) {
-    return null;
-  }
-  const handleClick = () => {
-    if (onClick && payload) {
-      onClick(payload);
-    }
-  };
-  return <Rectangle x={x} y={y} width={width} height={height} fill={fill} onClick={handleClick} className="cursor-pointer hover:opacity-80" />;
-};
 
 const CustomHeatmapTooltip = ({ active, payload }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload; // { xCat: 'ItemA', yCat: 'ItemB', count: 5 }
-    if (data.xCat === data.yCat) return null; // Don't show tooltip for item vs itself if count is 0 or not meaningful
+    const data = payload[0].payload; 
+    // Only show tooltip for meaningful cells (not self, positive count)
+    if (!data || data.xCat === data.yCat || data.count <= 0) return null; 
     return (
       <div className="bg-background border border-border shadow-lg rounded-md p-3 text-sm">
         <p className="font-semibold text-foreground">{data.xCat} & {data.yCat}</p>
@@ -81,8 +59,10 @@ export default function AnalyticsPage() {
 
     const foodNameSet = new Set<string>();
     analyticsData.forEach(entry => {
-      foodNameSet.add(entry.food_name);
-      entry.purchased_with.forEach(pw => foodNameSet.add(pw.food_name));
+      if (entry.food_name && entry.food_name.trim() !== "") foodNameSet.add(entry.food_name.trim());
+      entry.purchased_with.forEach(pw => {
+         if (pw.food_name && pw.food_name.trim() !== "") foodNameSet.add(pw.food_name.trim());
+      });
     });
     const sortedFoodNames = Array.from(foodNameSet).sort();
 
@@ -91,16 +71,17 @@ export default function AnalyticsPage() {
 
     analyticsData.forEach(entry => {
       const itemA = entry.food_name;
+      if (!itemA || itemA.trim() === "") return;
       if (!coOccurrence[itemA]) coOccurrence[itemA] = {};
       
       entry.purchased_with.forEach(relatedEntry => {
         const itemB = relatedEntry.food_name;
+        if (!itemB || itemB.trim() === "") return;
         if (!coOccurrence[itemB]) coOccurrence[itemB] = {};
 
         const count = relatedEntry.purchase_count;
         
         coOccurrence[itemA][itemB] = (coOccurrence[itemA][itemB] || 0) + count;
-        // Ensure symmetry if data isn't perfectly symmetrical
         if (itemA !== itemB) { 
             coOccurrence[itemB][itemA] = (coOccurrence[itemB][itemA] || 0) + count;
         }
@@ -113,13 +94,11 @@ export default function AnalyticsPage() {
         for (let j = 0; j < sortedFoodNames.length; j++) {
             const nameA = sortedFoodNames[i];
             const nameB = sortedFoodNames[j];
-            // For the heatmap data, ensure all cells are present for the Bar component to map over.
-            // The filtering for rendering will happen when generating Cell components.
             const count = nameA === nameB ? 0 : (coOccurrence[nameA]?.[nameB] || 0) ;
             hData.push({ xCat: nameA, yCat: nameB, count });
         }
     }
-    // If hData is empty but sortedFoodNames isn't, create dummy entries for axis generation
+
     if (hData.length === 0 && sortedFoodNames.length > 0) {
         sortedFoodNames.forEach(name => hData.push({ xCat: name, yCat: name, count: 0 }));
     }
@@ -133,13 +112,13 @@ export default function AnalyticsPage() {
     if (!selectedEntry) return [];
     return selectedEntry.purchased_with
         .map(pw => ({ name: pw.food_name, count: pw.purchase_count }))
-        .sort((a, b) => b.count - a.count); // Sort by count descending
+        .sort((a, b) => b.count - a.count); 
   }, [selectedFoodForDetails, analyticsData]);
 
   const handleHeatmapCellClick = useCallback((data: any) => {
-    if (typeof data === 'string') {
+    if (typeof data === 'string') { // Clicked on axis label
         setSelectedFoodForDetails(data);
-    } else if (data && data.xCat) {
+    } else if (data && data.xCat) { // Clicked on cell payload
         setSelectedFoodForDetails(data.xCat); 
     }
   }, []);
@@ -152,16 +131,19 @@ export default function AnalyticsPage() {
   }, [augmentedBarChartData]);
 
   const heatmapCellsToRender = useMemo(() => {
-    return heatmapData
-      .filter(entry => entry.xCat !== entry.yCat && entry.count > 0) // Filter out self-correlations and zero counts
-      .map((entry) => (
-        <Cell
-          key={`heatmap-cell-${entry.xCat}-${entry.yCat}`} // Unique key based on item pair
-          fill={getHeatmapColor(entry.count, maxHeatmapValue)}
-          onClick={() => handleHeatmapCellClick(entry)}
-          className="cursor-pointer hover:opacity-70"
-        />
-      ));
+    if (!heatmapData || heatmapData.length === 0) return null;
+
+    return heatmapData.map((entry) => {
+        const isVisibleCell = entry.xCat !== entry.yCat && entry.count > 0;
+        return (
+            <Cell
+                key={`heatmap-cell-${entry.xCat}-${entry.yCat}`}
+                fill={isVisibleCell ? getHeatmapColor(entry.count, maxHeatmapValue) : 'transparent'}
+                onClick={isVisibleCell ? () => handleHeatmapCellClick(entry) : undefined}
+                className={isVisibleCell ? "cursor-pointer hover:opacity-70" : "pointer-events-none"}
+            />
+        );
+    });
   }, [heatmapData, maxHeatmapValue, handleHeatmapCellClick]);
 
 
@@ -238,6 +220,8 @@ export default function AnalyticsPage() {
                         layout="vertical" 
                         data={heatmapData} 
                         margin={{ top: 20, right: 50, bottom: 50, left: 150 }}
+                        barCategoryGap={0} // Ensure cells touch
+                        barGap={0} // Ensure cells touch
                     >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={false}/>
                         <XAxis 
@@ -327,3 +311,6 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+
+    
