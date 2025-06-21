@@ -139,14 +139,18 @@ export async function fetchMenuInstancesFromBackend(
 
         const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
 
+        // Handle potential casing inconsistencies from the backend API
+        const allowAB = digitalMenu.AllowABTesting === true || (digitalMenu as any).allowABTesting === true;
+        const goal = digitalMenu.TestGoal || (digitalMenu as any).testGoal || undefined;
+
         return {
           id: menuIdToUse,
           name: menuIdToUse,
           menu: menuItems,
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
           analytics: digitalMenu.Analytics || [],
-          allowABTesting: digitalMenu.AllowABTesting === true,
-          testGoal: digitalMenu.TestGoal || undefined,
+          allowABTesting: allowAB,
+          testGoal: goal,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };
