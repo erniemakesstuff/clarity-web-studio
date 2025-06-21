@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { patchMenu, startABTestWorkflow } from "./actions";
 
 // Mock menu summary for demonstration purposes
 const mockMenuSummary = `
@@ -38,7 +39,7 @@ export default function HypothesisTestsPage() {
   const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const { toast } = useToast();
-  const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances } = useAuth();
+  const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances, hashedOwnerId, jwtToken } = useAuth();
 
   const allowABTesting = selectedMenuInstance?.allowABTesting;
 
@@ -89,9 +90,77 @@ export default function HypothesisTestsPage() {
 
   const handleGoalSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!selectedMenuInstance) {
+      toast({
+        title: "No Menu Selected",
+        description: "Please select a menu instance to set a goal.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmittingGoal(true);
-    await fetchHypotheses(goalInput);
-    setIsSubmittingGoal(false);
+    try {
+      // 1. Invoke PATCH to set the TestGoal
+      const patchResult = await patchMenu({
+        ownerId: hashedOwnerId,
+        menuId: selectedMenuInstance.id,
+        payload: { testGoal: goalInput },
+        jwtToken: jwtToken,
+      });
+
+      if (!patchResult.success) {
+        throw new Error(patchResult.message || "Failed to set the A/B test goal.");
+      }
+
+      toast({
+        title: "Goal Set Successfully",
+        description: "Your goal has been saved. Initiating A/B test workflow.",
+      });
+
+      // 2. Async: delay call to start workflow
+      setTimeout(async () => {
+        try {
+          const startResult = await startABTestWorkflow({
+            ownerId: hashedOwnerId,
+            menuId: selectedMenuInstance.id,
+            jwtToken: jwtToken,
+          });
+          if (!startResult.success) {
+            toast({
+              title: "Workflow Start Failed",
+              description: startResult.message || "Could not start the backend A/B test workflow.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "A/B Test Initiated",
+              description: "The backend is now processing your goal.",
+              variant: "default",
+              className: "bg-green-500 text-white",
+            });
+          }
+        } catch (startErr: any) {
+          toast({
+            title: "Workflow Start Error",
+            description: startErr.message,
+            variant: "destructive",
+          });
+        }
+      }, 500);
+
+      // 3. Immediately fetch new hypotheses for the UI
+      await fetchHypotheses(goalInput);
+
+    } catch (err: any) {
+      toast({
+        title: "Error Setting Goal",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingGoal(false);
+    }
   };
   
   if (isLoadingMenuInstances) {

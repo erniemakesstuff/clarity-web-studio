@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { MenuInstance, MenuItem } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
-import { patchMenuSettings } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
+import { patchMenu } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
 import { useToast } from "@/hooks/use-toast";
 import { generateDeterministicIdHash } from "@/lib/hash-utils";
 
@@ -211,10 +211,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
     }
 
-    const result = await patchMenuSettings({
+    const result = await patchMenu({
         ownerId: hashedOwnerIdForContext,
         menuId,
-        allowABTesting: enable,
+        payload: { allowABTesting: enable },
         jwtToken,
     });
 
