@@ -12,8 +12,6 @@ import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as Rech
 import type { AnalyticsEntry, AnalyticsPurchasedWithEntry } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { NetworkGraphChart } from "@/components/dashboard/analytics/NetworkGraphChart";
-import type { NetworkNode, NetworkLinkMap } from "@/components/dashboard/analytics/NetworkGraphChart";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -156,68 +154,6 @@ export default function AnalyticsPage() {
       }
     }
     return { allFoodNamesWithCategories: sortedItems, heatmapData: hData, maxHeatmapValue: currentMax };
-  }, [analyticsData]);
-
-
-  const { networkNodes, networkLinksMap } = useMemo(() => {
-    if (!analyticsData || analyticsData.length === 0) {
-      return { networkNodes: [], networkLinksMap: new Map() };
-    }
-
-    const nodes: Omit<NetworkNode, 'x' | 'y'>[] = [];
-    const linksMap: NetworkLinkMap = new Map();
-    const foodItemDetails = new Map<string, { category: string, total_purchase_count: number }>();
-
-    analyticsData.forEach(entry => {
-      const name = entry.food_name.trim();
-      if (name && name.length > 0) {
-        foodItemDetails.set(name, {
-          category: getSafeCategory(entry.food_category),
-          total_purchase_count: entry.purchase_count,
-        });
-
-        if (!linksMap.has(name)) {
-          linksMap.set(name, []);
-        }
-        entry.purchased_with.forEach(pw => {
-          const linkedName = pw.food_name.trim();
-          if (linkedName && linkedName.length > 0) {
-            linksMap.get(name)?.push({ target: linkedName, count: pw.purchase_count });
-            if (!foodItemDetails.has(linkedName)) {
-                const linkedItemAnalyticsEntry = analyticsData.find(e => e.food_name.trim() === linkedName);
-                const categoryForLinkedNode = getSafeCategory(pw.food_category ?? linkedItemAnalyticsEntry?.food_category);
-
-                foodItemDetails.set(linkedName, {
-                    category: categoryForLinkedNode,
-                    total_purchase_count: linkedItemAnalyticsEntry?.purchase_count || 0,
-                });
-            }
-          }
-        });
-      }
-    });
-
-    foodItemDetails.forEach((details, name) => {
-      nodes.push({
-        id: name,
-        name: name,
-        category: details.category,
-        value: details.total_purchase_count,
-        color: getCategoryColorForGraph(details.category),
-      });
-    });
-    
-    const finalNodes: NetworkNode[] = nodes.map((node, i, arr) => {
-        const angle = (i / arr.length) * 2 * Math.PI;
-        const radius = Math.min(250, arr.length * 15); 
-        return {
-            ...node,
-            x: 300 + radius * Math.cos(angle), 
-            y: 200 + radius * Math.sin(angle),
-        };
-    });
-
-    return { networkNodes: finalNodes, networkLinksMap: linksMap };
   }, [analyticsData]);
 
 
@@ -375,42 +311,7 @@ export default function AnalyticsPage() {
             )}
           </CardContent>
         </Card>
-
-        <Card className="shadow-lg mt-8">
-          <CardHeader>
-             <CardTitle className="flex items-center gap-2 text-2xl">
-                <Share2 className="mr-2 h-7 w-7 text-primary" />
-                <span>Co-purchase Network Graph</span>
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent className="w-80">
-                            <p className="font-bold mb-2">How to Read the Network Graph:</p>
-                            <ul className="list-disc pl-4 space-y-1 text-sm">
-                                <li><strong>Nodes (Circles):</strong> Each circle is a menu item.</li>
-                                <li><strong>Node Size:</strong> The larger the circle, the more popular the item (higher total sales).</li>
-                                <li><strong>Node Color:</strong> Color represents the food category, helping you spot cross-category pairing trends.</li>
-                                <li><strong>Interaction:</strong> Hover over any circle to see its name, total sales, and top 5 co-purchased items.</li>
-                            </ul>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </CardTitle>
-            <CardDescription>
-              This graph visualizes your menu as a network, helping you see which items are most popular and how they relate to each other. Hover over circles for details.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {networkNodes.length > 0 ? (
-                <NetworkGraphChart nodes={networkNodes} linksMap={networkLinksMap} />
-            ) : (
-              <p className="text-muted-foreground text-center py-4">No data available for the network graph.</p>
-            )}
-          </CardContent>
-        </Card>
-
+        
         {itemForDetailedView && (
           <Card className="shadow-lg mt-8">
             <CardHeader>
@@ -517,5 +418,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-    
