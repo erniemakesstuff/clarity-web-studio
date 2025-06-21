@@ -36,6 +36,7 @@ export default function HypothesisTestsPage() {
   const [adminContextInput, setAdminContextInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmittingContext, setIsSubmittingContext] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   const { toast } = useToast();
   const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances } = useAuth();
 
@@ -70,16 +71,19 @@ export default function HypothesisTestsPage() {
   };
 
   useEffect(() => {
-    if (allowABTesting) {
+    if (allowABTesting && selectedMenuInstance) {
       fetchHypotheses();
     } else {
       setIsLoading(false);
     }
-  }, [allowABTesting]);
+  }, [allowABTesting, selectedMenuInstance]);
 
-  const handleToggleClick = () => {
+  const handleToggleClick = async () => {
     if (selectedMenuInstance) {
-      toggleABTesting(selectedMenuInstance.id);
+      setIsToggling(true);
+      const currentStatus = selectedMenuInstance.allowABTesting ?? false;
+      await toggleABTesting(selectedMenuInstance.id, !currentStatus);
+      setIsToggling(false);
     }
   };
 
@@ -181,9 +185,18 @@ export default function HypothesisTestsPage() {
             </ul>
           </CardContent>
           <CardFooter className="border-t pt-6">
-            <Button size="lg" onClick={handleToggleClick}>
-              <Power className="mr-2 h-5 w-5" />
-              Enable Hypothesis Testing
+            <Button size="lg" onClick={handleToggleClick} disabled={isToggling}>
+              {isToggling ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Enabling...
+                </>
+              ) : (
+                <>
+                  <Power className="mr-2 h-5 w-5" />
+                  Enable Hypothesis Testing
+                </>
+              )}
             </Button>
           </CardFooter>
         </Card>
@@ -211,9 +224,18 @@ export default function HypothesisTestsPage() {
             Review AI-generated A/B tests to optimize menu upsells and provide context for new suggestions.
           </p>
         </div>
-        <Button variant="destructive" onClick={handleToggleClick}>
-          <Power className="mr-2 h-4 w-4" />
-          Disable Hypothesis Testing
+        <Button variant="destructive" onClick={handleToggleClick} disabled={isToggling}>
+          {isToggling ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Disabling...
+            </>
+          ) : (
+            <>
+              <Power className="mr-2 h-4 w-4" />
+              Disable Hypothesis Testing
+            </>
+          )}
         </Button>
       </div>
 

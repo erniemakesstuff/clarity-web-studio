@@ -3,8 +3,9 @@
 
 import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { MenuInstance, MenuItem, BackendDigitalMenuJson, AnalyticsEntry } from "@/lib/types";
+import type { MenuInstance, MenuItem } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
+import { patchMenuSettings } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
 import { useToast } from "@/hooks/use-toast";
 import { generateDeterministicIdHash } from "@/lib/hash-utils";
 
@@ -18,7 +19,7 @@ const RAW_MENU_API_RESPONSE_LS_KEY = "clarityMenuRawApiResponse";
 const MENU_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const RAW_OWNER_ID_FOR_CONTEXT = "admin@example.com"; // Define raw owner ID once
 
-interface AuthContextType {
+export interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   jwtToken: string | null;
@@ -35,7 +36,7 @@ interface AuthContextType {
   isLoadingMenuInstances: boolean;
   refreshMenuInstances: () => Promise<void>;
   rawMenuApiResponseText: string | null;
-  toggleABTesting: (menuId: string) => void;
+  toggleABTesting: (menuId: string, enable: boolean) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -196,28 +197,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return newMenuInstance;
   };
   
-  const toggleABTesting = (menuId: string) => {
-    let newStatus = false;
-    const updatedInstances = menuInstances.map(instance => {
-      if (instance.id === menuId) {
-        newStatus = !instance.allowABTesting;
-        const updatedInstance = { ...instance, allowABTesting: newStatus };
-        if (selectedMenuInstance?.id === menuId) {
-          setSelectedMenuInstance(updatedInstance);
-        }
-        return updatedInstance;
-      }
-      return instance;
+  const refreshMenuInstances = useCallback(async () => {
+    await loadMenuData(true);
+  }, [loadMenuData]);
+
+  const toggleABTesting = async (menuId: string, enable: boolean): Promise<boolean> => {
+    if (!selectedMenuInstance || selectedMenuInstance.id !== menuId) {
+        toast({
+            title: "Error",
+            description: "The correct menu is not selected.",
+            variant: "destructive",
+        });
+        return false;
+    }
+
+    const result = await patchMenuSettings({
+        ownerId: hashedOwnerIdForContext,
+        menuId,
+        allowABTesting: enable,
+        jwtToken,
     });
 
-    setMenuInstances(updatedInstances);
-    localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedInstances));
-    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
-    
-    toast({
-      title: "A/B Testing Mock Action",
-      description: `A/B testing has been mock ${newStatus ? 'enabled' : 'disabled'}. This action is for UI demonstration only and does not persist on the backend.`,
-    });
+    if (result.success) {
+        toast({
+            title: `A/B Testing ${enable ? 'Enabled' : 'Disabled'}`,
+            description: "Successfully updated settings on the backend.",
+            variant: "default",
+            className: "bg-green-500 text-white",
+        });
+        await refreshMenuInstances(); // Re-fetches the data from backend
+        return true;
+    } else {
+        toast({
+            title: "Update Failed",
+            description: result.message || "An unknown error occurred.",
+            variant: "destructive",
+        });
+        return false;
+    }
   };
 
   const renameMenuInstance = (menuId: string, newName: string): boolean => {
@@ -267,12 +284,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     return success;
   };
-
-
-  const refreshMenuInstances = useCallback(async () => {
-    await loadMenuData(true);
-  }, [loadMenuData]);
-
 
   return (
     <AuthContext.Provider value={{
