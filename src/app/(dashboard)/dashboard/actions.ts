@@ -52,7 +52,8 @@ export async function fetchMenuInstancesFromBackend(
                 name: `Invalid Menu Data ${menuIndex + 1}`,
                 menu: [],
                 s3ContextImageUrls: [],
-                analytics: [], // Ensure analytics is initialized
+                analytics: [],
+                allowABTesting: false,
             };
         }
 
@@ -77,7 +78,7 @@ export async function fetchMenuInstancesFromBackend(
             }
             if (dataAiHint.trim() === '') dataAiHint = 'food item';
 
-            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https'))) {
               mediaObjects.push({
                 type: 'image',
                 url: imageUrl,
@@ -143,7 +144,8 @@ export async function fetchMenuInstancesFromBackend(
           name: menuIdToUse,
           menu: menuItems,
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
-          analytics: digitalMenu.Analytics || [], // Pass analytics data
+          analytics: digitalMenu.Analytics || [],
+          allowABTesting: digitalMenu.AllowABTesting === true,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };

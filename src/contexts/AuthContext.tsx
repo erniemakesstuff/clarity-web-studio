@@ -35,6 +35,7 @@ interface AuthContextType {
   isLoadingMenuInstances: boolean;
   refreshMenuInstances: () => Promise<void>;
   rawMenuApiResponseText: string | null;
+  toggleABTesting: (menuId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,6 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const result = await fetchMenuInstancesFromBackend(hashedOwnerIdForContext, jwtToken);
+    
     setRawMenuApiResponseText(result.rawResponseText || null);
     localStorage.setItem(RAW_MENU_API_RESPONSE_LS_KEY, result.rawResponseText || "");
 
@@ -183,6 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       name: name,
       menu: [],
       analytics: [],
+      allowABTesting: false,
     };
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
@@ -191,6 +194,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
     localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newMenuInstance.id);
     return newMenuInstance;
+  };
+  
+  const toggleABTesting = (menuId: string) => {
+    let newStatus = false;
+    const updatedInstances = menuInstances.map(instance => {
+      if (instance.id === menuId) {
+        newStatus = !instance.allowABTesting;
+        const updatedInstance = { ...instance, allowABTesting: newStatus };
+        if (selectedMenuInstance?.id === menuId) {
+          setSelectedMenuInstance(updatedInstance);
+        }
+        return updatedInstance;
+      }
+      return instance;
+    });
+
+    setMenuInstances(updatedInstances);
+    localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedInstances));
+    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
+    
+    toast({
+      title: "A/B Testing Mock Action",
+      description: `A/B testing has been mock ${newStatus ? 'enabled' : 'disabled'}. This action is for UI demonstration only and does not persist on the backend.`,
+    });
   };
 
   const renameMenuInstance = (menuId: string, newName: string): boolean => {
@@ -264,7 +291,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       updateMenuItem,
       isLoadingMenuInstances,
       refreshMenuInstances,
-      rawMenuApiResponseText
+      rawMenuApiResponseText,
+      toggleABTesting,
     }}>
       {children}
     </AuthContext.Provider>

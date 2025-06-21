@@ -99,7 +99,8 @@ export interface MenuInstance {
   name: string;
   menu: MenuItem[];
   s3ContextImageUrls?: string[];
-  analytics?: AnalyticsEntry[] | null; // Added analytics data
+  analytics?: AnalyticsEntry[] | null;
+  allowABTesting?: boolean;
 }
 
 export const FOOD_CATEGORIES = [

@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { generateAbTests, type GenerateAbTestsInput, type AbTestHypothesis } from "@/ai/flows/generate-ab-tests";
-import { Loader2, Lightbulb, FlaskConical, Wand2 } from "lucide-react";
+import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 
 // Mock menu summary for demonstration purposes
 const mockMenuSummary = `
@@ -28,19 +30,21 @@ Drinks:
 - Wine: Red, White selection. $8/glass
 `;
 
-
 export default function HypothesisTestsPage() {
   const [hypotheses, setHypotheses] = useState<AbTestHypothesis[]>([]);
   const [adminContextInput, setAdminContextInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmittingContext, setIsSubmittingContext] = useState(false);
   const { toast } = useToast();
+  const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances } = useAuth();
+
+  const allowABTesting = selectedMenuInstance?.allowABTesting;
 
   const fetchHypotheses = async (context?: string) => {
     setIsLoading(true);
     try {
       const input: GenerateAbTestsInput = {
-        currentMenuSummary: mockMenuSummary, // In a real app, fetch this dynamically
+        currentMenuSummary: mockMenuSummary,
         adminContext: context || undefined,
       };
       const result = await generateAbTests(input);
@@ -49,8 +53,6 @@ export default function HypothesisTestsPage() {
         toast({
           title: "Hypotheses Refreshed",
           description: "New A/B test suggestions generated with your context.",
-          variant: "default",
-          className: "bg-green-500 text-white"
         });
       }
     } catch (err: any) {
@@ -60,15 +62,25 @@ export default function HypothesisTestsPage() {
         description: err.message || "Could not fetch A/B test suggestions.",
         variant: "destructive",
       });
-      setHypotheses([]); // Clear hypotheses on error or show placeholder
+      setHypotheses([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHypotheses();
-  }, []);
+    if (allowABTesting) {
+      fetchHypotheses();
+    } else {
+      setIsLoading(false);
+    }
+  }, [allowABTesting]);
+
+  const handleToggleClick = () => {
+    if (selectedMenuInstance) {
+      toggleABTesting(selectedMenuInstance.id);
+    }
+  };
 
   const handleAdminContextSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -76,17 +88,102 @@ export default function HypothesisTestsPage() {
     await fetchHypotheses(adminContextInput);
     setIsSubmittingContext(false);
   };
+  
+  if (isLoadingMenuInstances) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2 text-muted-foreground">Loading menu settings...</p>
+        </div>
+      );
+  }
+
+  if (!selectedMenuInstance) {
+    return (
+      <Alert variant="default" className="border-primary/50 bg-primary/5">
+        <FlaskConical className="h-5 w-5 text-primary" />
+        <AlertTitleUI className="text-primary">Select a Menu</AlertTitleUI>
+        <AlertDescriptionUI>
+          Please select a menu instance to manage A/B Hypothesis Testing.
+        </AlertDescriptionUI>
+      </Alert>
+    );
+  }
+
+  if (!allowABTesting) {
+    return (
+      <div className="space-y-8 max-w-4xl mx-auto">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center">
+            <FlaskConical className="mr-3 h-8 w-8 text-primary" />
+            A/B Hypothesis Tests
+          </h1>
+          <p className="text-muted-foreground">
+            Enable AI-powered menu optimization to automatically improve revenue.
+          </p>
+        </div>
+        <Card className="shadow-lg bg-secondary/30">
+          <CardHeader>
+            <CardTitle className="flex items-center text-2xl">
+              <Zap className="mr-3 h-7 w-7 text-yellow-500" />
+              What is AI-Powered Hypothesis Testing?
+            </CardTitle>
+            <CardDescription>
+              It's an autonomous system that works to achieve your goals by running smart experiments on your menu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-3 text-foreground">
+              <li className="flex items-start gap-3">
+                <BrainCircuit className="h-6 w-6 text-primary mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold">Define Your Goal, Let AI Do the Work</h4>
+                  <p className="text-sm text-muted-foreground">The AI's purpose is to maximize revenue. You can guide it by providing goals like "promote high-margin desserts" or "upsell more side salads with pizza".</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <FlaskConical className="h-6 w-6 text-primary mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold">Autonomous Experimentation</h4>
+                  <p className="text-sm text-muted-foreground">The AI formulates hypotheses (e.g., "Suggesting garlic bread with pasta will increase order value") and tests them over a set timeframe, dynamically re-evaluating its approach.</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <CheckCircle className="h-6 w-6 text-primary mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold">Automatic Promotion & Iteration</h4>
+                  <p className="text-sm text-muted-foreground">When a hypothesis is proven true, it's automatically promoted to the main customer experience. If it's false, the AI learns and iterates with a new hypothesis.</p>
+                </div>
+              </li>
+            </ul>
+          </CardContent>
+          <CardFooter className="border-t pt-6">
+            <Button size="lg" onClick={handleToggleClick}>
+              <Power className="mr-2 h-5 w-5" />
+              Enable Hypothesis Testing
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center">
-          <FlaskConical className="mr-3 h-8 w-8 text-primary" />
-          A/B Hypothesis Tests
-        </h1>
-        <p className="text-muted-foreground">
-          Review AI-generated A/B tests to optimize menu upsells and provide context for new suggestions.
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center">
+            <FlaskConical className="mr-3 h-8 w-8 text-primary" />
+            A/B Hypothesis Tests
+          </h1>
+          <p className="text-muted-foreground">
+            Review AI-generated A/B tests to optimize menu upsells and provide context for new suggestions.
+          </p>
+        </div>
+        <Button variant="destructive" onClick={handleToggleClick}>
+          <Power className="mr-2 h-4 w-4" />
+          Disable Hypothesis Testing
+        </Button>
       </div>
 
       <Card className="shadow-lg">
