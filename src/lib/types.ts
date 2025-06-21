@@ -90,6 +90,7 @@ export interface BackendDigitalMenuJson {
   food_service_entries: BackendFoodServiceEntryJson[] | null;
   test_food_service_entries?: BackendFoodServiceEntryJson[] | null;
   AllowABTesting?: boolean;
+  TestGoal?: string;
   Analytics?: AnalyticsEntry[] | null; // Updated to use defined type
   State?: DigitalMenuState;
 }
@@ -101,6 +102,7 @@ export interface MenuInstance {
   s3ContextImageUrls?: string[];
   analytics?: AnalyticsEntry[] | null;
   allowABTesting?: boolean;
+  testGoal?: string;
 }
 
 export const FOOD_CATEGORIES = [

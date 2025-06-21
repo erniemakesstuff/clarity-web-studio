@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { generateAbTests, type GenerateAbTestsInput, type AbTestHypothesis } from "@/ai/flows/generate-ab-tests";
-import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info } from "lucide-react";
+import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
@@ -33,18 +33,21 @@ Drinks:
 `;
 
 export default function HypothesisTestsPage() {
-  const [hypotheses, setHypotheses] = useState<AbTestHypothesis[]>([]);
-  const [goalInput, setGoalInput] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
-  const [isToggling, setIsToggling] = useState(false);
   const { toast } = useToast();
-  const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances, hashedOwnerId, jwtToken } = useAuth();
+  const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances, hashedOwnerId, jwtToken, refreshMenuInstances } = useAuth();
 
   const allowABTesting = selectedMenuInstance?.allowABTesting;
+  const existingGoal = selectedMenuInstance?.testGoal;
 
-  const fetchHypotheses = async (goal?: string) => {
-    setIsLoading(true);
+  const [hypotheses, setHypotheses] = useState<AbTestHypothesis[]>([]);
+  const [goalInput, setGoalInput] = useState(existingGoal || "");
+  const [isLoadingHypotheses, setIsLoadingHypotheses] = useState(true);
+  const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
+  const [isEditingGoal, setIsEditingGoal] = useState(!existingGoal);
+
+  const fetchHypotheses = useCallback(async (goal?: string) => {
+    setIsLoadingHypotheses(true);
     try {
       const input: GenerateAbTestsInput = {
         currentMenuSummary: mockMenuSummary,
@@ -52,12 +55,6 @@ export default function HypothesisTestsPage() {
       };
       const result = await generateAbTests(input);
       setHypotheses(result.hypotheses);
-      if (goal) {
-        toast({
-          title: "Hypotheses Refreshed",
-          description: "New A/B test suggestions generated based on your goal.",
-        });
-      }
     } catch (err: any) {
       console.error("Error generating A/B tests:", err);
       toast({
@@ -67,17 +64,22 @@ export default function HypothesisTestsPage() {
       });
       setHypotheses([]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingHypotheses(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    if (allowABTesting && selectedMenuInstance) {
-      fetchHypotheses();
+    const currentGoal = selectedMenuInstance?.testGoal || "";
+    setGoalInput(currentGoal);
+    setIsEditingGoal(!currentGoal);
+
+    if (selectedMenuInstance?.allowABTesting) {
+      fetchHypotheses(currentGoal);
     } else {
-      setIsLoading(false);
+      setIsLoadingHypotheses(false);
+      setHypotheses([]);
     }
-  }, [allowABTesting, selectedMenuInstance]);
+  }, [selectedMenuInstance, fetchHypotheses]);
 
   const handleToggleClick = async () => {
     if (selectedMenuInstance) {
@@ -101,7 +103,6 @@ export default function HypothesisTestsPage() {
 
     setIsSubmittingGoal(true);
     try {
-      // 1. Invoke PATCH to set the TestGoal
       const patchResult = await patchMenu({
         ownerId: hashedOwnerId,
         menuId: selectedMenuInstance.id,
@@ -118,7 +119,10 @@ export default function HypothesisTestsPage() {
         description: "Your goal has been saved. Initiating A/B test workflow.",
       });
 
-      // 2. Async: delay call to start workflow
+      // Refresh local state and fetch new hypotheses for UI
+      await refreshMenuInstances(); 
+      await fetchHypotheses(goalInput);
+
       setTimeout(async () => {
         try {
           const startResult = await startABTestWorkflow({
@@ -149,9 +153,6 @@ export default function HypothesisTestsPage() {
         }
       }, 500);
 
-      // 3. Immediately fetch new hypotheses for the UI
-      await fetchHypotheses(goalInput);
-
     } catch (err: any) {
       toast({
         title: "Error Setting Goal",
@@ -160,6 +161,7 @@ export default function HypothesisTestsPage() {
       });
     } finally {
       setIsSubmittingGoal(false);
+      setIsEditingGoal(false); // Lock the form after submission
     }
   };
   
@@ -315,7 +317,9 @@ export default function HypothesisTestsPage() {
             Provide AI Goal
           </CardTitle>
           <CardDescription>
-            Guide the AI by providing a specific goal for A/B test generation. The AI will formulate hypotheses to achieve it.
+            {existingGoal && !isEditingGoal
+              ? "An A/B test goal is currently active. Click 'Refine Goal' to edit."
+              : "Guide the AI by providing a specific goal. The AI will formulate hypotheses to achieve it."}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleGoalSubmit}>
@@ -328,23 +332,48 @@ export default function HypothesisTestsPage() {
               onChange={(e) => setGoalInput(e.target.value)}
               rows={4}
               className="mt-2"
-              disabled={isSubmittingGoal || isLoading}
+              disabled={!isEditingGoal || isSubmittingGoal || isLoadingHypotheses}
             />
           </CardContent>
-          <CardFooter className="border-t pt-6">
-            <Button type="submit" disabled={isSubmittingGoal || isLoading} className="w-full sm:w-auto">
-              {isSubmittingGoal ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating with Goal...
-                </>
-              ) : (
-                <>
-                  <Lightbulb className="mr-2 h-4 w-4" />
-                  Generate/Refine Hypotheses
-                </>
-              )}
-            </Button>
+          <CardFooter className="border-t pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            {isEditingGoal ? (
+              <div className="flex w-full justify-start items-center gap-2">
+                <Button type="submit" disabled={isSubmittingGoal || isLoadingHypotheses || !goalInput.trim()} className="w-full sm:w-auto">
+                  {isSubmittingGoal ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Lightbulb className="mr-2 h-4 w-4" />
+                      {existingGoal ? 'Update Goal & Regenerate' : 'Generate Hypotheses'}
+                    </>
+                  )}
+                </Button>
+                {existingGoal && (
+                  <Button type="button" variant="ghost" onClick={() => { setIsEditingGoal(false); setGoalInput(existingGoal); }} disabled={isSubmittingGoal}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="flex w-full justify-start items-center">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button type="button" variant="outline" onClick={() => setIsEditingGoal(true)} disabled={isToggling}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Refine Goal
+                           </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                           <p className="max-w-xs">Updating the goal will interrupt the currently running test and start a new one.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
           </CardFooter>
         </form>
       </Card>
@@ -360,7 +389,7 @@ export default function HypothesisTestsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isLoading ? (
+          {isLoadingHypotheses ? (
             <>
               <Skeleton className="h-24 w-full rounded-md" />
               <Skeleton className="h-24 w-full rounded-md" />

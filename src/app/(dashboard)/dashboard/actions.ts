@@ -78,7 +78,7 @@ export async function fetchMenuInstancesFromBackend(
             }
             if (dataAiHint.trim() === '') dataAiHint = 'food item';
 
-            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https'))) {
+            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
               mediaObjects.push({
                 type: 'image',
                 url: imageUrl,
@@ -146,6 +146,7 @@ export async function fetchMenuInstancesFromBackend(
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
           analytics: digitalMenu.Analytics || [],
           allowABTesting: digitalMenu.AllowABTesting === true,
+          testGoal: digitalMenu.TestGoal || undefined,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };
