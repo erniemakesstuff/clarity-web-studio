@@ -15,6 +15,12 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { NetworkGraphChart } from "@/components/dashboard/analytics/NetworkGraphChart";
 import type { NetworkNode, NetworkLinkMap } from "@/components/dashboard/analytics/NetworkGraphChart";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const DEV_USER_RAW_ID = "admin@example.com";
 
@@ -298,12 +304,28 @@ export default function AnalyticsPage() {
       <>
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center text-2xl">
-              <Activity className="mr-3 h-7 w-7 text-primary" />
-              Item Co-purchase Heatmap
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Activity className="mr-2 h-7 w-7 text-primary" />
+              <span>Item Co-purchase Heatmap</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="w-80">
+                    <p className="font-bold mb-2">How to Read the Heatmap:</p>
+                    <ul className="list-disc pl-4 space-y-1 text-sm">
+                      <li><strong>Axes:</strong> Both axes list your menu items, sorted by category.</li>
+                      <li><strong>Cells:</strong> Each square shows how often the corresponding row and column items were bought together.</li>
+                      <li><strong>Color Intensity:</strong> The darker the cell, the more frequent the co-purchase. Bright spots are your best upsell opportunities.</li>
+                      <li><strong>Interaction:</strong> Click a colored cell to see a detailed bar chart of co-purchases for that item.</li>
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </CardTitle>
             <CardDescription>
-              Visualizes how frequently pairs of items are purchased together. Darker cells indicate stronger co-purchase. Food items are grouped by category. Click on a cell to see detailed co-purchases for that item.
+              This grid shows which items are frequently bought together. Use it to find popular pairs and potential upselling opportunities. The darker the cell, the stronger the connection.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -356,12 +378,28 @@ export default function AnalyticsPage() {
 
         <Card className="shadow-lg mt-8">
           <CardHeader>
-            <CardTitle className="flex items-center text-2xl">
-              <Share2 className="mr-3 h-7 w-7 text-primary" />
-              Co-purchase Network Graph
+             <CardTitle className="flex items-center gap-2 text-2xl">
+                <Share2 className="mr-2 h-7 w-7 text-primary" />
+                <span>Co-purchase Network Graph</span>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <HelpCircle className="h-5 w-5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="w-80">
+                            <p className="font-bold mb-2">How to Read the Network Graph:</p>
+                            <ul className="list-disc pl-4 space-y-1 text-sm">
+                                <li><strong>Nodes (Circles):</strong> Each circle is a menu item.</li>
+                                <li><strong>Node Size:</strong> The larger the circle, the more popular the item (higher total sales).</li>
+                                <li><strong>Node Color:</strong> Color represents the food category, helping you spot cross-category pairing trends.</li>
+                                <li><strong>Interaction:</strong> Hover over any circle to see its name, total sales, and top 5 co-purchased items.</li>
+                            </ul>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </CardTitle>
             <CardDescription>
-              Visualizes item relationships. Nodes are food items (sized by total purchases, colored by category). Hover for co-purchase details.
+              This graph visualizes your menu as a network, helping you see which items are most popular and how they relate to each other. Hover over circles for details.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -479,3 +517,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
