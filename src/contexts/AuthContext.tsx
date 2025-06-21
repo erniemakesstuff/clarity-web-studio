@@ -14,6 +14,7 @@ const MENU_INSTANCES_TIMESTAMP_LS_KEY = "clarityMenuMenuInstancesTimestamp";
 const SELECTED_MENU_INSTANCE_LS_KEY = "clarityMenuSelectedMenuInstance";
 const AUTH_STATUS_LS_KEY = "clarityMenuAuth";
 const JWT_TOKEN_LS_KEY = "clarityMenuJwtToken";
+const RAW_MENU_API_RESPONSE_LS_KEY = "clarityMenuRawApiResponse";
 const MENU_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const RAW_OWNER_ID_FOR_CONTEXT = "admin@example.com"; // Define raw owner ID once
 
@@ -61,6 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       localStorage.removeItem(MENU_INSTANCES_LS_KEY);
       localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
       localStorage.removeItem(JWT_TOKEN_LS_KEY);
+      localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
       setJwtToken(null);
       return;
     }
@@ -78,7 +80,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
         const foundMenuInstance = parsedInstances.find(m => m.id === storedMenuInstanceId);
         setSelectedMenuInstance(foundMenuInstance || (parsedInstances.length > 0 ? parsedInstances[0] : null));
-        setRawMenuApiResponseText(null); 
+        const cachedRawResponse = localStorage.getItem(RAW_MENU_API_RESPONSE_LS_KEY);
+        setRawMenuApiResponseText(cachedRawResponse); 
         setIsLoadingMenuInstances(false);
         return;
       } catch (e) {
@@ -88,6 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const result = await fetchMenuInstancesFromBackend(hashedOwnerIdForContext, jwtToken);
     setRawMenuApiResponseText(result.rawResponseText || null);
+    localStorage.setItem(RAW_MENU_API_RESPONSE_LS_KEY, result.rawResponseText || "");
 
     if (result.success && result.menuInstances) {
       setMenuInstances(result.menuInstances);
@@ -160,6 +164,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem(MENU_INSTANCES_LS_KEY);
     localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
     localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+    localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
     setMenuInstances([]);
     setSelectedMenuInstance(null);
   };
