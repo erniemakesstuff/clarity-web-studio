@@ -311,34 +311,45 @@ export default function HypothesisTestsPage() {
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center text-2xl">
-            <Wand2 className="mr-3 h-7 w-7 text-primary" />
-            Provide AI Goal
-          </CardTitle>
-          <CardDescription>
-            {existingGoal && !isEditingGoal
-              ? "An A/B test goal is currently active. Click 'Refine Goal' to edit."
-              : "Guide the AI by providing a specific goal. The AI will formulate hypotheses to achieve it."}
-          </CardDescription>
-        </CardHeader>
         <form onSubmit={handleGoalSubmit}>
+          <CardHeader>
+            <CardTitle className="flex items-center text-2xl">
+              <Wand2 className="mr-3 h-7 w-7 text-primary" />
+              Provide AI Goal
+            </CardTitle>
+            <CardDescription>
+              {existingGoal && !isEditingGoal
+                ? "An A/B test is active with the goal below. Click 'Refine Goal' to edit."
+                : "Guide the AI by providing a specific goal for it to achieve."}
+            </CardDescription>
+          </CardHeader>
           <CardContent>
-            <Label htmlFor="goal-input" className="text-base">Your Goal / Instructions</Label>
-            <Textarea
-              id="goal-input"
-              placeholder="e.g., Focus on promoting high-margin desserts with main courses, or try to upsell more side salads with pizzas."
-              value={goalInput}
-              onChange={(e) => setGoalInput(e.target.value)}
-              rows={4}
-              className="mt-2"
-              disabled={!isEditingGoal || isSubmittingGoal || isLoadingHypotheses}
-            />
+            {isEditingGoal || !existingGoal ? (
+              <div className="space-y-2">
+                <Label htmlFor="goal-input" className="text-base">Your Goal / Instructions</Label>
+                <Textarea
+                  id="goal-input"
+                  placeholder="e.g., Focus on promoting high-margin desserts with main courses, or try to upsell more side salads with pizzas."
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  rows={4}
+                  className="mt-2"
+                  disabled={isSubmittingGoal || isLoadingHypotheses}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-base">Active Goal</Label>
+                <div className="p-3 border rounded-md bg-secondary/40 text-sm text-foreground">
+                  {existingGoal}
+                </div>
+              </div>
+            )}
           </CardContent>
-          <CardFooter className="border-t pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <CardFooter className="border-t pt-6 flex justify-start items-center gap-4">
             {isEditingGoal ? (
-              <div className="flex w-full justify-start items-center gap-2">
-                <Button type="submit" disabled={isSubmittingGoal || isLoadingHypotheses || !goalInput.trim()} className="w-full sm:w-auto">
+              <>
+                <Button type="submit" disabled={isSubmittingGoal || isLoadingHypotheses || !goalInput.trim()}>
                   {isSubmittingGoal ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -356,23 +367,21 @@ export default function HypothesisTestsPage() {
                     Cancel
                   </Button>
                 )}
-              </div>
+              </>
             ) : (
-              <div className="flex w-full justify-start items-center">
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                           <Button type="button" variant="outline" onClick={() => setIsEditingGoal(true)} disabled={isToggling}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Refine Goal
-                           </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                           <p className="max-w-xs">Updating the goal will interrupt the currently running test and start a new one.</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="outline" onClick={() => setIsEditingGoal(true)} disabled={isToggling}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Refine Goal
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Updating the goal will interrupt the currently running test and start a new one.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </CardFooter>
         </form>
