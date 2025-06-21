@@ -53,13 +53,13 @@ export interface BackendDigitalMenuPollResponse {
 
 // Analytics Data Structures
 export interface AnalyticsPurchasedWithEntry {
-  FoodCategory: string;
+  food_category: string;
   food_name: string;
   purchase_count: number;
 }
 
 export interface AnalyticsEntry {
-  FoodCategory: string; // Added FoodCategory
+  food_category: string;
   average_engagement: number;
   engagement_sec: number | null;
   food_name: string;
@@ -119,4 +119,3 @@ export interface PollWorkflowStatusResult {
   s3ContextImageUrls?: string[];
   message?: string;
 }
-

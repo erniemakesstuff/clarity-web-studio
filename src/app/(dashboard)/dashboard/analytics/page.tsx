@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
     analyticsData.forEach(entry => {
       const mainFoodName = entry.food_name?.trim();
       if (mainFoodName && mainFoodName.length > 0) {
-        const mainFoodCategory = getSafeCategory(entry.FoodCategory);
+        const mainFoodCategory = getSafeCategory(entry.food_category);
         if (!itemsMap.has(mainFoodName)) {
             itemsMap.set(mainFoodName, { name: mainFoodName, category: mainFoodCategory });
         }
@@ -99,7 +99,7 @@ export default function AnalyticsPage() {
       entry.purchased_with.forEach(pw => {
          const purchasedWithName = pw.food_name?.trim();
          if (purchasedWithName && purchasedWithName.length > 0) {
-            const purchasedWithCategory = getSafeCategory(pw.FoodCategory);
+            const purchasedWithCategory = getSafeCategory(pw.food_category);
             if (!itemsMap.has(purchasedWithName)) {
               itemsMap.set(purchasedWithName, { name: purchasedWithName, category: purchasedWithCategory });
             }
@@ -166,7 +166,7 @@ export default function AnalyticsPage() {
       const name = entry.food_name.trim();
       if (name && name.length > 0) {
         foodItemDetails.set(name, {
-          category: getSafeCategory(entry.FoodCategory),
+          category: getSafeCategory(entry.food_category),
           total_purchase_count: entry.purchase_count,
         });
 
@@ -179,7 +179,7 @@ export default function AnalyticsPage() {
             linksMap.get(name)?.push({ target: linkedName, count: pw.purchase_count });
             if (!foodItemDetails.has(linkedName)) {
                 const linkedItemAnalyticsEntry = analyticsData.find(e => e.food_name.trim() === linkedName);
-                const categoryForLinkedNode = getSafeCategory(pw.FoodCategory ?? linkedItemAnalyticsEntry?.FoodCategory);
+                const categoryForLinkedNode = getSafeCategory(pw.food_category ?? linkedItemAnalyticsEntry?.food_category);
 
                 foodItemDetails.set(linkedName, {
                     category: categoryForLinkedNode,
@@ -394,7 +394,7 @@ export default function AnalyticsPage() {
                 const chartDataForDetail = selectedItemData.purchased_with
                   .sort((a, b) => b.purchase_count - a.purchase_count)
                   .slice(0, 10) 
-                  .map(pw => ({ name: pw.food_name, count: pw.purchase_count, category: getSafeCategory(pw.FoodCategory) }));
+                  .map(pw => ({ name: pw.food_name, count: pw.purchase_count, category: getSafeCategory(pw.food_category) }));
 
                 const detailChartConfig = chartDataForDetail.reduce((acc, item) => {
                   acc[item.name.replace(/\s+/g, "-").toLowerCase()] = { 
