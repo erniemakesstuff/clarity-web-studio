@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { generateAbTests, type GenerateAbTestsInput, type AbTestHypothesis } from "@/ai/flows/generate-ab-tests";
-import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle } from "lucide-react";
+import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Mock menu summary for demonstration purposes
 const mockMenuSummary = `
@@ -110,15 +111,37 @@ export default function HypothesisTestsPage() {
     );
   }
 
+  const tooltipContent = (
+    <TooltipContent className="max-w-sm">
+      <h4 className="font-bold mb-2">What is A/B Testing?</h4>
+      <p className="text-sm text-muted-foreground mb-2">
+        It's a simple experiment to find what customers like best, using data to make decisions.
+      </p>
+      <ul className="list-disc pl-4 mt-2 space-y-1 text-sm">
+        <li><strong>Hypothesis (A Guess):</strong> We guess a change will help, e.g., "Suggesting drinks with pizza will increase order value."</li>
+        <li><strong>The Test (A vs. B):</strong> We show the old menu (A) to some customers and the new menu (B) to others.</li>
+        <li><strong>The Decision:</strong> We compare the results. If B performs better, we keep it. If not, we learn from it and try another hypothesis.</li>
+      </ul>
+    </TooltipContent>
+  );
+
   if (!allowABTesting) {
     return (
       <div className="space-y-8 max-w-4xl mx-auto">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center">
-            <FlaskConical className="mr-3 h-8 w-8 text-primary" />
-            A/B Hypothesis Tests
-          </h1>
-          <p className="text-muted-foreground">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h1 className="text-3xl font-bold tracking-tight flex items-center cursor-help">
+                  <FlaskConical className="mr-3 h-8 w-8 text-primary" />
+                  A/B Hypothesis Tests
+                  <Info className="ml-2 h-5 w-5 text-muted-foreground" />
+                </h1>
+              </TooltipTrigger>
+              {tooltipContent}
+            </Tooltip>
+          </TooltipProvider>
+          <p className="text-muted-foreground mt-2">
             Enable AI-powered menu optimization to automatically improve revenue.
           </p>
         </div>
@@ -172,11 +195,19 @@ export default function HypothesisTestsPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center">
-            <FlaskConical className="mr-3 h-8 w-8 text-primary" />
-            A/B Hypothesis Tests
-          </h1>
-          <p className="text-muted-foreground">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <h1 className="text-3xl font-bold tracking-tight flex items-center cursor-help">
+                  <FlaskConical className="mr-3 h-8 w-8 text-primary" />
+                  A/B Hypothesis Tests
+                  <Info className="ml-2 h-5 w-5 text-muted-foreground" />
+                </h1>
+              </TooltipTrigger>
+              {tooltipContent}
+            </Tooltip>
+          </TooltipProvider>
+          <p className="text-muted-foreground mt-2">
             Review AI-generated A/B tests to optimize menu upsells and provide context for new suggestions.
           </p>
         </div>
