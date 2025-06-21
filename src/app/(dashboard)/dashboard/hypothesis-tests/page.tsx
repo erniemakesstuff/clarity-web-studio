@@ -33,28 +33,28 @@ Drinks:
 
 export default function HypothesisTestsPage() {
   const [hypotheses, setHypotheses] = useState<AbTestHypothesis[]>([]);
-  const [adminContextInput, setAdminContextInput] = useState("");
+  const [goalInput, setGoalInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmittingContext, setIsSubmittingContext] = useState(false);
+  const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const { toast } = useToast();
   const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances } = useAuth();
 
   const allowABTesting = selectedMenuInstance?.allowABTesting;
 
-  const fetchHypotheses = async (context?: string) => {
+  const fetchHypotheses = async (goal?: string) => {
     setIsLoading(true);
     try {
       const input: GenerateAbTestsInput = {
         currentMenuSummary: mockMenuSummary,
-        adminContext: context || undefined,
+        testGoal: goal || undefined,
       };
       const result = await generateAbTests(input);
       setHypotheses(result.hypotheses);
-      if (context) {
+      if (goal) {
         toast({
           title: "Hypotheses Refreshed",
-          description: "New A/B test suggestions generated with your context.",
+          description: "New A/B test suggestions generated based on your goal.",
         });
       }
     } catch (err: any) {
@@ -87,11 +87,11 @@ export default function HypothesisTestsPage() {
     }
   };
 
-  const handleAdminContextSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleGoalSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsSubmittingContext(true);
-    await fetchHypotheses(adminContextInput);
-    setIsSubmittingContext(false);
+    setIsSubmittingGoal(true);
+    await fetchHypotheses(goalInput);
+    setIsSubmittingGoal(false);
   };
   
   if (isLoadingMenuInstances) {
@@ -221,7 +221,7 @@ export default function HypothesisTestsPage() {
             </Tooltip>
           </TooltipProvider>
           <p className="text-muted-foreground mt-2">
-            Review AI-generated A/B tests to optimize menu upsells and provide context for new suggestions.
+            Review AI-generated A/B tests to optimize menu upsells and provide a goal for new suggestions.
           </p>
         </div>
         <Button variant="destructive" onClick={handleToggleClick} disabled={isToggling}>
@@ -243,31 +243,31 @@ export default function HypothesisTestsPage() {
         <CardHeader>
           <CardTitle className="flex items-center text-2xl">
             <Wand2 className="mr-3 h-7 w-7 text-primary" />
-            Provide AI Context
+            Provide AI Goal
           </CardTitle>
           <CardDescription>
-            Guide the AI by providing additional information or specific goals for A/B test generation.
+            Guide the AI by providing a specific goal for A/B test generation. The AI will formulate hypotheses to achieve it.
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleAdminContextSubmit}>
+        <form onSubmit={handleGoalSubmit}>
           <CardContent>
-            <Label htmlFor="admin-context" className="text-base">Your Instructions / Context</Label>
+            <Label htmlFor="goal-input" className="text-base">Your Goal / Instructions</Label>
             <Textarea
-              id="admin-context"
+              id="goal-input"
               placeholder="e.g., Focus on promoting high-margin desserts with main courses, or try to upsell more side salads with pizzas."
-              value={adminContextInput}
-              onChange={(e) => setAdminContextInput(e.target.value)}
+              value={goalInput}
+              onChange={(e) => setGoalInput(e.target.value)}
               rows={4}
               className="mt-2"
-              disabled={isSubmittingContext || isLoading}
+              disabled={isSubmittingGoal || isLoading}
             />
           </CardContent>
           <CardFooter className="border-t pt-6">
-            <Button type="submit" disabled={isSubmittingContext || isLoading} className="w-full sm:w-auto">
-              {isSubmittingContext ? (
+            <Button type="submit" disabled={isSubmittingGoal || isLoading} className="w-full sm:w-auto">
+              {isSubmittingGoal ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating with Context...
+                  Generating with Goal...
                 </>
               ) : (
                 <>
@@ -287,7 +287,7 @@ export default function HypothesisTestsPage() {
             Current A/B Test Hypotheses
           </CardTitle>
           <CardDescription>
-            These are potential A/B tests suggested by the AI based on the menu and provided context.
+            These are potential A/B tests suggested by the AI based on the menu and provided goal.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -313,7 +313,7 @@ export default function HypothesisTestsPage() {
             <div className="text-center py-10 text-muted-foreground">
               <FlaskConical className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p>No A/B test hypotheses available at the moment.</p>
-              <p className="text-sm">Try providing some context above or check back later.</p>
+              <p className="text-sm">Try providing a goal above or check back later.</p>
             </div>
           )}
         </CardContent>

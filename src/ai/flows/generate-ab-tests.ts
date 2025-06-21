@@ -21,10 +21,10 @@ export type AbTestHypothesis = z.infer<typeof AbTestHypothesisSchema>;
 
 const GenerateAbTestsInputSchema = z.object({
   currentMenuSummary: z.string().describe('A summary of the current menu items, categories, and prices.'),
-  adminContext: z
+  testGoal: z
     .string()
     .optional()
-    .describe('Optional context or specific instructions from the administrator to guide A/B test generation (e.g., "focus on high-margin items", "promote new seasonal dishes").'),
+    .describe('Optional goal or specific instructions from the administrator to guide A/B test generation (e.g., "focus on high-margin items", "promote new seasonal dishes").'),
 });
 export type GenerateAbTestsInput = z.infer<typeof GenerateAbTestsInputSchema>;
 
@@ -41,19 +41,19 @@ const generateAbTestsPrompt = ai.definePrompt({
   name: 'generateAbTestsPrompt',
   input: {schema: GenerateAbTestsInputSchema},
   output: {schema: GenerateAbTestsOutputSchema},
-  prompt: `You are an AI assistant specialized in menu optimization. Your goal is to generate A/B test hypotheses to help increase upsells and average order value.
+  prompt: `You are an AI assistant specialized in menu optimization. Your goal is to generate A/B test hypotheses to help achieve a business goal, which ultimately increases upsells and average order value.
 
 Current Menu Summary:
 {{{currentMenuSummary}}}
 
-{{#if adminContext}}
-Administrator's Context/Instructions:
-{{{adminContext}}}
+{{#if testGoal}}
+Administrator's Goal/Instructions:
+{{{testGoal}}}
 {{else}}
-No specific admin context provided. Use general best practices for upselling.
+No specific goal provided. Use general best practices for upselling and revenue maximization.
 {{/if}}
 
-Based on the menu and any provided context, generate 2-3 distinct A/B test hypotheses.
+Based on the menu and any provided goal, generate 2-3 distinct A/B test hypotheses.
 For each hypothesis, provide:
 1.  A unique ID (e.g., "TEST001", "TEST002").
 2.  A clear 'changeDescription' of what specific change to test on the menu (e.g., "Suggest 'Side Salad' when a 'Pizza' is added to cart", "Feature 'Wine Pairing of the Week' on the main course section").
@@ -71,11 +71,7 @@ const generateAbTestsFlow = ai.defineFlow(
     outputSchema: GenerateAbTestsOutputSchema,
   },
   async (input: GenerateAbTestsInput) => {
-    const effectiveInput = {
-        ...input,
-        adminContext: input.adminContext || null, 
-    };
-    const {output} = await generateAbTestsPrompt(effectiveInput);
+    const {output} = await generateAbTestsPrompt(input);
     
     if (output && output.hypotheses) {
         output.hypotheses.forEach((hypo, index) => {
