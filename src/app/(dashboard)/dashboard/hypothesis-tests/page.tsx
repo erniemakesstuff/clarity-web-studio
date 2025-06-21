@@ -220,8 +220,8 @@ export default function HypothesisTestsPage() {
               {tooltipContent}
             </Tooltip>
           </TooltipProvider>
-          <p className="text-muted-foreground mt-2">
-            Review AI-generated A/B tests to optimize menu upsells and provide a goal for new suggestions.
+          <p className="text-muted-foreground mt-2 max-w-3xl">
+            Review AI-generated A/B tests designed to achieve your goals. When active, this experiment shows a modified menu to 50% of your customers to test the hypothesis. You can disable testing at any time or provide a new goal for the AI.
           </p>
         </div>
         <Button variant="destructive" onClick={handleToggleClick} disabled={isToggling}>
