@@ -141,7 +141,7 @@ export async function fetchMenuInstancesFromBackend(
 
         // Handle potential casing inconsistencies from the backend API
         const allowAB = digitalMenu.AllowABTesting === true || (digitalMenu as any).allowABTesting === true;
-        const goal = digitalMenu.TestGoal || (digitalMenu as any).testGoal || undefined;
+        const goal = digitalMenu.test_goal || (digitalMenu as any).TestGoal || undefined;
 
         return {
           id: menuIdToUse,

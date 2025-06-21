@@ -90,7 +90,7 @@ export interface BackendDigitalMenuJson {
   food_service_entries: BackendFoodServiceEntryJson[] | null;
   test_food_service_entries?: BackendFoodServiceEntryJson[] | null;
   AllowABTesting?: boolean;
-  TestGoal?: string;
+  test_goal?: string;
   Analytics?: AnalyticsEntry[] | null; // Updated to use defined type
   State?: DigitalMenuState;
 }
