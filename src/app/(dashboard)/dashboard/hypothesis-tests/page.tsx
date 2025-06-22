@@ -31,18 +31,11 @@ export default function HypothesisTestsPage() {
   const [isEditingGoal, setIsEditingGoal] = useState(!existingGoal);
   const [isPolling, setIsPolling] = useState(false);
 
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutIdsRef = useRef<NodeJS.Timeout[]>([]);
 
   const cleanupPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    if (pollingTimeoutRef.current) {
-      clearTimeout(pollingTimeoutRef.current);
-      pollingTimeoutRef.current = null;
-    }
+    pollingTimeoutIdsRef.current.forEach(clearTimeout);
+    pollingTimeoutIdsRef.current = [];
     setIsPolling(false);
   }, []);
 
@@ -143,18 +136,26 @@ export default function HypothesisTestsPage() {
             
             setIsPolling(true);
             await refreshMenuInstances(); // Initial refresh
-            let pollCount = 0;
-            
-            pollingIntervalRef.current = setInterval(async () => {
-                pollCount++;
-                toast({ title: `Syncing data... (Check ${pollCount + 1})` });
-                await refreshMenuInstances();
-            }, 60000); // Refresh every 1 minute
 
-            pollingTimeoutRef.current = setTimeout(() => {
-                cleanupPolling();
-                toast({ title: "Auto-sync finished.", description: "You can manually refresh if needed." });
-            }, 180000); // Expire after 3 minutes
+            const waitTimes = [1 * 60 * 1000, 3 * 60 * 1000, 4 * 60 * 1000]; // 1m, then 3m, then 4m waits
+            let cumulativeDelay = 0;
+            const timeoutIds: NodeJS.Timeout[] = [];
+
+            waitTimes.forEach((wait, index) => {
+              cumulativeDelay += wait;
+              const timeoutId = setTimeout(async () => {
+                toast({ title: `Syncing data... (Auto-check ${index + 1})` });
+                await refreshMenuInstances();
+
+                if (index === waitTimes.length - 1) {
+                  cleanupPolling();
+                  toast({ title: "Auto-sync finished.", description: "You can manually refresh if needed." });
+                }
+              }, cumulativeDelay);
+              timeoutIds.push(timeoutId);
+            });
+            
+            pollingTimeoutIdsRef.current = timeoutIds;
           }
         } catch (startErr: any) {
           toast({
@@ -566,3 +567,4 @@ export default function HypothesisTestsPage() {
     </div>
   );
 }
+
