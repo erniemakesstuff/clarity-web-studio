@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit, History, TestTube, ArrowUp, Pencil, List, PlusCircle } from "lucide-react";
+import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit, History, TestTube, ArrowUp, Pencil, List, PlusCircle, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
@@ -17,6 +17,7 @@ import type { MenuItem } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { ChangeExplanationDialog } from "@/components/dashboard/ChangeExplanationDialog";
 
 export default function HypothesisTestsPage() {
   const { toast } = useToast();
@@ -30,6 +31,7 @@ export default function HypothesisTestsPage() {
   const [isToggling, setIsToggling] = useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(!existingGoal);
   const [isPolling, setIsPolling] = useState(false);
+  const [itemForExplanation, setItemForExplanation] = useState<{ control?: MenuItem; test: MenuItem } | null>(null);
 
   const pollingTimeoutIdsRef = useRef<NodeJS.Timeout[]>([]);
 
@@ -291,32 +293,34 @@ export default function HypothesisTestsPage() {
   const controlMenuMap = new Map((selectedMenuInstance.menu || []).map(item => [item.name, item]));
   const testMenu = selectedMenuInstance.testMenu || [];
 
-  const significantChanges = testMenu.filter(testItem => {
+  const significantChanges = testMenu.map(testItem => {
     const controlItem = controlMenuMap.get(testItem.name);
+    let isSignificant = false;
 
     if (!controlItem) {
-      return true; // New items are always significant.
+      isSignificant = true;
+    } else {
+      if (testItem.description !== controlItem.description) {
+        isSignificant = true;
+      }
+      const displayOrderDelta = Math.abs((testItem.displayOrder ?? Infinity) - (controlItem.displayOrder ?? Infinity));
+      if (displayOrderDelta >= 5 && controlItem.displayOrder !== undefined) {
+        isSignificant = true;
+      }
+      const controlLikes = new Set(controlItem.youMayAlsoLike || []);
+      const testLikes = new Set(testItem.youMayAlsoLike || []);
+      const addedLikes = [...testLikes].filter(like => !controlLikes.has(like)).length;
+      const removedLikes = [...controlLikes].filter(like => !testLikes.has(like)).length;
+      if (addedLikes + removedLikes >= 2) {
+        isSignificant = true;
+      }
+       if (testItem.price !== controlItem.price) {
+        isSignificant = true;
+      }
     }
+    return { testItem, controlItem, isSignificant };
+  }).filter(item => item.isSignificant);
 
-    if (testItem.description !== controlItem.description) {
-      return true;
-    }
-
-    const displayOrderDelta = Math.abs((testItem.displayOrder ?? Infinity) - (controlItem.displayOrder ?? Infinity));
-    if (displayOrderDelta >= 5) {
-      return true;
-    }
-    
-    const controlLikes = new Set(controlItem.youMayAlsoLike || []);
-    const testLikes = new Set(testItem.youMayAlsoLike || []);
-    const addedLikes = [...testLikes].filter(like => !controlLikes.has(like)).length;
-    const removedLikes = [...controlLikes].filter(like => !testLikes.has(like)).length;
-    if (addedLikes + removedLikes >= 2) {
-      return true;
-    }
-
-    return false;
-  });
 
   return (
     <div className="space-y-8">
@@ -477,13 +481,12 @@ export default function HypothesisTestsPage() {
                 A/B Test Menu Changes
               </CardTitle>
               <CardDescription>
-                Minimalist view of significant changes in the test menu vs. the control menu.
+                Click an item to see a simple explanation of the significant changes being tested.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {significantChanges.length > 0 ? (
-                significantChanges.map((testItem) => {
-                  const controlItem = controlMenuMap.get(testItem.name);
+                significantChanges.map(({ testItem, controlItem }) => {
                   const diffs: { type: string; label: string, icon: React.ReactNode }[] = [];
                   let highlightClass = 'bg-background';
 
@@ -494,15 +497,15 @@ export default function HypothesisTestsPage() {
                     const controlDisplayOrder = controlItem.displayOrder ?? Infinity;
                     const testDisplayOrder = testItem.displayOrder ?? Infinity;
                     
-                    if (testDisplayOrder < controlDisplayOrder) {
+                    if (testDisplayOrder < controlDisplayOrder && controlDisplayOrder !== Infinity) {
                       highlightClass = 'bg-green-100 dark:bg-green-900/40';
-                      diffs.push({ type: 'order', label: `Order Promoted: ${controlDisplayOrder} -> ${testDisplayOrder}`, icon: <ArrowUp size={14}/> });
+                      diffs.push({ type: 'order', label: `Promoted`, icon: <ArrowUp size={14}/> });
                     }
                     if (testItem.description !== controlItem.description) {
                       diffs.push({ type: 'desc', label: 'Description', icon: <Pencil size={14} /> });
                     }
                     if (testItem.price !== controlItem.price) {
-                      diffs.push({ type: 'price', label: `Price: ${controlItem.price} -> ${testItem.price}`, icon: <Pencil size={14} /> });
+                      diffs.push({ type: 'price', label: `Price`, icon: <Pencil size={14} /> });
                     }
                     const controlRecs = new Set(controlItem.youMayAlsoLike || []);
                     const testRecs = new Set(testItem.youMayAlsoLike || []);
@@ -512,7 +515,11 @@ export default function HypothesisTestsPage() {
                   }
 
                   return (
-                    <div key={testItem.id} className={cn("p-3 border rounded-lg transition-colors", highlightClass)}>
+                    <div 
+                      key={testItem.id} 
+                      className={cn("p-3 border rounded-lg transition-all hover:shadow-md cursor-pointer", highlightClass)}
+                      onClick={() => setItemForExplanation({ control: controlItem, test: testItem })}
+                    >
                       <div className="flex justify-between items-center">
                         <p className="font-semibold">{testItem.name}</p>
                         <p className="font-bold text-primary">{testItem.price}</p>
@@ -564,7 +571,11 @@ export default function HypothesisTestsPage() {
           </CardContent>
         </Card>
       </div>
+      <ChangeExplanationDialog
+        isOpen={!!itemForExplanation}
+        onOpenChange={() => setItemForExplanation(null)}
+        data={itemForExplanation}
+      />
     </div>
   );
 }
-
