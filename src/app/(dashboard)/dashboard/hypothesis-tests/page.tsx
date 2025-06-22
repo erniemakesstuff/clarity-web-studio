@@ -149,12 +149,12 @@ export default function HypothesisTestsPage() {
                 pollCount++;
                 toast({ title: `Syncing data... (Check ${pollCount + 1})` });
                 await refreshMenuInstances();
-            }, 15000);
+            }, 60000); // Refresh every 1 minute
 
             pollingTimeoutRef.current = setTimeout(() => {
                 cleanupPolling();
                 toast({ title: "Auto-sync finished.", description: "You can manually refresh if needed." });
-            }, 60000);
+            }, 180000); // Expire after 3 minutes
           }
         } catch (startErr: any) {
           toast({
