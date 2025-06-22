@@ -7,30 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { generateAbTests, type GenerateAbTestsInput, type AbTestHypothesis } from "@/ai/flows/generate-ab-tests";
-import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit } from "lucide-react";
+import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit, History, TestTube, ArrowUp, Pencil, List, PlusCircle, MinusCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { patchMenu, startABTestWorkflow } from "./actions";
-
-// Mock menu summary for demonstration purposes
-const mockMenuSummary = `
-Appetizers:
-- Calamari: Lightly fried, served with marinara. $12
-- Bruschetta: Toasted bread, tomatoes, garlic, basil. $10
-Main Courses:
-- Spaghetti Carbonara: Creamy pasta, pancetta, egg. $18
-- Grilled Salmon: Served with roasted vegetables. $24
-- Margherita Pizza: Classic tomato, mozzarella, basil. $15
-Desserts:
-- Tiramisu: Coffee-flavored Italian dessert. $9
-- Chocolate Lava Cake: Warm cake, molten center. $10
-Drinks:
-- Soda: Coke, Sprite, Diet Coke. $3
-- Wine: Red, White selection. $8/glass
-`;
+import type { MenuItem } from "@/lib/types";
+import ReactMarkdown from "react-markdown";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function HypothesisTestsPage() {
   const { toast } = useToast();
@@ -39,47 +25,16 @@ export default function HypothesisTestsPage() {
   const allowABTesting = selectedMenuInstance?.allowABTesting;
   const existingGoal = selectedMenuInstance?.testGoal;
 
-  const [hypotheses, setHypotheses] = useState<AbTestHypothesis[]>([]);
   const [goalInput, setGoalInput] = useState(existingGoal || "");
-  const [isLoadingHypotheses, setIsLoadingHypotheses] = useState(true);
   const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(!existingGoal);
-
-  const fetchHypotheses = useCallback(async (goal?: string) => {
-    setIsLoadingHypotheses(true);
-    try {
-      const input: GenerateAbTestsInput = {
-        currentMenuSummary: mockMenuSummary,
-        testGoal: goal || undefined,
-      };
-      const result = await generateAbTests(input);
-      setHypotheses(result.hypotheses);
-    } catch (err: any) {
-      console.error("Error generating A/B tests:", err);
-      toast({
-        title: "Error Generating Hypotheses",
-        description: err.message || "Could not fetch A/B test suggestions.",
-        variant: "destructive",
-      });
-      setHypotheses([]);
-    } finally {
-      setIsLoadingHypotheses(false);
-    }
-  }, [toast]);
 
   useEffect(() => {
     const currentGoal = selectedMenuInstance?.testGoal || "";
     setGoalInput(currentGoal);
     setIsEditingGoal(!currentGoal);
-
-    if (selectedMenuInstance?.allowABTesting) {
-      fetchHypotheses(currentGoal);
-    } else {
-      setIsLoadingHypotheses(false);
-      setHypotheses([]);
-    }
-  }, [selectedMenuInstance, fetchHypotheses]);
+  }, [selectedMenuInstance]);
 
   const handleToggleClick = async () => {
     if (selectedMenuInstance) {
@@ -119,9 +74,7 @@ export default function HypothesisTestsPage() {
         description: "Your goal has been saved. Initiating A/B test workflow.",
       });
 
-      // Refresh local state and fetch new hypotheses for UI
       await refreshMenuInstances(); 
-      await fetchHypotheses(goalInput);
 
       setTimeout(async () => {
         try {
@@ -161,7 +114,7 @@ export default function HypothesisTestsPage() {
       });
     } finally {
       setIsSubmittingGoal(false);
-      setIsEditingGoal(false); // Lock the form after submission
+      setIsEditingGoal(false);
     }
   };
   
@@ -275,6 +228,9 @@ export default function HypothesisTestsPage() {
     );
   }
 
+  const controlMenuMap = new Map((selectedMenuInstance.menu || []).map(item => [item.name, item]));
+  const testMenu = selectedMenuInstance.testMenu || [];
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-start">
@@ -365,12 +321,12 @@ export default function HypothesisTestsPage() {
                     onChange={(e) => setGoalInput(e.target.value)}
                     rows={4}
                     className="mt-2"
-                    disabled={isSubmittingGoal || isLoadingHypotheses}
+                    disabled={isSubmittingGoal}
                   />
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-6 flex justify-start items-center gap-4">
-                  <Button type="submit" disabled={isSubmittingGoal || isLoadingHypotheses || !goalInput.trim()}>
+                  <Button type="submit" disabled={isSubmittingGoal || !goalInput.trim()}>
                     {isSubmittingGoal ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -394,45 +350,121 @@ export default function HypothesisTestsPage() {
         </form>
       </Card>
 
-
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-2xl">
-            <FlaskConical className="mr-3 h-7 w-7 text-primary" />
-            Current A/B Test Hypotheses
+            <Lightbulb className="mr-3 h-7 w-7 text-primary" />
+            Current A/B Test Hypothesis
           </CardTitle>
           <CardDescription>
-            These are potential A/B tests suggested by the AI based on the menu and provided goal.
+            This is the active hypothesis being tested by the AI based on your goal.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoadingHypotheses ? (
-            <>
-              <Skeleton className="h-24 w-full rounded-md" />
-              <Skeleton className="h-24 w-full rounded-md" />
-              <Skeleton className="h-24 w-full rounded-md" />
-            </>
-          ) : hypotheses.length > 0 ? (
-            hypotheses.map((hypo) => (
-              <Card key={hypo.id} className="bg-background shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg text-primary">{hypo.id}: {hypo.changeDescription}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm font-semibold text-muted-foreground mb-1">AI Reasoning:</p>
-                  <p className="text-sm text-foreground">{hypo.reasoning}</p>
-                </CardContent>
-              </Card>
-            ))
+        <CardContent>
+          {selectedMenuInstance.testHypothesis ? (
+            <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert bg-secondary/30 p-4 rounded-md">
+              <ReactMarkdown>{selectedMenuInstance.testHypothesis}</ReactMarkdown>
+            </div>
           ) : (
             <div className="text-center py-10 text-muted-foreground">
-              <FlaskConical className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>No A/B test hypotheses available at the moment.</p>
-              <p className="text-sm">Try providing a goal above or check back later.</p>
+              <Lightbulb className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p>No active hypothesis found.</p>
+              <p className="text-sm">The AI may be formulating one. Check back soon.</p>
             </div>
           )}
         </CardContent>
       </Card>
+
+      <div className="grid md:grid-cols-2 gap-8">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center text-2xl">
+              <TestTube className="mr-3 h-7 w-7 text-primary" />
+              A/B Test Menu Changes
+            </CardTitle>
+            <CardDescription>
+              Minimalist view of changes in the test menu vs. the control menu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {testMenu.length > 0 ? (
+              testMenu.map((testItem) => {
+                const controlItem = controlMenuMap.get(testItem.name);
+                const diffs: { type: string; label: string, icon: React.ReactNode }[] = [];
+                let highlightClass = 'bg-background';
+
+                if (!controlItem) {
+                  highlightClass = 'bg-blue-100 dark:bg-blue-900/40';
+                  diffs.push({ type: 'new', label: 'New Item', icon: <PlusCircle size={14} /> });
+                } else {
+                  if (testItem.displayOrder !== undefined && controlItem.displayOrder !== undefined && testItem.displayOrder < controlItem.displayOrder) {
+                    highlightClass = 'bg-green-100 dark:bg-green-900/40';
+                    diffs.push({ type: 'order', label: `Order Promoted: ${controlItem.displayOrder} -> ${testItem.displayOrder}`, icon: <ArrowUp size={14}/> });
+                  }
+                  if (testItem.description !== controlItem.description) {
+                    diffs.push({ type: 'desc', label: 'Description', icon: <Pencil size={14} /> });
+                  }
+                  if (testItem.price !== controlItem.price) {
+                    diffs.push({ type: 'price', label: `Price: ${controlItem.price} -> ${testItem.price}`, icon: <Pencil size={14} /> });
+                  }
+                  const controlRecs = new Set(controlItem.youMayAlsoLike || []);
+                  const testRecs = new Set(testItem.youMayAlsoLike || []);
+                  if (JSON.stringify([...controlRecs].sort()) !== JSON.stringify([...testRecs].sort())) {
+                     diffs.push({ type: 'recs', label: 'Recommendations', icon: <List size={14} /> });
+                  }
+                }
+
+                return (
+                  <div key={testItem.id} className={cn("p-3 border rounded-lg transition-colors", highlightClass)}>
+                    <div className="flex justify-between items-center">
+                      <p className="font-semibold">{testItem.name}</p>
+                      <p className="font-bold text-primary">{testItem.price}</p>
+                    </div>
+                    {diffs.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {diffs.map(d => (
+                          <Badge key={d.type} variant="secondary" className="font-normal">
+                            {d.icon}<span className="ml-1.5">{d.label}</span>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                <p>No menu changes are being tested currently.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center text-2xl">
+              <History className="mr-3 h-7 w-7 text-primary" />
+              Test History & Evaluations
+            </CardTitle>
+            <CardDescription>
+              History of currently running hypotheses and their daily evaluations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {selectedMenuInstance.testHistory ? (
+              <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert bg-secondary/30 p-4 rounded-md max-h-96 overflow-y-auto">
+                <ReactMarkdown>{selectedMenuInstance.testHistory}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <History className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                <p>No test history available yet.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

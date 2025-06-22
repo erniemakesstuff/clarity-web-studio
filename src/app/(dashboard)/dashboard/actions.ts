@@ -1,9 +1,89 @@
 
 'use server';
 
-import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, AnalyticsEntry } from '@/lib/types';
+import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, AnalyticsEntry, BackendFoodServiceEntryJson } from '@/lib/types';
 
 const API_BASE_URL = "https://api.bityfan.com";
+
+function transformBackendEntriesToMenuItems(
+    entries: BackendFoodServiceEntryJson[] | null | undefined,
+    menuId: string
+): MenuItem[] {
+    if (!entries) return [];
+    
+    return entries.map((entry, itemIndex) => {
+        try {
+            const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${itemIndex + 1}`;
+            const itemDescription = typeof entry.description === 'string' ? entry.description : "";
+            const itemPrice = typeof entry.price === 'number' ? entry.price : 0;
+            const formattedPrice = `$${(itemPrice / 100).toFixed(2)}`;
+
+            const mediaObjects: MediaObject[] = [];
+            const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
+
+            let dataAiHint = 'food item';
+            const visualDesc = typeof entry.visual_description === 'string' ? entry.visual_description.trim() : '';
+            const entryNameForHint = typeof entry.name === 'string' ? entry.name.trim() : '';
+
+            if (visualDesc) {
+                dataAiHint = visualDesc.split(/\s+/).slice(0, 2).join(' ');
+            } else if (entryNameForHint) {
+                dataAiHint = entryNameForHint.split(/\s+/).slice(0, 2).join(' ');
+            }
+            if (dataAiHint.trim() === '') dataAiHint = 'food item';
+
+            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https'))) {
+              mediaObjects.push({
+                type: 'image',
+                url: imageUrl,
+                dataAiHint: dataAiHint,
+              });
+            }
+
+            const dietaryIcons: DietaryIcon[] = [];
+            const foodCategoryLower = typeof entry.food_category === 'string' ? entry.food_category.toLowerCase() : '';
+            const backendAllergenTagsRaw = entry.allergen_tags;
+            const backendAllergenTagsLower = (Array.isArray(backendAllergenTagsRaw) ? backendAllergenTagsRaw : [])
+              .map(tag => typeof tag === 'string' ? tag.toLowerCase() : '')
+              .filter(tag => tag !== '');
+
+            if (foodCategoryLower === "vegan") {
+              dietaryIcons.push('vegan');
+            }
+            if (foodCategoryLower === "vegetarian" || dietaryIcons.includes('vegan')) {
+              dietaryIcons.push('vegetarian');
+            }
+            if (foodCategoryLower.includes("gluten free") || backendAllergenTagsLower.includes("gluten-free") || backendAllergenTagsLower.includes("gluten free")) {
+              dietaryIcons.push('gluten-free');
+            }
+            if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
+              dietaryIcons.push('spicy');
+            }
+
+            const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
+            const safeItemNameForId = itemName.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+
+            return {
+              id: `${safeItemNameForId}-${menuId}-${itemIndex}`,
+              name: itemName,
+              description: itemDescription,
+              price: formattedPrice,
+              category: typeof entry.food_category === 'string' && entry.food_category.trim() !== '' ? entry.food_category : "Other",
+              media: mediaObjects.length > 0 ? mediaObjects : undefined,
+              dietaryIcons: uniqueDietaryIcons.length > 0 ? uniqueDietaryIcons : undefined,
+              ingredients: typeof entry.ingredients === 'string' ? entry.ingredients : undefined,
+              allergenTags: Array.isArray(entry.allergen_tags) ? entry.allergen_tags.filter(tag => typeof tag === 'string') as string[] : undefined,
+              youMayAlsoLike: Array.isArray(entry.you_may_also_like) ? entry.you_may_also_like.filter(yml => typeof yml === 'string') as string[] : undefined,
+              displayOrder: typeof entry.display_order === 'number' ? entry.display_order : undefined,
+              _tempVisualDescriptionForSave: dataAiHint,
+            };
+          } catch (transformError: any) {
+            console.error(`Error transforming menu item at index ${itemIndex} (Original Name: ${entry?.name}, Menu: ${menuId}): ${transformError.message}`, transformError.stack);
+            return null;
+          }
+    }).filter((item): item is MenuItem => item !== null);
+}
+
 
 interface FetchMenuInstancesResult {
   success: boolean;
@@ -57,78 +137,10 @@ export async function fetchMenuInstancesFromBackend(
             };
         }
 
-        const menuItems: MenuItem[] = (digitalMenu.food_service_entries || []).map((entry, itemIndex) => {
-          try {
-            const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${itemIndex + 1}`;
-            const itemDescription = typeof entry.description === 'string' ? entry.description : "";
-            const itemPrice = typeof entry.price === 'number' ? entry.price : 0;
-            const formattedPrice = `$${(itemPrice / 100).toFixed(2)}`;
+        const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
 
-            const mediaObjects: MediaObject[] = [];
-            const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
-
-            let dataAiHint = 'food item';
-            const visualDesc = typeof entry.visual_description === 'string' ? entry.visual_description.trim() : '';
-            const entryNameForHint = typeof entry.name === 'string' ? entry.name.trim() : '';
-
-            if (visualDesc) {
-                dataAiHint = visualDesc.split(/\s+/).slice(0, 2).join(' ');
-            } else if (entryNameForHint) {
-                dataAiHint = entryNameForHint.split(/\s+/).slice(0, 2).join(' ');
-            }
-            if (dataAiHint.trim() === '') dataAiHint = 'food item';
-
-            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
-              mediaObjects.push({
-                type: 'image',
-                url: imageUrl,
-                dataAiHint: dataAiHint,
-              });
-            }
-
-            const dietaryIcons: DietaryIcon[] = [];
-            const foodCategoryLower = typeof entry.food_category === 'string' ? entry.food_category.toLowerCase() : '';
-            const backendAllergenTagsRaw = entry.allergen_tags;
-            const backendAllergenTagsLower = (Array.isArray(backendAllergenTagsRaw) ? backendAllergenTagsRaw : [])
-              .map(tag => typeof tag === 'string' ? tag.toLowerCase() : '')
-              .filter(tag => tag !== '');
-
-            if (foodCategoryLower === "vegan") {
-              dietaryIcons.push('vegan');
-            }
-            if (foodCategoryLower === "vegetarian" || dietaryIcons.includes('vegan')) {
-              dietaryIcons.push('vegetarian');
-            }
-            if (foodCategoryLower.includes("gluten free") || backendAllergenTagsLower.includes("gluten-free") || backendAllergenTagsLower.includes("gluten free")) {
-              dietaryIcons.push('gluten-free');
-            }
-            if (backendAllergenTagsLower.some(tag => tag.includes('spicy') || tag.includes('hot'))) {
-              dietaryIcons.push('spicy');
-            }
-
-            const uniqueDietaryIcons = Array.from(new Set(dietaryIcons));
-            const safeItemNameForId = itemName.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
-            const currentMenuId = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `unknown-menu-${menuIndex}`;
-
-            return {
-              id: `${safeItemNameForId}-${currentMenuId}-${itemIndex}`,
-              name: itemName,
-              description: itemDescription,
-              price: formattedPrice,
-              category: typeof entry.food_category === 'string' && entry.food_category.trim() !== '' ? entry.food_category : "Other",
-              media: mediaObjects.length > 0 ? mediaObjects : undefined,
-              dietaryIcons: uniqueDietaryIcons.length > 0 ? uniqueDietaryIcons : undefined,
-              ingredients: typeof entry.ingredients === 'string' ? entry.ingredients : undefined,
-              allergenTags: Array.isArray(entry.allergen_tags) ? entry.allergen_tags.filter(tag => typeof tag === 'string') as string[] : undefined,
-              youMayAlsoLike: Array.isArray(entry.you_may_also_like) ? entry.you_may_also_like.filter(yml => typeof yml === 'string') as string[] : undefined,
-              displayOrder: typeof entry.display_order === 'number' ? entry.display_order : undefined,
-              _tempVisualDescriptionForSave: dataAiHint,
-            };
-          } catch (transformError: any) {
-            console.error(`Error transforming menu item at index ${itemIndex} (Original Name: ${entry?.name}, Owner Hashed: ${ownerId}, Menu: ${digitalMenu?.MenuID}): ${transformError.message}`, transformError.stack);
-            return null;
-          }
-        }).filter((item): item is MenuItem => item !== null);
+        const menuItems = transformBackendEntriesToMenuItems(digitalMenu.food_service_entries, menuIdToUse);
+        const testMenuItems = transformBackendEntriesToMenuItems(digitalMenu.test_food_service_entries, menuIdToUse);
 
         let s3ContextImageUrls: string[] = [];
         if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
@@ -137,20 +149,19 @@ export async function fetchMenuInstancesFromBackend(
             .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
         }
 
-        const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
-
-        // Handle potential casing inconsistencies from the backend API
-        const allowAB = digitalMenu.AllowABTesting === true || (digitalMenu as any).allowABTesting === true;
-        const goal = digitalMenu.test_goal || (digitalMenu as any).TestGoal || undefined;
+        const allowAB = digitalMenu.AllowABTesting === true;
 
         return {
           id: menuIdToUse,
           name: menuIdToUse,
           menu: menuItems,
+          testMenu: testMenuItems.length > 0 ? testMenuItems : undefined,
           s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
           analytics: digitalMenu.Analytics || [],
           allowABTesting: allowAB,
-          testGoal: goal,
+          testGoal: digitalMenu.test_goal,
+          testHypothesis: digitalMenu.test_hypothesis,
+          testHistory: digitalMenu.test_history,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };
