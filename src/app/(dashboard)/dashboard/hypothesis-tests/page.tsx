@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit, History, TestTube, ArrowUp, Pencil, List, PlusCircle, MinusCircle } from "lucide-react";
+import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit, History, TestTube, ArrowUp, Pencil, List, PlusCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
@@ -238,18 +238,15 @@ export default function HypothesisTestsPage() {
       return true; // New items are always significant.
     }
 
-    // Description change is significant.
     if (testItem.description !== controlItem.description) {
       return true;
     }
 
-    // Large display order delta is significant.
-    const displayOrderDelta = Math.abs((testItem.displayOrder ?? 0) - (controlItem.displayOrder ?? 0));
+    const displayOrderDelta = Math.abs((testItem.displayOrder ?? Infinity) - (controlItem.displayOrder ?? Infinity));
     if (displayOrderDelta >= 5) {
       return true;
     }
     
-    // Large "You May Also Like" change delta is significant.
     const controlLikes = new Set(controlItem.youMayAlsoLike || []);
     const testLikes = new Set(testItem.youMayAlsoLike || []);
     const addedLikes = [...testLikes].filter(like => !controlLikes.has(like)).length;
@@ -258,7 +255,7 @@ export default function HypothesisTestsPage() {
       return true;
     }
 
-    return false; // Not a significant change.
+    return false;
   });
 
   return (
@@ -427,9 +424,12 @@ export default function HypothesisTestsPage() {
                   highlightClass = 'bg-blue-100 dark:bg-blue-900/40';
                   diffs.push({ type: 'new', label: 'New Item', icon: <PlusCircle size={14} /> });
                 } else {
-                  if (testItem.displayOrder !== undefined && controlItem.displayOrder !== undefined && testItem.displayOrder < controlItem.displayOrder) {
+                  const controlDisplayOrder = controlItem.displayOrder ?? Infinity;
+                  const testDisplayOrder = testItem.displayOrder ?? Infinity;
+                  
+                  if (testDisplayOrder < controlDisplayOrder) {
                     highlightClass = 'bg-green-100 dark:bg-green-900/40';
-                    diffs.push({ type: 'order', label: `Order Promoted: ${controlItem.displayOrder} -> ${testItem.displayOrder}`, icon: <ArrowUp size={14}/> });
+                    diffs.push({ type: 'order', label: `Order Promoted: ${controlDisplayOrder} -> ${testDisplayOrder}`, icon: <ArrowUp size={14}/> });
                   }
                   if (testItem.description !== controlItem.description) {
                     diffs.push({ type: 'desc', label: 'Description', icon: <Pencil size={14} /> });
