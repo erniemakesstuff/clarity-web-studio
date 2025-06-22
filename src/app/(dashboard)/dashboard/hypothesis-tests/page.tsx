@@ -468,74 +468,76 @@ export default function HypothesisTestsPage() {
       </Card>
 
       <div className="grid md:grid-cols-2 gap-8">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center text-2xl">
-              <TestTube className="mr-3 h-7 w-7 text-primary" />
-              A/B Test Menu Changes
-            </CardTitle>
-            <CardDescription>
-              Minimalist view of significant changes in the test menu vs. the control menu.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {significantChanges.length > 0 ? (
-              significantChanges.map((testItem) => {
-                const controlItem = controlMenuMap.get(testItem.name);
-                const diffs: { type: string; label: string, icon: React.ReactNode }[] = [];
-                let highlightClass = 'bg-background';
+        {testMenu.length > 0 && (
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center text-2xl">
+                <TestTube className="mr-3 h-7 w-7 text-primary" />
+                A/B Test Menu Changes
+              </CardTitle>
+              <CardDescription>
+                Minimalist view of significant changes in the test menu vs. the control menu.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {significantChanges.length > 0 ? (
+                significantChanges.map((testItem) => {
+                  const controlItem = controlMenuMap.get(testItem.name);
+                  const diffs: { type: string; label: string, icon: React.ReactNode }[] = [];
+                  let highlightClass = 'bg-background';
 
-                if (!controlItem) {
-                  highlightClass = 'bg-blue-100 dark:bg-blue-900/40';
-                  diffs.push({ type: 'new', label: 'New Item', icon: <PlusCircle size={14} /> });
-                } else {
-                  const controlDisplayOrder = controlItem.displayOrder ?? Infinity;
-                  const testDisplayOrder = testItem.displayOrder ?? Infinity;
-                  
-                  if (testDisplayOrder < controlDisplayOrder) {
-                    highlightClass = 'bg-green-100 dark:bg-green-900/40';
-                    diffs.push({ type: 'order', label: `Order Promoted: ${controlDisplayOrder} -> ${testDisplayOrder}`, icon: <ArrowUp size={14}/> });
+                  if (!controlItem) {
+                    highlightClass = 'bg-blue-100 dark:bg-blue-900/40';
+                    diffs.push({ type: 'new', label: 'New Item', icon: <PlusCircle size={14} /> });
+                  } else {
+                    const controlDisplayOrder = controlItem.displayOrder ?? Infinity;
+                    const testDisplayOrder = testItem.displayOrder ?? Infinity;
+                    
+                    if (testDisplayOrder < controlDisplayOrder) {
+                      highlightClass = 'bg-green-100 dark:bg-green-900/40';
+                      diffs.push({ type: 'order', label: `Order Promoted: ${controlDisplayOrder} -> ${testDisplayOrder}`, icon: <ArrowUp size={14}/> });
+                    }
+                    if (testItem.description !== controlItem.description) {
+                      diffs.push({ type: 'desc', label: 'Description', icon: <Pencil size={14} /> });
+                    }
+                    if (testItem.price !== controlItem.price) {
+                      diffs.push({ type: 'price', label: `Price: ${controlItem.price} -> ${testItem.price}`, icon: <Pencil size={14} /> });
+                    }
+                    const controlRecs = new Set(controlItem.youMayAlsoLike || []);
+                    const testRecs = new Set(testItem.youMayAlsoLike || []);
+                    if (JSON.stringify([...controlRecs].sort()) !== JSON.stringify([...testRecs].sort())) {
+                       diffs.push({ type: 'recs', label: 'Recommendations', icon: <List size={14} /> });
+                    }
                   }
-                  if (testItem.description !== controlItem.description) {
-                    diffs.push({ type: 'desc', label: 'Description', icon: <Pencil size={14} /> });
-                  }
-                  if (testItem.price !== controlItem.price) {
-                    diffs.push({ type: 'price', label: `Price: ${controlItem.price} -> ${testItem.price}`, icon: <Pencil size={14} /> });
-                  }
-                  const controlRecs = new Set(controlItem.youMayAlsoLike || []);
-                  const testRecs = new Set(testItem.youMayAlsoLike || []);
-                  if (JSON.stringify([...controlRecs].sort()) !== JSON.stringify([...testRecs].sort())) {
-                     diffs.push({ type: 'recs', label: 'Recommendations', icon: <List size={14} /> });
-                  }
-                }
 
-                return (
-                  <div key={testItem.id} className={cn("p-3 border rounded-lg transition-colors", highlightClass)}>
-                    <div className="flex justify-between items-center">
-                      <p className="font-semibold">{testItem.name}</p>
-                      <p className="font-bold text-primary">{testItem.price}</p>
-                    </div>
-                    {diffs.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {diffs.map(d => (
-                          <Badge key={d.type} variant="secondary" className="font-normal">
-                            {d.icon}<span className="ml-1.5">{d.label}</span>
-                          </Badge>
-                        ))}
+                  return (
+                    <div key={testItem.id} className={cn("p-3 border rounded-lg transition-colors", highlightClass)}>
+                      <div className="flex justify-between items-center">
+                        <p className="font-semibold">{testItem.name}</p>
+                        <p className="font-bold text-primary">{testItem.price}</p>
                       </div>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center py-10 text-muted-foreground">
-                <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>No significant menu changes are being tested.</p>
-                <p className="text-sm">Minor changes may exist but do not meet the threshold for display.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                      {diffs.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {diffs.map(d => (
+                            <Badge key={d.type} variant="secondary" className="font-normal">
+                              {d.icon}<span className="ml-1.5">{d.label}</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                  <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p>No significant menu changes are being tested.</p>
+                  <p className="text-sm">Minor changes may exist but do not meet the threshold for display.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="shadow-lg">
           <CardHeader>
