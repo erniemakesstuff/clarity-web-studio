@@ -231,6 +231,36 @@ export default function HypothesisTestsPage() {
   const controlMenuMap = new Map((selectedMenuInstance.menu || []).map(item => [item.name, item]));
   const testMenu = selectedMenuInstance.testMenu || [];
 
+  const significantChanges = testMenu.filter(testItem => {
+    const controlItem = controlMenuMap.get(testItem.name);
+
+    if (!controlItem) {
+      return true; // New items are always significant.
+    }
+
+    // Description change is significant.
+    if (testItem.description !== controlItem.description) {
+      return true;
+    }
+
+    // Large display order delta is significant.
+    const displayOrderDelta = Math.abs((testItem.displayOrder ?? 0) - (controlItem.displayOrder ?? 0));
+    if (displayOrderDelta >= 5) {
+      return true;
+    }
+    
+    // Large "You May Also Like" change delta is significant.
+    const controlLikes = new Set(controlItem.youMayAlsoLike || []);
+    const testLikes = new Set(testItem.youMayAlsoLike || []);
+    const addedLikes = [...testLikes].filter(like => !controlLikes.has(like)).length;
+    const removedLikes = [...controlLikes].filter(like => !testLikes.has(like)).length;
+    if (addedLikes + removedLikes >= 2) {
+      return true;
+    }
+
+    return false; // Not a significant change.
+  });
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-start">
@@ -383,12 +413,12 @@ export default function HypothesisTestsPage() {
               A/B Test Menu Changes
             </CardTitle>
             <CardDescription>
-              Minimalist view of changes in the test menu vs. the control menu.
+              Minimalist view of significant changes in the test menu vs. the control menu.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {testMenu.length > 0 ? (
-              testMenu.map((testItem) => {
+            {significantChanges.length > 0 ? (
+              significantChanges.map((testItem) => {
                 const controlItem = controlMenuMap.get(testItem.name);
                 const diffs: { type: string; label: string, icon: React.ReactNode }[] = [];
                 let highlightClass = 'bg-background';
@@ -435,7 +465,8 @@ export default function HypothesisTestsPage() {
             ) : (
               <div className="text-center py-10 text-muted-foreground">
                 <TestTube className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p>No menu changes are being tested currently.</p>
+                <p>No significant menu changes are being tested.</p>
+                <p className="text-sm">Minor changes may exist but do not meet the threshold for display.</p>
               </div>
             )}
           </CardContent>
