@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 export default function HypothesisTestsPage() {
   const { toast } = useToast();
-  const { selectedMenuInstance, toggleABTesting, isLoadingMenuInstances, hashedOwnerId, jwtToken, refreshMenuInstances } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, hashedOwnerId, jwtToken, refreshMenuInstances } = useAuth();
 
   const allowABTesting = selectedMenuInstance?.allowABTesting;
   const existingGoal = selectedMenuInstance?.testGoal;
@@ -29,6 +29,28 @@ export default function HypothesisTestsPage() {
   const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(!existingGoal);
+  const [isPolling, setIsPolling] = useState(false);
+
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const cleanupPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+    setIsPolling(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanupPolling();
+    };
+  }, [cleanupPolling]);
 
   useEffect(() => {
     const currentGoal = selectedMenuInstance?.testGoal || "";
@@ -40,7 +62,29 @@ export default function HypothesisTestsPage() {
     if (selectedMenuInstance) {
       setIsToggling(true);
       const currentStatus = selectedMenuInstance.allowABTesting ?? false;
-      await toggleABTesting(selectedMenuInstance.id, !currentStatus);
+      
+      const result = await patchMenu({
+        ownerId: hashedOwnerId,
+        menuId: selectedMenuInstance.id,
+        payload: { allowABTesting: !currentStatus },
+        jwtToken,
+      });
+
+      if (result.success) {
+        toast({
+          title: `A/B Testing ${!currentStatus ? 'Enabled' : 'Disabled'}`,
+          description: "Settings updated successfully.",
+          variant: 'default',
+          className: 'bg-green-500 text-white',
+        });
+        await refreshMenuInstances();
+      } else {
+        toast({
+          title: "Update Failed",
+          description: result.message || "Could not update setting.",
+          variant: "destructive",
+        });
+      }
       setIsToggling(false);
     }
   };
@@ -57,6 +101,8 @@ export default function HypothesisTestsPage() {
     }
 
     setIsSubmittingGoal(true);
+    cleanupPolling();
+
     try {
       const patchResult = await patchMenu({
         ownerId: hashedOwnerId,
@@ -74,8 +120,6 @@ export default function HypothesisTestsPage() {
         description: "Your goal has been saved. Initiating A/B test workflow.",
       });
 
-      await refreshMenuInstances(); 
-
       setTimeout(async () => {
         try {
           const startResult = await startABTestWorkflow({
@@ -92,10 +136,25 @@ export default function HypothesisTestsPage() {
           } else {
             toast({
               title: "A/B Test Initiated",
-              description: "The backend is now processing your goal.",
+              description: "The backend is processing your goal. Syncing data...",
               variant: "default",
               className: "bg-green-500 text-white",
             });
+            
+            setIsPolling(true);
+            await refreshMenuInstances(); // Initial refresh
+            let pollCount = 0;
+            
+            pollingIntervalRef.current = setInterval(async () => {
+                pollCount++;
+                toast({ title: `Syncing data... (Check ${pollCount + 1})` });
+                await refreshMenuInstances();
+            }, 15000);
+
+            pollingTimeoutRef.current = setTimeout(() => {
+                cleanupPolling();
+                toast({ title: "Auto-sync finished.", description: "You can manually refresh if needed." });
+            }, 60000);
           }
         } catch (startErr: any) {
           toast({
@@ -297,11 +356,17 @@ export default function HypothesisTestsPage() {
         <form onSubmit={handleGoalSubmit}>
           {existingGoal && !isEditingGoal ? (
             <>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-start justify-between">
                 <div>
                   <CardTitle className="flex items-center text-2xl">
                     <Wand2 className="mr-3 h-7 w-7 text-primary" />
                     Active AI Goal
+                    {isPolling && (
+                        <span className="ml-4 flex items-center text-sm font-normal text-muted-foreground">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Syncing changes...
+                        </span>
+                    )}
                   </CardTitle>
                   <CardDescription>
                     An A/B test is running with the goal below.
@@ -310,7 +375,7 @@ export default function HypothesisTestsPage() {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button type="button" variant="outline" onClick={() => setIsEditingGoal(true)} disabled={isToggling}>
+                      <Button type="button" variant="outline" onClick={() => setIsEditingGoal(true)} disabled={isToggling || isPolling}>
                         <Edit className="mr-2 h-4 w-4" />
                         Refine Goal
                       </Button>
@@ -348,12 +413,12 @@ export default function HypothesisTestsPage() {
                     onChange={(e) => setGoalInput(e.target.value)}
                     rows={4}
                     className="mt-2"
-                    disabled={isSubmittingGoal}
+                    disabled={isSubmittingGoal || isPolling}
                   />
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-6 flex justify-start items-center gap-4">
-                  <Button type="submit" disabled={isSubmittingGoal || !goalInput.trim()}>
+                  <Button type="submit" disabled={isSubmittingGoal || !goalInput.trim() || isPolling}>
                     {isSubmittingGoal ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -367,7 +432,7 @@ export default function HypothesisTestsPage() {
                     )}
                   </Button>
                   {existingGoal && (
-                    <Button type="button" variant="ghost" onClick={() => { setIsEditingGoal(false); setGoalInput(existingGoal); }} disabled={isSubmittingGoal}>
+                    <Button type="button" variant="ghost" onClick={() => { setIsEditingGoal(false); setGoalInput(existingGoal); }} disabled={isSubmittingGoal || isPolling}>
                       Cancel
                     </Button>
                   )}
