@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Utensils, TrendingUp, ShoppingBag, Users, Code2 } from "lucide-react";
-import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart } from "recharts"
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,30 @@ import type { ChartConfig as ChartConfigType } from "@/components/ui/chart";
 import { Textarea } from "@/components/ui/textarea";
 
 const DEV_USER_RAW_ID = "admin@example.com";
+
+// Expanded, deterministic color palette for categories
+const CATEGORY_COLORS = [
+  "hsl(220, 85%, 60%)",
+  "hsl(150, 75%, 45%)",
+  "hsl(350, 85%, 65%)",
+  "hsl(45, 95%, 55%)",
+  "hsl(270, 75%, 65%)",
+  "hsl(25, 90%, 50%)",
+  "hsl(190, 80%, 55%)",
+  "hsl(320, 70%, 60%)",
+  "hsl(90, 65%, 50%)",
+  "hsl(0, 75%, 60%)",
+  "hsl(240, 60%, 65%)",
+  "hsl(170, 60%, 40%)",
+  "hsl(60, 80%, 45%)",
+  "hsl(300, 50%, 55%)",
+  "hsl(200, 90%, 50%)",
+  "hsl(120, 50%, 40%)",
+  "hsl(30, 100%, 50%)",
+  "hsl(280, 45%, 50%)",
+  "hsl(10, 80%, 55%)",
+  "hsl(130, 70%, 50%)",
+];
 
 const getSafeCategory = (catString?: string | null): string => {
   const trimmed = catString?.trim();
@@ -28,7 +52,6 @@ export default function DashboardOverviewPage() {
       return { stats: null, weeklyChartData: [], uniqueCategories: [] };
     }
     
-    // --- STATS CALCULATION (uses all data) ---
     let totalItemsSold = 0;
     let totalCoPurchases = 0;
     let trendingItem = { name: "N/A", purchase_count: -1, category: "N/A" };
@@ -42,11 +65,9 @@ export default function DashboardOverviewPage() {
       }
     });
 
-    // --- CHART DATA CALCULATION (uses filtered data) ---
     const allDates = analyticsData.map(entry => {
         const parts = entry.timestamp_day.split('/');
         if (parts.length !== 3) return null;
-        // new Date(year, monthIndex, day)
         const d = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
         return isNaN(d.getTime()) ? null : d;
     }).filter((d): d is Date => d !== null);
@@ -63,19 +84,15 @@ export default function DashboardOverviewPage() {
 
     analyticsData.forEach(entry => {
         const parts = entry.timestamp_day.split('/');
-        if (parts.length !== 3) {
-            return;
-        }
-        const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+        if (parts.length !== 3) return;
         
-        if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart) {
-            return; 
-        }
+        const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+        if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart) return;
 
         const category = getSafeCategory(entry.food_category);
         categories.add(category);
         
-        const weekStartDate = startOfWeek(entryDate, { weekStartsOn: 1 }); // Start week on Monday
+        const weekStartDate = startOfWeek(entryDate, { weekStartsOn: 1 });
         const weekKey = format(weekStartDate, 'yyyy-MM-dd');
 
         if (!weeklyAggregates[weekKey]) {
@@ -105,16 +122,10 @@ export default function DashboardOverviewPage() {
 
   const chartConfig = useMemo(() => {
     const config: ChartConfigType = {};
-    const colors = [
-        "hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))",
-        "hsl(var(--chart-4))", "hsl(var(--chart-5))", 'hsl(262.1 83.3% 57.8%)',
-        'hsl(346.8 77.2% 49.8%)', 'hsl(142.1 76.2% 36.3%)', 'hsl(47.9 95.8% 53.1%)',
-        'hsl(217.2 91.2% 59.8%)', 'hsl(24.6 95% 53.1%)', 'hsl(0 72.2% 50.6%)'
-    ];
     uniqueCategories.forEach((category, index) => {
         config[category] = {
             label: category,
-            color: colors[index % colors.length],
+            color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
         };
     });
     return config;
