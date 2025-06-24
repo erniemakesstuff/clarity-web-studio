@@ -89,7 +89,7 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    const sanitizedKey = key.replace(/\s+/g, "-").toLowerCase();
+    const sanitizedKey = key.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
     return color ? `  --color-${sanitizedKey}: ${color};` : null
   })
   .join("\n")}

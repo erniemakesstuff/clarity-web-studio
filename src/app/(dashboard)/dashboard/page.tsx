@@ -45,10 +45,13 @@ export default function DashboardOverviewPage() {
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
 
     analyticsData.forEach(entry => {
-        // More robust date parsing. new Date() is more flexible than manual parsing,
-        // and the isNaN check below will catch any truly invalid date strings.
-        const entryDate = new Date(entry.timestamp_day);
-
+        const parts = entry.timestamp_day.split('/');
+        if (parts.length !== 3) {
+            return; // Skip invalid format
+        }
+        // Robustly parse MM/DD/YYYY format. Note: month is 0-indexed.
+        const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+        
         if (isNaN(entryDate.getTime()) || entryDate < twoMonthsAgo) {
             return; // Skip if invalid or too old
         }
@@ -212,7 +215,7 @@ export default function DashboardOverviewPage() {
                              key={category}
                              dataKey={category}
                              stackId="a"
-                             fill={chartConfig[category]?.color || "#8884d8"}
+                             fill={`var(--color-${category.replace(/\s+/g, "-").toLowerCase()})`}
                              radius={index === uniqueCategories.length - 1 ? [4, 4, 0, 0] : 0}
                            />
                         ))}
