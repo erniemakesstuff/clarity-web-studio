@@ -3,19 +3,28 @@
 
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, GitCompareArrows, AlertTriangle, Activity, HelpCircle, Code2 } from "lucide-react";
+import { TrendingUp, GitCompareArrows, AlertTriangle, Activity, HelpCircle, Code2, BarChart as BarChartIcon } from "lucide-react";
 import { ReceiptUploadForm } from "@/components/dashboard/ReceiptUploadForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, Cell } from "recharts";
 import type { AnalyticsEntry } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ChartConfig } from "@/components/ui/chart";
 
 const DEV_USER_RAW_ID = "admin@example.com";
+
+const CATEGORY_COLORS = [
+  "hsl(220, 85%, 60%)", "hsl(150, 75%, 45%)", "hsl(350, 85%, 65%)", "hsl(45, 95%, 55%)",
+  "hsl(270, 75%, 65%)", "hsl(25, 90%, 50%)", "hsl(190, 80%, 55%)", "hsl(320, 70%, 60%)",
+  "hsl(90, 65%, 50%)", "hsl(0, 75%, 60%)", "hsl(240, 60%, 65%)", "hsl(170, 60%, 40%)",
+  "hsl(60, 80%, 45%)", "hsl(300, 50%, 55%)", "hsl(200, 90%, 50%)", "hsl(120, 50%, 40%)",
+  "hsl(30, 100%, 50%)", "hsl(280, 45%, 50%)", "hsl(10, 80%, 55%)", "hsl(130, 70%, 50%)",
+];
 
 const getSafeCategory = (catString?: string | null): string => {
   const trimmed = catString?.trim();
@@ -81,6 +90,42 @@ export default function AnalyticsPage() {
         category: getSafeCategory(pw.food_category)
       }));
   }, [selectedItemForExplorer, analyticsData]);
+
+  const { itemPerformanceData, itemPerformanceChartConfig } = useMemo(() => {
+    if (!analyticsData) return { itemPerformanceData: [], itemPerformanceChartConfig: { config: {}, payload: [] } };
+    
+    const allItems = (analyticsData || [])
+        .map(item => ({
+            name: item.food_name,
+            count: item.purchase_count,
+            category: getSafeCategory(item.food_category),
+        }))
+        .sort((a, b) => {
+            if (a.category < b.category) return -1;
+            if (a.category > b.category) return 1;
+            return b.count - a.count;
+        });
+
+    const itemCategories = [...new Set(allItems.map(item => item.category))].sort();
+    
+    const config: ChartConfig = {};
+    const payload = itemCategories.map((category, index) => {
+      const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      const sanitizedKey = category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
+      config[category] = {
+        label: category,
+        color: `var(--color-${sanitizedKey})`,
+      };
+      return {
+        value: category,
+        type: 'square',
+        id: category,
+        color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+      };
+    });
+
+    return { itemPerformanceData: allItems, itemPerformanceChartConfig: { config, payload } };
+  }, [analyticsData]);
 
 
   const renderContent = () => {
@@ -226,6 +271,55 @@ export default function AnalyticsPage() {
                             <p className="text-center text-muted-foreground pt-10">No co-purchase data found for "{selectedItemForExplorer}".</p>
                         )}
                     </div>
+                )}
+            </CardContent>
+        </Card>
+
+        <Card className="shadow-lg mt-8">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-2xl">
+                    <BarChartIcon className="mr-2 h-7 w-7 text-primary" />
+                    <span>Item Performance by Category</span>
+                </CardTitle>
+                <CardDescription>
+                    Purchase counts for individual items, visually grouped by category.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {itemPerformanceData.length > 0 ? (
+                    <ChartContainer config={itemPerformanceChartConfig.config} className="h-[450px] w-full">
+                        <RechartsBarChart 
+                            data={itemPerformanceData}
+                            margin={{ top: 5, right: 20, left: 20, bottom: 90 }}
+                        >
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                                dataKey="name"
+                                tickLine={false}
+                                axisLine={false}
+                                tick={{ fontSize: 10 }}
+                                angle={-60}
+                                textAnchor="end"
+                                interval={0}
+                            />
+                            <YAxis dataKey="count" allowDecimals={false} />
+                            <ChartTooltip
+                                cursor={{ fill: "hsl(var(--muted))" }}
+                                content={<ChartTooltipContent indicator="dot" />}
+                            />
+                            <ChartLegend content={<ChartLegendContent />} payload={itemPerformanceChartConfig.payload} />
+                            <Bar dataKey="count" radius={4}>
+                                {itemPerformanceData.map((item) => (
+                                    <Cell
+                                        key={`cell-${item.name}`}
+                                        fill={itemPerformanceChartConfig.config[item.category]?.color || '#8884d8'}
+                                    />
+                                ))}
+                            </Bar>
+                        </RechartsBarChart>
+                    </ChartContainer>
+                ) : (
+                    <p className="text-center text-muted-foreground py-10">No item performance data available to display.</p>
                 )}
             </CardContent>
         </Card>
