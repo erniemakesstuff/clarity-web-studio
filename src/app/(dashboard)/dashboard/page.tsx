@@ -46,6 +46,7 @@ export default function DashboardOverviewPage() {
     const allDates = analyticsData.map(entry => {
         const parts = entry.timestamp_day.split('/');
         if (parts.length !== 3) return null;
+        // new Date(year, monthIndex, day)
         const d = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
         return isNaN(d.getTime()) ? null : d;
     }).filter((d): d is Date => d !== null);
@@ -74,7 +75,7 @@ export default function DashboardOverviewPage() {
         const category = getSafeCategory(entry.food_category);
         categories.add(category);
         
-        const weekStartDate = startOfWeek(entryDate);
+        const weekStartDate = startOfWeek(entryDate, { weekStartsOn: 1 }); // Start week on Monday
         const weekKey = format(weekStartDate, 'yyyy-MM-dd');
 
         if (!weeklyAggregates[weekKey]) {
@@ -106,11 +107,12 @@ export default function DashboardOverviewPage() {
     const config: ChartConfigType = {};
     const colors = [
         "hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))",
-        "hsl(var(--chart-4))", "hsl(var(--chart-5))", 'hsl(262.1 83.3% 57.8%)', 'hsl(346.8 77.2% 49.8%)'
+        "hsl(var(--chart-4))", "hsl(var(--chart-5))", 'hsl(262.1 83.3% 57.8%)',
+        'hsl(346.8 77.2% 49.8%)', 'hsl(142.1 76.2% 36.3%)', 'hsl(47.9 95.8% 53.1%)',
+        'hsl(217.2 91.2% 59.8%)', 'hsl(24.6 95% 53.1%)', 'hsl(0 72.2% 50.6%)'
     ];
     uniqueCategories.forEach((category, index) => {
-        const sanitizedKey = category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
-        config[sanitizedKey] = {
+        config[category] = {
             label: category,
             color: colors[index % colors.length],
         };
@@ -277,7 +279,3 @@ export default function DashboardOverviewPage() {
 
   return renderDashboardContent();
 }
-
-    
-
-    
