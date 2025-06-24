@@ -275,7 +275,6 @@ export default function DashboardOverviewPage() {
                              key={category}
                              dataKey={category}
                              fill={`var(--color-${category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase()})`}
-                             stackId="a"
                              radius={[4, 4, 0, 0]}
                            />
                         ))}
@@ -319,7 +318,7 @@ export default function DashboardOverviewPage() {
                                 interval={0}
                                 width={120}
                             />
-                            <XAxis dataKey="count" type="number" />
+                            <XAxis dataKey="count" type="number" allowDecimals={false}/>
                             <ChartTooltip
                                 cursor={{ fill: "hsl(var(--muted))" }}
                                 content={<ChartTooltipContent indicator="dot" />}
@@ -372,5 +371,7 @@ export default function DashboardOverviewPage() {
   );
 
   return renderDashboardContent();
+
+    
 
     
