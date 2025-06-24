@@ -43,11 +43,9 @@ export default function DashboardOverviewPage() {
     });
 
     // --- CHART DATA CALCULATION (uses filtered data) ---
-    // Find the latest date in the dataset to use as an anchor for the time window.
     const allDates = analyticsData.map(entry => {
         const parts = entry.timestamp_day.split('/');
         if (parts.length !== 3) return null;
-        // Note: month is 0-indexed in new Date()
         const d = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
         return isNaN(d.getTime()) ? null : d;
     }).filter((d): d is Date => d !== null);
@@ -65,11 +63,10 @@ export default function DashboardOverviewPage() {
     analyticsData.forEach(entry => {
         const parts = entry.timestamp_day.split('/');
         if (parts.length !== 3) {
-            return; // Skip invalid format
+            return;
         }
         const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
         
-        // Filter out data that is older than 2 months from the LATEST data point.
         if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart) {
             return; 
         }
@@ -229,15 +226,14 @@ export default function DashboardOverviewPage() {
                         <YAxis allowDecimals={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <ChartLegend content={<ChartLegendContent />} />
-                        {uniqueCategories.map((category, index) => {
+                        {uniqueCategories.map((category) => {
                           const sanitizedKey = category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
                           return (
                            <Bar
                              key={category}
                              dataKey={category}
-                             stackId="a"
                              fill={`var(--color-${sanitizedKey})`}
-                             radius={index === uniqueCategories.length - 1 ? [4, 4, 0, 0] : [0,0,0,0]}
+                             radius={[4, 4, 0, 0]}
                            />
                           )
                         })}
@@ -281,5 +277,7 @@ export default function DashboardOverviewPage() {
 
   return renderDashboardContent();
 }
+
+    
 
     
