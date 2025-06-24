@@ -25,16 +25,10 @@ export default function DashboardOverviewPage() {
       return { stats: null, weeklyChartData: [], uniqueCategories: [] };
     }
     
-    const twoMonthsAgo = subMonths(new Date(), 2);
-    const filteredData = analyticsData.filter(entry => {
-        const entryDate = new Date(entry.timestamp_day);
-        return !isNaN(entryDate.getTime()) && entryDate >= twoMonthsAgo;
-    });
-
+    // --- STATS CALCULATION (uses all data) ---
     let totalItemsSold = 0;
     let totalCoPurchases = 0;
     let trendingItem = { name: "N/A", purchase_count: -1, category: "N/A" };
-    const categories = new Set<string>();
 
     analyticsData.forEach(entry => {
       totalItemsSold += entry.purchase_count;
@@ -45,12 +39,25 @@ export default function DashboardOverviewPage() {
       }
     });
 
+    // --- CHART DATA CALCULATION (uses filtered data) ---
+    const twoMonthsAgo = subMonths(new Date(), 2);
+    const categories = new Set<string>();
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
 
-    filteredData.forEach(entry => {
+    analyticsData.forEach(entry => {
+        // Robust date parsing for "MM/DD/YYYY" format
+        const parts = entry.timestamp_day.split('/');
+        if (parts.length !== 3) return; // Skip malformed dates
+        const [month, day, year] = parts.map(Number);
+        const entryDate = new Date(year, month - 1, day);
+
+        if (isNaN(entryDate.getTime()) || entryDate < twoMonthsAgo) {
+            return; // Skip if invalid or too old
+        }
+
         const category = getSafeCategory(entry.food_category);
         categories.add(category);
-        const entryDate = new Date(entry.timestamp_day);
+        
         const weekStartDate = startOfWeek(entryDate);
         const weekKey = format(weekStartDate, 'yyyy-MM-dd');
 
