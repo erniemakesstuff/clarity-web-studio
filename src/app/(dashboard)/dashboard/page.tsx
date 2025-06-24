@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Utensils, TrendingUp, ShoppingBag, Users, Code2 } from "lucide-react";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart } from "recharts"
+import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, Cell } from "recharts"
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -47,11 +47,12 @@ export default function DashboardOverviewPage() {
   const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, rawMenuApiResponseText } = useAuth();
   const analyticsData = selectedMenuInstance?.analytics;
 
-  const { stats, weeklyChartData, uniqueCategories } = useMemo(() => {
+  const { stats, weeklyChartData, weeklyChartConfig, topSellingItems, itemChartConfig, itemLegendPayload } = useMemo(() => {
     if (!analyticsData || analyticsData.length === 0) {
-      return { stats: null, weeklyChartData: [], uniqueCategories: [] };
+      return { stats: null, weeklyChartData: [], weeklyChartConfig: {}, topSellingItems: [], itemChartConfig: {}, itemLegendPayload: [] };
     }
     
+    // --- Logic for Stat Cards ---
     let totalItemsSold = 0;
     let totalCoPurchases = 0;
     let trendingItem = { name: "N/A", purchase_count: -1, category: "N/A" };
@@ -65,6 +66,7 @@ export default function DashboardOverviewPage() {
       }
     });
 
+    // --- Logic for Weekly Sales Chart ---
     const allDates = analyticsData.map(entry => {
         const parts = entry.timestamp_day.split('/');
         if (parts.length !== 3) return null;
@@ -73,7 +75,7 @@ export default function DashboardOverviewPage() {
     }).filter((d): d is Date => d !== null);
     
     if (allDates.length === 0) {
-        return { stats: { totalItemsSold, totalCoPurchases, trendingItem }, weeklyChartData: [], uniqueCategories: [] };
+        return { stats: { totalItemsSold, totalCoPurchases, trendingItem }, weeklyChartData: [], weeklyChartConfig: {}, topSellingItems: [], itemChartConfig: {}, itemLegendPayload: [] };
     }
     
     const maxDate = new Date(Math.max.apply(null, allDates.map(d => d.getTime())));
@@ -113,23 +115,52 @@ export default function DashboardOverviewPage() {
 
     const calculatedChartData = Object.values(weeklyAggregates).sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    return {
-      stats: { totalItemsSold, totalCoPurchases, trendingItem },
-      weeklyChartData: calculatedChartData,
-      uniqueCategories: sortedCategories,
-    };
-  }, [analyticsData]);
-
-  const chartConfig = useMemo(() => {
-    const config: ChartConfigType = {};
-    uniqueCategories.forEach((category, index) => {
-        config[category] = {
+    const wConfig: ChartConfigType = {};
+    sortedCategories.forEach((category, index) => {
+        wConfig[category] = {
             label: category,
             color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
         };
     });
-    return config;
-  }, [uniqueCategories]);
+
+    // --- Logic for Top Selling Items Chart ---
+    const topItems = (analyticsData || [])
+        .slice()
+        .sort((a, b) => b.purchase_count - a.purchase_count)
+        .slice(0, 15)
+        .map(item => ({
+            name: item.food_name,
+            count: item.purchase_count,
+            category: getSafeCategory(item.food_category),
+        }))
+        .reverse(); // Reverse for horizontal chart so highest is at top
+
+    const itemCategories = [...new Set(topItems.map(item => item.category))].sort();
+    
+    const iConfig: ChartConfigType = {};
+    const iPayload = itemCategories.map((category, index) => {
+      const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+      iConfig[category] = {
+        label: category,
+        color: color,
+      };
+      return {
+        value: category,
+        type: 'square',
+        id: category,
+        color: color,
+      };
+    });
+
+    return {
+      stats: { totalItemsSold, totalCoPurchases, trendingItem },
+      weeklyChartData: calculatedChartData,
+      weeklyChartConfig: wConfig,
+      topSellingItems: topItems,
+      itemChartConfig: iConfig,
+      itemLegendPayload: iPayload
+    };
+  }, [analyticsData]);
 
   const totalMenuItems = selectedMenuInstance?.menu?.length ?? 0;
 
@@ -227,7 +258,7 @@ export default function DashboardOverviewPage() {
           </CardHeader>
           <CardContent>
             {weeklyChartData.length > 0 ? (
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <ChartContainer config={weeklyChartConfig} className="h-[300px] w-full">
                     <RechartsBarChart accessibilityLayer data={weeklyChartData}>
                         <CartesianGrid vertical={false} />
                         <XAxis
@@ -239,17 +270,15 @@ export default function DashboardOverviewPage() {
                         <YAxis allowDecimals={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <ChartLegend content={<ChartLegendContent />} />
-                        {uniqueCategories.map((category) => {
-                          const sanitizedKey = category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
-                          return (
+                        {Object.keys(weeklyChartConfig).map((category) => (
                            <Bar
                              key={category}
                              dataKey={category}
-                             fill={`var(--color-${sanitizedKey})`}
+                             fill={`var(--color-${category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase()})`}
+                             stackId="a"
                              radius={[4, 4, 0, 0]}
                            />
-                          )
-                        })}
+                        ))}
                     </RechartsBarChart>
                 </ChartContainer>
             ) : (
@@ -262,6 +291,60 @@ export default function DashboardOverviewPage() {
                 </Alert>
             )}
           </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Top 15 Selling Items</CardTitle>
+                <CardDescription>
+                    Your most popular items by purchase count across all categories. Bars are colored by category.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {topSellingItems.length > 0 ? (
+                    <ChartContainer config={itemChartConfig} className="h-[450px] w-full">
+                        <RechartsBarChart
+                            data={topSellingItems}
+                            layout="vertical"
+                            margin={{ left: 120, top: 5, right: 20, bottom: 20 }}
+                        >
+                            <CartesianGrid horizontal={false} />
+                            <YAxis
+                                dataKey="name"
+                                type="category"
+                                tickLine={false}
+                                tickMargin={10}
+                                axisLine={false}
+                                tick={{ fontSize: 12 }}
+                                interval={0}
+                                width={120}
+                            />
+                            <XAxis dataKey="count" type="number" />
+                            <ChartTooltip
+                                cursor={{ fill: "hsl(var(--muted))" }}
+                                content={<ChartTooltipContent indicator="dot" />}
+                            />
+                            <ChartLegend content={<ChartLegendContent />} payload={itemLegendPayload} />
+                            <Bar dataKey="count" layout="vertical" radius={4}>
+                                {topSellingItems.map((item) => (
+                                    <Cell
+                                        key={`cell-${item.name}`}
+                                        fill={itemChartConfig[item.category]?.color || '#8884d8'}
+                                    />
+                                ))}
+                            </Bar>
+                        </RechartsBarChart>
+                    </ChartContainer>
+                ) : (
+                    <Alert>
+                        <BarChart className="h-5 w-5" />
+                        <AlertTitle>No Item Data Available</AlertTitle>
+                        <AlertDescription>
+                            No top selling item data found. Upload receipts to see this chart.
+                        </AlertDescription>
+                    </Alert>
+                )}
+            </CardContent>
         </Card>
 
         {rawOwnerId === DEV_USER_RAW_ID && rawMenuApiResponseText && (
@@ -289,4 +372,5 @@ export default function DashboardOverviewPage() {
   );
 
   return renderDashboardContent();
-}
+
+    
