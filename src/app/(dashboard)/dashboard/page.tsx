@@ -43,7 +43,22 @@ export default function DashboardOverviewPage() {
     });
 
     // --- CHART DATA CALCULATION (uses filtered data) ---
-    const twoMonthsAgo = subMonths(new Date(), 2);
+    // Find the latest date in the dataset to use as an anchor for the time window.
+    const allDates = analyticsData.map(entry => {
+        const parts = entry.timestamp_day.split('/');
+        if (parts.length !== 3) return null;
+        // Note: month is 0-indexed in new Date()
+        const d = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+        return isNaN(d.getTime()) ? null : d;
+    }).filter((d): d is Date => d !== null);
+    
+    if (allDates.length === 0) {
+        return { stats: { totalItemsSold, totalCoPurchases, trendingItem }, weeklyChartData: [], uniqueCategories: [] };
+    }
+    
+    const maxDate = new Date(Math.max.apply(null, allDates.map(d => d.getTime())));
+    const dataWindowStart = subMonths(maxDate, 2);
+
     const categories = new Set<string>();
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
 
@@ -52,11 +67,11 @@ export default function DashboardOverviewPage() {
         if (parts.length !== 3) {
             return; // Skip invalid format
         }
-        // Robustly parse MM/DD/YYYY format. Note: month is 0-indexed.
         const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
         
-        if (isNaN(entryDate.getTime()) || entryDate < twoMonthsAgo) {
-            return; // Skip if invalid or too old
+        // Filter out data that is older than 2 months from the LATEST data point.
+        if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart) {
+            return; 
         }
 
         const category = getSafeCategory(entry.food_category);
@@ -97,7 +112,8 @@ export default function DashboardOverviewPage() {
         "hsl(var(--chart-4))", "hsl(var(--chart-5))", 'hsl(262.1 83.3% 57.8%)', 'hsl(346.8 77.2% 49.8%)'
     ];
     uniqueCategories.forEach((category, index) => {
-        config[category] = {
+        const sanitizedKey = category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
+        config[sanitizedKey] = {
             label: category,
             color: colors[index % colors.length],
         };
@@ -197,7 +213,7 @@ export default function DashboardOverviewPage() {
         <Card>
           <CardHeader>
             <CardTitle>Weekly Sales by Category</CardTitle>
-            <CardDescription>Sales performance by food category over the last two months.</CardDescription>
+            <CardDescription>Sales performance by food category over the last two months of available data.</CardDescription>
           </CardHeader>
           <CardContent>
             {weeklyChartData.length > 0 ? (
@@ -213,15 +229,18 @@ export default function DashboardOverviewPage() {
                         <YAxis allowDecimals={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <ChartLegend content={<ChartLegendContent />} />
-                        {uniqueCategories.map((category, index) => (
+                        {uniqueCategories.map((category, index) => {
+                          const sanitizedKey = category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
+                          return (
                            <Bar
                              key={category}
                              dataKey={category}
                              stackId="a"
-                             fill={`var(--color-${category.replace(/\s+/g, "-").toLowerCase()})`}
-                             radius={index === uniqueCategories.length - 1 ? [4, 4, 0, 0] : 0}
+                             fill={`var(--color-${sanitizedKey})`}
+                             radius={index === uniqueCategories.length - 1 ? [4, 4, 0, 0] : [0,0,0,0]}
                            />
-                        ))}
+                          )
+                        })}
                     </RechartsBarChart>
                 </ChartContainer>
             ) : (
@@ -229,7 +248,7 @@ export default function DashboardOverviewPage() {
                     <BarChart className="h-5 w-5" />
                     <AlertTitle>No Analytics Data Available</AlertTitle>
                     <AlertDescription>
-                        No sales data found for the last two months. Once you upload receipts for "{selectedMenuInstance.name}", your performance data will appear here.
+                        No sales data found in the required format. Once you upload receipts for "{selectedMenuInstance.name}", your performance data will appear here.
                     </AlertDescription>
                 </Alert>
             )}
@@ -262,3 +281,5 @@ export default function DashboardOverviewPage() {
 
   return renderDashboardContent();
 }
+
+    
