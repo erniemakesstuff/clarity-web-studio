@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit, History, TestTube, ArrowUp, Pencil, List, PlusCircle, ArrowRight } from "lucide-react";
+import { Loader2, Lightbulb, FlaskConical, Wand2, Power, Zap, BrainCircuit, CheckCircle, Info, Edit, History, TestTube, ArrowUp, Pencil, List, PlusCircle, ArrowRight, PlayCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
@@ -19,15 +19,19 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChangeExplanationDialog } from "@/components/dashboard/ChangeExplanationDialog";
 
+const ADMIN_USER_RAW_ID = "admin@example.com";
+
 export default function HypothesisTestsPage() {
   const { toast } = useToast();
-  const { selectedMenuInstance, isLoadingMenuInstances, hashedOwnerId, jwtToken, refreshMenuInstances } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, hashedOwnerId, jwtToken, refreshMenuInstances, rawOwnerId } = useAuth();
 
   const allowABTesting = selectedMenuInstance?.allowABTesting;
   const existingGoal = selectedMenuInstance?.testGoal;
+  const isDeveloperUser = rawOwnerId === ADMIN_USER_RAW_ID;
 
   const [goalInput, setGoalInput] = useState(existingGoal || "");
   const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
+  const [isStartingManualWorkflow, setIsStartingManualWorkflow] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(!existingGoal);
   const [isPolling, setIsPolling] = useState(false);
@@ -82,6 +86,44 @@ export default function HypothesisTestsPage() {
       }
       setIsToggling(false);
     }
+  };
+
+  const handleManualWorkflowStart = async () => {
+    if (!selectedMenuInstance) {
+      toast({
+        title: "No Menu Selected",
+        description: "Cannot start workflow without a selected menu.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsStartingManualWorkflow(true);
+    const result = await startABTestWorkflow({
+      ownerId: hashedOwnerId,
+      menuId: selectedMenuInstance.id,
+      jwtToken,
+    });
+
+    if (result.success) {
+      toast({
+        title: "Dev Action: Workflow Started",
+        description:
+          result.message || "The backend workflow has been initiated. Refreshing data...",
+        variant: "default",
+        className: "bg-green-500 text-white",
+      });
+      setTimeout(() => {
+        refreshMenuInstances();
+      }, 2000);
+    } else {
+      toast({
+        title: "Dev Action Failed",
+        description:
+          result.message || "Could not start the backend workflow.",
+        variant: "destructive",
+      });
+    }
+    setIsStartingManualWorkflow(false);
   };
 
   const handleGoalSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -359,7 +401,7 @@ export default function HypothesisTestsPage() {
 
       <Card className="shadow-lg">
         <form onSubmit={handleGoalSubmit}>
-          {existingGoal && !isEditingGoal ? (
+          {(existingGoal && !isEditingGoal) ? (
             <>
               <CardHeader className="flex flex-row items-start justify-between">
                 <div>
@@ -422,8 +464,8 @@ export default function HypothesisTestsPage() {
                   />
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-6 flex justify-start items-center gap-4">
-                  <Button type="submit" disabled={isSubmittingGoal || !goalInput.trim() || isPolling}>
+              <CardFooter className="border-t pt-6 flex justify-start items-center gap-4 flex-wrap">
+                  <Button type="submit" disabled={isSubmittingGoal || !goalInput.trim() || isPolling || isStartingManualWorkflow}>
                     {isSubmittingGoal ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -437,8 +479,28 @@ export default function HypothesisTestsPage() {
                     )}
                   </Button>
                   {existingGoal && (
-                    <Button type="button" variant="ghost" onClick={() => { setIsEditingGoal(false); setGoalInput(existingGoal); }} disabled={isSubmittingGoal || isPolling}>
+                    <Button type="button" variant="ghost" onClick={() => { setIsEditingGoal(false); setGoalInput(existingGoal); }} disabled={isSubmittingGoal || isPolling || isStartingManualWorkflow}>
                       Cancel
+                    </Button>
+                  )}
+                  {isDeveloperUser && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleManualWorkflowStart}
+                      disabled={isStartingManualWorkflow || isToggling || isPolling || isSubmittingGoal || !selectedMenuInstance}
+                    >
+                      {isStartingManualWorkflow ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="mr-2 h-4 w-4" />
+                          Dev: Start Workflow
+                        </>
+                      )}
                     </Button>
                   )}
               </CardFooter>
