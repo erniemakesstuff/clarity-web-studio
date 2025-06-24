@@ -2,7 +2,7 @@
 "use client";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BarChart, Utensils, TrendingUp, ShoppingBag, Users } from "lucide-react";
+import { BarChart, Utensils, TrendingUp, ShoppingBag, Users, Code2 } from "lucide-react";
 import { ChartConfig, ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart } from "recharts"
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { subMonths, startOfWeek, format } from "date-fns";
 import type { ChartConfig as ChartConfigType } from "@/components/ui/chart";
+import { Textarea } from "@/components/ui/textarea";
+
+const DEV_USER_RAW_ID = "admin@example.com";
 
 const getSafeCategory = (catString?: string | null): string => {
   const trimmed = catString?.trim();
@@ -17,7 +20,7 @@ const getSafeCategory = (catString?: string | null): string => {
 };
 
 export default function DashboardOverviewPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, rawMenuApiResponseText } = useAuth();
   const analyticsData = selectedMenuInstance?.analytics;
 
   const { stats, weeklyChartData, uniqueCategories } = useMemo(() => {
@@ -232,6 +235,28 @@ export default function DashboardOverviewPage() {
             )}
           </CardContent>
         </Card>
+
+        {rawOwnerId === DEV_USER_RAW_ID && rawMenuApiResponseText && (
+          <Card className="shadow-lg mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl">
+                  <Code2 className="mr-2 h-6 w-6 text-muted-foreground" />
+                  Dev: Raw API Response (Menu Data)
+              </CardTitle>
+              <CardDescription>
+                This is the raw JSON text received from the menu fetch API for the currently selected or loaded menu(s).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                readOnly
+                value={rawMenuApiResponseText}
+                className="h-96 font-mono text-xs bg-secondary/30 border-border"
+                placeholder="No raw API response available..."
+              />
+            </CardContent>
+          </Card>
+      )}
       </div>
   );
 
