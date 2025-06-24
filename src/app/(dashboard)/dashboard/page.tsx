@@ -45,11 +45,9 @@ export default function DashboardOverviewPage() {
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
 
     analyticsData.forEach(entry => {
-        // Robust date parsing for "MM/DD/YYYY" format
-        const parts = entry.timestamp_day.split('/');
-        if (parts.length !== 3) return; // Skip malformed dates
-        const [month, day, year] = parts.map(Number);
-        const entryDate = new Date(year, month - 1, day);
+        // More robust date parsing. new Date() is more flexible than manual parsing,
+        // and the isNaN check below will catch any truly invalid date strings.
+        const entryDate = new Date(entry.timestamp_day);
 
         if (isNaN(entryDate.getTime()) || entryDate < twoMonthsAgo) {
             return; // Skip if invalid or too old
