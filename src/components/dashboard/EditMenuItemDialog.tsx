@@ -22,12 +22,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, Loader2, Sparkles } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMenuItemOnBackend } from "@/app/(dashboard)/dashboard/menu-management/actions";
 import { cn } from "@/lib/utils";
-import { generateImage, type GenerateImageInput } from "@/ai/flows/generate-image";
 
 interface EditMenuItemDialogProps {
   item: MenuItem | null;
@@ -48,7 +47,6 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
   const [youMayAlsoLike, setYouMayAlsoLike] = useState<string[]>([]);
   const [allergenTags, setAllergenTags] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const { toast } = useToast();
   const { jwtToken, selectedMenuInstance, hashedOwnerId } = useAuth(); // Use hashedOwnerId from context
@@ -75,42 +73,8 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       setYouMayAlsoLike([]);
       setAllergenTags([]);
       setIsSaving(false);
-      setIsGeneratingImage(false);
     }
   }, [item, isOpen]);
-
-  const handleGenerateImage = async () => {
-    if (!name.trim()) {
-      toast({
-        title: "Item Name Required",
-        description: "Please provide a name for the item before generating an image.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsGeneratingImage(true);
-    try {
-      const prompt = description ? `${name} - ${description}` : name;
-      const result = await generateImage({ prompt });
-      if (result.imageUrl) {
-        setPrimaryImageUrl(result.imageUrl);
-        toast({
-          title: "Image Generated!",
-          description: "A new image has been generated. Don't forget to save your changes.",
-        });
-      } else {
-        throw new Error("Generated image URL was empty.");
-      }
-    } catch (err: any) {
-      toast({
-        title: "Image Generation Failed",
-        description: err.message || "Could not generate an image at this time.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingImage(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!item || !selectedMenuInstance) {
@@ -220,7 +184,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
   const availableRecommendations = allMenuItems.filter(menuItem => menuItem.id !== item?.id);
 
   if (!item) return null;
-  const isBusy = isSaving || isGeneratingImage;
+  const isBusy = isSaving;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!isBusy) onOpenChange(open); }}>
@@ -267,32 +231,12 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Provide a URL for the item's image, or click Generate to create one with AI.</p>
+                    <p className="max-w-xs">Provide a URL for the item's image.</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
             <div className="col-span-3 flex items-center gap-2">
-              <Input id="edit-image-url" value={primaryImageUrl} onChange={(e) => setPrimaryImageUrl(e.target.value)} className="flex-grow" placeholder="https://... or generate one" disabled={isBusy} />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateImage}
-                disabled={isBusy}
-                className="flex-shrink-0"
-              >
-                {isGeneratingImage ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Generate
-                  </>
-                )}
-              </Button>
+              <Input id="edit-image-url" value={primaryImageUrl} onChange={(e) => setPrimaryImageUrl(e.target.value)} className="flex-grow" placeholder="https://..." disabled={isBusy} />
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
