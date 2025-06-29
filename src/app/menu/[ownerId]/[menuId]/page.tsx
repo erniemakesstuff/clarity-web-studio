@@ -248,12 +248,12 @@ export default function MenuPage() {
           
           {categories.length > 0 ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-              <TabsList className="flex flex-wrap justify-start mb-8 bg-muted p-1 rounded-lg shadow-sm">
+              <TabsList className="flex flex-wrap justify-start mb-8 gap-2">
                 {categories.map(category => (
                   <TabsTrigger 
                     key={category.name} 
                     value={category.name} 
-                    className="flex-initial data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md px-3 py-2 text-sm sm:text-base"
+                    className="flex-initial rounded-md px-3 py-2 text-sm sm:text-base bg-muted text-muted-foreground hover:bg-secondary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:hover:bg-primary/90"
                   >
                     {categoryIcons[category.name] || <Utensils className="mr-2 h-5 w-5" />}
                     {category.name} ({category.name === "All" ? menuItems.length : category.items.length})
