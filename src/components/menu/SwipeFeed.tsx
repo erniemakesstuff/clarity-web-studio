@@ -65,9 +65,10 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: 
           key={item.id}
           ref={(el) => (itemRefs.current[index] = el)}
           data-item-id={item.id}
-          className="h-full w-full snap-center flex-shrink-0 flex items-center justify-center p-4"
+          // Make each snap target slightly shorter than the viewport to allow peeking
+          className="h-[95%] w-full snap-center flex-shrink-0 flex items-center justify-center p-4"
         >
-          <div className="h-full w-full max-h-[720px]">
+          <div className="h-full w-full">
             <FeedItemDisplay 
               item={item} 
               allMenuItems={allMenuItems}
