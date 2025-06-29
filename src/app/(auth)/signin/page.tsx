@@ -10,13 +10,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from "@/contexts/AuthContext";
 import { Logo } from "@/components/common/Logo";
 import Link from "next/link";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, Loader2 } from "lucide-react";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signInWithEmail, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -30,19 +31,27 @@ export default function SignInPage() {
   }
 
   if (isAuthenticated) {
-    // router.replace("/dashboard"); // This was moved to useEffect
     return null; 
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    // Mock login
-    if (email === "admin@example.com" && password === "password") {
-      login();
-      // No router.push here, useEffect will handle it
-    } else {
-      setError("Invalid email or password. (Hint: admin@example.com / password)");
+    setIsSubmitting(true);
+    try {
+      await signInWithEmail(email, password);
+      // Redirect is handled by the useEffect
+    } catch (err: any) {
+      let errorMessage = "Invalid email or password.";
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        errorMessage = "Invalid email or password. Please try again.";
+      } else {
+        errorMessage = "An unexpected error occurred. Please try again.";
+        console.error(err);
+      }
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -64,11 +73,12 @@ export default function SignInPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@example.com"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="pl-10"
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -79,16 +89,18 @@ export default function SignInPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="pl-10"
+                disabled={isSubmitting}
               />
             </div>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In
           </Button>
         </form>

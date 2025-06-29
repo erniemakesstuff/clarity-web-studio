@@ -8,25 +8,34 @@ import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actio
 import { patchMenu } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
 import { useToast } from "@/hooks/use-toast";
 import { generateDeterministicIdHash } from "@/lib/hash-utils";
-
+import { auth } from "@/lib/firebase";
+import {
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  type User,
+} from "firebase/auth";
 
 const MENU_INSTANCES_LS_KEY = "clarityMenuUserMenuInstances";
 const MENU_INSTANCES_TIMESTAMP_LS_KEY = "clarityMenuMenuInstancesTimestamp";
 const SELECTED_MENU_INSTANCE_LS_KEY = "clarityMenuSelectedMenuInstance";
-const AUTH_STATUS_LS_KEY = "clarityMenuAuth";
-const JWT_TOKEN_LS_KEY = "clarityMenuJwtToken";
 const RAW_MENU_API_RESPONSE_LS_KEY = "clarityMenuRawApiResponse";
 const MENU_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
-const RAW_OWNER_ID_FOR_CONTEXT = "admin@example.com"; // Define raw owner ID once
 
 export interface AuthContextType {
+  user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   jwtToken: string | null;
-  rawOwnerId: string;
+  rawOwnerId: string | null;
   hashedOwnerId: string;
-  login: () => void;
-  logout: () => void;
+  signInWithEmail: (email: string, pass: string) => Promise<any>;
+  signUpWithEmail: (email: string, pass: string) => Promise<any>;
+  signInWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
   menuInstances: MenuInstance[];
   selectedMenuInstance: MenuInstance | null;
   selectMenuInstance: (menuId: string) => void;
@@ -42,6 +51,7 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [jwtToken, setJwtToken] = useState<string | null>(null);
@@ -52,20 +62,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [rawMenuApiResponseText, setRawMenuApiResponseText] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const hashedOwnerIdForContext = generateDeterministicIdHash(RAW_OWNER_ID_FOR_CONTEXT);
+  const rawOwnerId = user?.email || null;
+  const hashedOwnerId = user ? generateDeterministicIdHash(user.uid) : "";
+
+  const clearMenuData = () => {
+    setMenuInstances([]);
+    setSelectedMenuInstance(null);
+    setRawMenuApiResponseText(null);
+    localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+    localStorage.removeItem(MENU_INSTANCES_LS_KEY);
+    localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
+    localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
+  };
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
-    if (!isAuthenticated) {
-      setMenuInstances([]);
-      setSelectedMenuInstance(null);
+    if (!isAuthenticated || !hashedOwnerId) {
+      clearMenuData();
       setIsLoadingMenuInstances(false);
-      setRawMenuApiResponseText(null);
-      localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
-      localStorage.removeItem(MENU_INSTANCES_LS_KEY);
-      localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
-      localStorage.removeItem(JWT_TOKEN_LS_KEY);
-      localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
-      setJwtToken(null);
       return;
     }
 
@@ -90,8 +103,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to parse cached menu instances:", e);
       }
     }
-
-    const result = await fetchMenuInstancesFromBackend(hashedOwnerIdForContext, jwtToken);
+    
+    const token = await user?.getIdToken();
+    const result = await fetchMenuInstancesFromBackend(hashedOwnerId, token || null);
     
     setRawMenuApiResponseText(result.rawResponseText || null);
     localStorage.setItem(RAW_MENU_API_RESPONSE_LS_KEY, result.rawResponseText || "");
@@ -117,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
       }
     } else {
-      if (!(RAW_OWNER_ID_FOR_CONTEXT === "admin@example.com" && result.rawResponseText) && result.message) {
+       if (result.message && !(user?.email === "admin@example.com" && result.rawResponseText)) {
          toast({
             title: "Error Fetching Menus",
             description: result.message,
@@ -125,51 +139,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
          });
       }
       if (forceRefresh || !cachedInstancesStr) {
-        setMenuInstances([]);
-        setSelectedMenuInstance(null);
-        localStorage.removeItem(MENU_INSTANCES_LS_KEY);
-        localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
-        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+        clearMenuData();
       }
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, jwtToken, toast, selectedMenuInstance?.id, hashedOwnerIdForContext]);
-
+  }, [isAuthenticated, user, hashedOwnerId, toast, selectedMenuInstance?.id]);
 
   useEffect(() => {
-    const storedAuthStatus = localStorage.getItem(AUTH_STATUS_LS_KEY);
-    const storedJwtToken = localStorage.getItem(JWT_TOKEN_LS_KEY);
-    if (storedAuthStatus === "true") {
-      setIsAuthenticated(true);
-      setJwtToken(storedJwtToken);
-    }
-    setIsLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        const token = await firebaseUser.getIdToken();
+        setUser(firebaseUser);
+        setJwtToken(token);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setJwtToken(null);
+        setIsAuthenticated(false);
+        clearMenuData();
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     loadMenuData();
-  }, [isAuthenticated, loadMenuData]);
+  }, [user, loadMenuData]);
 
-  const login = () => {
-    const mockTokenValue = "mock-jwt-for-" + RAW_OWNER_ID_FOR_CONTEXT + "-" + Date.now();
-    setIsAuthenticated(true);
-    setJwtToken(mockTokenValue);
-    localStorage.setItem(AUTH_STATUS_LS_KEY, "true");
-    localStorage.setItem(JWT_TOKEN_LS_KEY, mockTokenValue);
+
+  const signUpWithEmail = async (email: string, pass: string) => {
+    return createUserWithEmailAndPassword(auth, email, pass);
+  }
+
+  const signInWithEmail = async (email: string, pass: string) => {
+    return signInWithEmailAndPassword(auth, email, pass);
+  }
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.error("Error during Google sign-in:", error);
+      toast({
+        title: "Sign-in Error",
+        description: error.message || "Could not sign in with Google. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    setJwtToken(null);
-    setRawMenuApiResponseText(null);
-    localStorage.removeItem(AUTH_STATUS_LS_KEY);
-    localStorage.removeItem(JWT_TOKEN_LS_KEY);
-    localStorage.removeItem(MENU_INSTANCES_LS_KEY);
-    localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
-    localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
-    localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
-    setMenuInstances([]);
-    setSelectedMenuInstance(null);
+  const logout = async () => {
+    await signOut(auth);
   };
 
   const selectMenuInstance = (menuId: string) => {
@@ -210,22 +233,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         return false;
     }
-
+    const token = await user?.getIdToken();
     const result = await patchMenu({
-        ownerId: hashedOwnerIdForContext,
+        ownerId: hashedOwnerId,
         menuId,
         payload: { allowABTesting: enable },
-        jwtToken,
+        jwtToken: token || null,
     });
 
     if (result.success) {
         toast({
-            title: `A/B Testing ${enable ? 'Enabled' : 'Disabled'}`,
+            title: `Experiments ${enable ? 'Enabled' : 'Disabled'}`,
             description: "Successfully updated settings on the backend.",
             variant: "default",
             className: "bg-green-500 text-white",
         });
-        await refreshMenuInstances(); // Re-fetches the data from backend
+        await refreshMenuInstances();
         return true;
     } else {
         toast({
@@ -285,29 +308,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return success;
   };
 
-  return (
-    <AuthContext.Provider value={{
-      isAuthenticated,
-      isLoading,
-      jwtToken,
-      rawOwnerId: RAW_OWNER_ID_FOR_CONTEXT,
-      hashedOwnerId: hashedOwnerIdForContext,
-      login,
-      logout,
-      menuInstances,
-      selectedMenuInstance,
-      selectMenuInstance,
-      addMenuInstance,
-      renameMenuInstance,
-      updateMenuItem,
-      isLoadingMenuInstances,
-      refreshMenuInstances,
-      rawMenuApiResponseText,
-      toggleABTesting,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    isAuthenticated,
+    isLoading,
+    jwtToken,
+    rawOwnerId,
+    hashedOwnerId,
+    signInWithEmail,
+    signUpWithEmail,
+    signInWithGoogle,
+    logout,
+    menuInstances,
+    selectedMenuInstance,
+    selectMenuInstance,
+    addMenuInstance,
+    renameMenuInstance,
+    updateMenuItem,
+    isLoadingMenuInstances,
+    refreshMenuInstances,
+    rawMenuApiResponseText,
+    toggleABTesting,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {
