@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useParams } from 'next/navigation';
 import type { MenuItem, MenuCategory } from "@/lib/types";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { UpsellDialog } from "@/components/menu/UpsellDialog";
@@ -36,8 +37,10 @@ const categoryIcons: Record<string, React.ReactNode> = {
 };
 
 
-export default function MenuPage({ params }: { params: { ownerId: string, menuId: string } }) {
-  const { ownerId, menuId } = params;
+export default function MenuPage() {
+  const params = useParams();
+  const ownerId = params.ownerId as string;
+  const menuId = params.menuId as string;
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
