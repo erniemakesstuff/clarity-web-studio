@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { MenuItem } from "@/lib/types";
@@ -58,7 +57,7 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: 
   }
 
   return (
-    <div className="h-full w-full max-w-sm overflow-y-auto snap-y snap-mandatory scroll-smooth py-12 space-y-8">
+    <div className="h-full w-full max-w-sm overflow-y-auto snap-y snap-mandatory py-12 space-y-8">
       {items.map((item, index) => (
         <div
           key={item.id}
