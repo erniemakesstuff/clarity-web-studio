@@ -7,7 +7,7 @@ import { TrendingUp, GitCompareArrows, AlertTriangle, Activity, HelpCircle, Code
 import { ReceiptUploadForm } from "@/components/dashboard/ReceiptUploadForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, Cell } from "recharts";
 import type { AnalyticsEntry } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -91,8 +91,8 @@ export default function AnalyticsPage() {
       }));
   }, [selectedItemForExplorer, analyticsData]);
 
-  const { itemPerformanceData, itemPerformanceChartConfig } = useMemo(() => {
-    if (!analyticsData) return { itemPerformanceData: [], itemPerformanceChartConfig: { config: {}, payload: [] } };
+  const { itemPerformanceData, itemPerformanceChartConfig, dateRangeString } = useMemo(() => {
+    if (!analyticsData) return { itemPerformanceData: [], itemPerformanceChartConfig: { config: {}, payload: [] }, dateRangeString: "" };
     
     const itemMap = new Map<string, { name: string; count: number; category: string }>();
 
@@ -128,13 +128,33 @@ export default function AnalyticsPage() {
       };
       return {
         value: category,
-        type: 'square',
+        type: 'square' as const,
         id: category,
         color: color,
       };
     });
+    
+    const dates = analyticsData.map(entry => {
+      const parts = entry.timestamp_day.split('/');
+      if (parts.length !== 3) return null;
+      const d = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+      return isNaN(d.getTime()) ? null : d;
+    }).filter((d): d is Date => d !== null);
 
-    return { itemPerformanceData: allItems, itemPerformanceChartConfig: { config, payload } };
+    let calculatedDateRangeString = '';
+    if (dates.length > 0) {
+      const minDate = new Date(Math.min.apply(null, dates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max.apply(null, dates.map(d => d.getTime())));
+      const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+      if (minDate.getTime() === maxDate.getTime()) {
+        calculatedDateRangeString = `Data for ${minDate.toLocaleDateString(undefined, options)}.`;
+      } else {
+        calculatedDateRangeString = `Data from ${minDate.toLocaleDateString(undefined, options)} to ${maxDate.toLocaleDateString(undefined, options)}.`;
+      }
+    }
+
+
+    return { itemPerformanceData: allItems, itemPerformanceChartConfig: { config, payload }, dateRangeString: calculatedDateRangeString };
   }, [analyticsData]);
 
 
@@ -292,12 +312,13 @@ export default function AnalyticsPage() {
                     <span>Item Performance by Category</span>
                 </CardTitle>
                 <CardDescription>
-                    Purchase counts for individual items, visually grouped by category.
+                    Purchase counts for individual items, visually grouped by category. {dateRangeString}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 {itemPerformanceData.length > 0 ? (
-                    <ChartContainer config={itemPerformanceChartConfig.config} className="h-[450px] w-full">
+                  <div className="flex gap-4">
+                    <ChartContainer config={itemPerformanceChartConfig.config} className="h-[450px] flex-1">
                         <RechartsBarChart 
                             data={itemPerformanceData}
                             margin={{ top: 5, right: 20, left: 20, bottom: 90 }}
@@ -317,7 +338,6 @@ export default function AnalyticsPage() {
                                 cursor={{ fill: "hsl(var(--muted))" }}
                                 content={<ChartTooltipContent indicator="dot" />}
                             />
-                            <ChartLegend content={<ChartLegendContent />} payload={itemPerformanceChartConfig.payload} />
                             <Bar dataKey="count" radius={4}>
                                 {itemPerformanceData.map((item) => (
                                     <Cell
@@ -328,6 +348,16 @@ export default function AnalyticsPage() {
                             </Bar>
                         </RechartsBarChart>
                     </ChartContainer>
+                    <div className="w-48 space-y-2 py-4 pl-4 border-l">
+                      <h4 className="font-semibold text-sm mb-2 border-b pb-2">Categories</h4>
+                      {itemPerformanceChartConfig.payload.map(entry => (
+                          <div key={entry.id as string} className="flex items-center gap-2 text-xs">
+                              <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: entry.color }} />
+                              <span className="text-muted-foreground">{entry.value as string}</span>
+                          </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
                     <p className="text-center text-muted-foreground py-10">No item performance data available to display.</p>
                 )}
@@ -373,5 +403,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-    
