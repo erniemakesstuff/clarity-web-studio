@@ -79,7 +79,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const commonNavItems: NavItem[] = [
     { href: "/dashboard/analytics", label: "Analytics", icon: <BarChart /> },
-    { href: "/dashboard/hypothesis-tests", label: "Hypothesis Tests", icon: <FlaskConical /> },
+    { href: "/dashboard/experiments", label: "Experiments", icon: <FlaskConical /> },
   ];
 
   const navItems: NavItem[] = [...baseNavItems, ...adminNavItems, ...commonNavItems];
