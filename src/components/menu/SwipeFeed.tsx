@@ -57,20 +57,24 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: 
   }
 
   return (
-    <div className="h-full w-full max-w-sm overflow-y-auto snap-y snap-mandatory py-12 space-y-8">
+    <div
+      className="h-full w-full max-w-sm overflow-y-auto snap-y snap-mandatory"
+    >
       {items.map((item, index) => (
         <div
           key={item.id}
           ref={(el) => (itemRefs.current[index] = el)}
           data-item-id={item.id}
-          className="h-[calc(100vh-10rem)] max-h-[720px] w-full snap-center flex-shrink-0"
+          className="h-full w-full snap-center flex-shrink-0 flex items-center justify-center p-4"
         >
-          <FeedItemDisplay 
-            item={item} 
-            allMenuItems={allMenuItems}
-            onUpsellClick={onUpsellClick}
-            onUpsellViewed={handleUpsellViewed} 
-          />
+          <div className="h-full w-full max-h-[720px]">
+            <FeedItemDisplay 
+              item={item} 
+              allMenuItems={allMenuItems}
+              onUpsellClick={onUpsellClick}
+              onUpsellViewed={handleUpsellViewed} 
+            />
+          </div>
         </div>
       ))}
     </div>
