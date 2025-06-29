@@ -59,7 +59,7 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: 
 
   return (
     <div
-      className="h-full w-full max-w-sm mx-auto overflow-y-auto snap-y snap-mandatory"
+      className="absolute inset-0 w-full max-w-sm mx-auto overflow-y-auto snap-y snap-mandatory"
     >
       {items.map((item, index) => (
         <div

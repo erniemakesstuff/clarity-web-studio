@@ -191,26 +191,28 @@ export default function MenuPage() {
 
 
   return (
-    <div className={`flex flex-col min-h-screen ${viewMode === 'feed' ? 'bg-black' : 'bg-background'}`}>
+    <div className={`flex flex-col ${viewMode === 'feed' ? 'h-screen bg-black' : 'min-h-screen bg-background'}`}>
       <AppHeader />
       
       {viewMode === 'feed' ? (
-        <main className="flex-grow overflow-hidden">
+        <main className="flex-1 relative overflow-hidden">
           <SwipeFeed 
             items={menuItems} 
             onUpsellClick={handleUpsellClick} 
             onItemViewed={handleItemViewed} 
             allMenuItems={menuItems} 
           />
-          <Button
-            variant="outline"
-            size="lg"
-            className="fixed bottom-6 right-6 z-20 rounded-full shadow-lg bg-background hover:bg-secondary"
-            onClick={() => setViewMode('category')}
-          >
-            <LayoutGrid className="mr-2 h-5 w-5" />
-            Discover More
-          </Button>
+          <div className="fixed bottom-6 right-6 z-20">
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full shadow-lg bg-background hover:bg-secondary"
+              onClick={() => setViewMode('category')}
+            >
+              <LayoutGrid className="mr-2 h-5 w-5" />
+              Discover More
+            </Button>
+          </div>
         </main>
       ) : (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
