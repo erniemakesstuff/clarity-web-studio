@@ -74,7 +74,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   ];
 
   const adminNavItems: NavItem[] = isActualAdmin ? [
-    { href: "/dashboard/content-generation", label: "WIP: Marketing Assistant", icon: <Sparkles /> },
+    { href: "/dashboard/content-generation", label: "Marketing Assistant", icon: <Sparkles /> },
   ] : [];
 
   const commonNavItems: NavItem[] = [

@@ -67,10 +67,10 @@ export function ContentGeneratorForm() {
       <CardHeader>
         <CardTitle className="flex items-center text-2xl">
           <Sparkles className="mr-3 h-7 w-7 text-primary" />
-          WIP: AI Marketing Assistant
+          AI Marketing Assistant
         </CardTitle>
         <CardDescription>
-          Provide your menu text (or key items) and let AI help you draft engaging marketing content. You can then refine and post it. This feature is a work in progress.
+          Provide your menu text (or key items) and let AI help you draft engaging marketing content. You can then refine and post it.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
