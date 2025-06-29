@@ -51,7 +51,7 @@ export default function MenuPage() {
   const [isUpsellDialogOpen, setIsUpsellDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("All");
-  const [viewMode, setViewMode] = useState<'feed' | 'category'>('feed');
+  const [viewMode, setViewMode] = useState<'feed' | 'category'>('category');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -194,7 +194,7 @@ export default function MenuPage() {
       <AppHeader />
       
       {viewMode === 'feed' ? (
-        <main className="flex-1 relative overflow-hidden">
+        <main className="flex-1 relative overflow-hidden flex items-center justify-center">
           <SwipeFeed 
             items={menuItems} 
             onUpsellClick={handleUpsellClick} 
@@ -264,7 +264,7 @@ export default function MenuPage() {
               {categories.map(category => (
                 <TabsContent key={category.name} value={category.name}>
                   {currentCategoryItems.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-8">
                       {currentCategoryItems.map(item => (
                         <MenuItemCard key={item.id} item={item} onUpsellClick={handleUpsellClick} />
                       ))}
