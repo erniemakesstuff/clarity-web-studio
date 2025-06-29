@@ -74,6 +74,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
     localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
   };
+  
+  const syncUserWithBackend = useCallback(async (firebaseUser: User) => {
+    if (!firebaseUser) return;
+
+    const API_BASE_URL = "https://api.bityfan.com";
+    const token = await firebaseUser.getIdToken();
+
+    try {
+        // 1. Check if user exists in backend
+        const response = await fetch(`${API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+            },
+        });
+
+        if (response.status === 404) {
+            // 2. User does not exist, so create them
+            console.log(`User ${firebaseUser.uid} not found in backend. Creating...`);
+            
+            const newUserProfile = {
+                userId: firebaseUser.uid,
+                menuGrants: [],
+                subscriptionStatus: "active",
+                contactInfoEmail: firebaseUser.email || "",
+                contactInfoPhone: firebaseUser.phoneNumber || "",
+                name: firebaseUser.displayName || firebaseUser.email || "New User",
+            };
+
+            const createResponse = await fetch(`${API_BASE_URL}/ris/v1/user`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newUserProfile),
+            });
+
+            if (!createResponse.ok) {
+                const errorText = await createResponse.text();
+                throw new Error(`Failed to create user in backend: ${createResponse.status} ${errorText}`);
+            }
+        } else if (!response.ok) {
+            // Handle other unexpected errors from the GET request
+            const errorText = await response.text();
+            throw new Error(`Failed to check user existence: ${response.status} ${errorText}`);
+        } else {
+            // User exists, no action needed. Log for debugging.
+            console.log(`User ${firebaseUser.uid} already exists in backend.`);
+        }
+    } catch (error: any) {
+        console.error("Error syncing user with backend:", error);
+        toast({
+            title: "Backend Sync Error",
+            description: error.message || "Could not sync your profile with our services.",
+            variant: "destructive",
+        });
+    }
+  }, [toast]);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated || !hashedOwnerId) {
@@ -153,6 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(firebaseUser);
         setJwtToken(token);
         setIsAuthenticated(true);
+        await syncUserWithBackend(firebaseUser);
       } else {
         setUser(null);
         setJwtToken(null);
@@ -162,7 +223,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [syncUserWithBackend]);
 
   useEffect(() => {
     loadMenuData();
