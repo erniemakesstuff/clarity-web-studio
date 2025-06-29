@@ -32,7 +32,7 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: 
           }
         });
       },
-      { threshold: 0.75 } 
+      { root: null, threshold: 0.75 } 
     );
 
     itemRefs.current.forEach((ref) => {
@@ -51,20 +51,20 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: 
 
   if (!items || items.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground">
+      <div className="flex items-center justify-center h-full text-white">
         <p>No menu items to display in feed.</p>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen overflow-y-auto snap-y snap-mandatory scroll-smooth">
+    <div className="h-full w-full max-w-sm overflow-y-auto snap-y snap-mandatory scroll-smooth py-12 space-y-8">
       {items.map((item, index) => (
         <div
           key={item.id}
           ref={(el) => (itemRefs.current[index] = el)}
           data-item-id={item.id}
-          className="h-screen w-screen snap-start flex-shrink-0"
+          className="h-[calc(100vh-10rem)] max-h-[720px] w-full snap-center flex-shrink-0"
         >
           <FeedItemDisplay 
             item={item} 

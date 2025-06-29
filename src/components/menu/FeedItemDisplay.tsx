@@ -107,7 +107,7 @@ export function FeedItemDisplay({ item, allMenuItems, onUpsellClick, onUpsellVie
 
 
   return (
-    <div className="relative h-full w-full flex flex-col text-white overflow-hidden bg-black">
+    <div className="relative h-full w-full flex flex-col text-white overflow-hidden bg-black rounded-2xl shadow-lg">
       {/* Horizontal Scroll Container for Media & Upsells */}
       <div
         ref={scrollContainerRef}

@@ -187,11 +187,11 @@ export default function MenuPage({ params }: { params: { ownerId: string, menuId
 
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className={`flex flex-col min-h-screen ${viewMode === 'feed' ? 'bg-black' : 'bg-background'}`}>
       <AppHeader />
       
       {viewMode === 'feed' ? (
-        <>
+        <main className="flex-grow flex items-center justify-center overflow-hidden">
           <SwipeFeed 
             items={menuItems} 
             onUpsellClick={handleUpsellClick} 
@@ -207,7 +207,7 @@ export default function MenuPage({ params }: { params: { ownerId: string, menuId
             <LayoutGrid className="mr-2 h-5 w-5" />
             Discover More
           </Button>
-        </>
+        </main>
       ) : (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
           <div className="text-center mb-10">
