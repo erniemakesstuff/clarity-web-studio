@@ -145,7 +145,7 @@ export async function pollWorkflowStatus(
   let response: Response;
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=false`, {
       method: "GET",
       headers: {
         "Authorization": authorizationValue,

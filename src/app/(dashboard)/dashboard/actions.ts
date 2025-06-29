@@ -101,7 +101,7 @@ export async function fetchMenuInstancesFromBackend(
 
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&asMini=false`, {
       method: "GET",
       headers: {
         "Authorization": authorizationValue,

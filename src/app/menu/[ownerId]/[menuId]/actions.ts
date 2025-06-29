@@ -16,7 +16,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string): Prom
   let response: Response | undefined = undefined;
   let responseBodyText: string = "";
   try {
-    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}`, {
+    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=true`, {
       method: "GET",
       headers: {
         "Accept": "application/json",
