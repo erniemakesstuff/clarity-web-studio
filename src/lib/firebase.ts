@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/a
 import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
-// Replace these with your actual Firebase project credentials
+// These values are pulled from the .env file
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -12,14 +12,6 @@ const firebaseConfig: FirebaseOptions = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
-
-// Check for placeholder values to provide a more helpful error.
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("YOUR_API_KEY")) {
-    console.error("Firebase API Key is not configured. Please add your Firebase credentials to the .env file.");
-    // To avoid crashing the app entirely during development, we can use a dummy object here
-    // but features requiring auth will fail. In a real app, you might throw an error.
-}
-
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
