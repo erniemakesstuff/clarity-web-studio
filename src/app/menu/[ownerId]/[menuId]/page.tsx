@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -247,13 +248,13 @@ export default function MenuPage() {
           </div>
           
           {categories.length > 0 ? (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-              <TabsList className="flex flex-wrap justify-start mb-8 gap-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8 flex flex-col">
+              <TabsList className="flex flex-wrap h-auto justify-start rounded-lg bg-muted p-2 gap-2 mb-8">
                 {categories.map(category => (
                   <TabsTrigger 
                     key={category.name} 
                     value={category.name} 
-                    className="flex-initial rounded-md px-3 py-2 text-sm sm:text-base bg-muted text-muted-foreground hover:bg-secondary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:hover:bg-primary/90"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
                   >
                     {categoryIcons[category.name] || <Utensils className="mr-2 h-5 w-5" />}
                     {category.name} ({category.name === "All" ? menuItems.length : category.items.length})
@@ -264,7 +265,7 @@ export default function MenuPage() {
               {categories.map(category => (
                 <TabsContent key={category.name} value={category.name}>
                   {currentCategoryItems.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                       {currentCategoryItems.map(item => (
                         <MenuItemCard key={item.id} item={item} onUpsellClick={handleUpsellClick} />
                       ))}
