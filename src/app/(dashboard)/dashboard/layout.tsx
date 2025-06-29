@@ -1,6 +1,6 @@
-
 "use client";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname as usePathname_ } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -55,15 +55,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname_();
   const router = useRouter();
 
-  if (isAuthLoading) {
-    return <div className="flex h-screen items-center justify-center"><p>Loading authentication...</p></div>;
-  }
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated) {
+      router.replace("/signin");
+    }
+  }, [isAuthLoading, isAuthenticated, router]);
 
-  if (!isAuthenticated) {
-     if (typeof window !== 'undefined') { 
-        router.replace("/signin");
-     }
-    return <div className="flex h-screen items-center justify-center"><p>Redirecting to login...</p></div>;
+  if (isAuthLoading || !isAuthenticated) {
+    return <div className="flex h-screen items-center justify-center"><p>Loading...</p></div>;
   }
   
   const isActualAdmin = rawOwnerId === ADMIN_USER_RAW_ID;

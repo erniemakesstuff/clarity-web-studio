@@ -80,12 +80,12 @@ export default function HomePage() {
                 Effortless Management, Powerful Results
               </h2>
               <p className="text-lg text-muted-foreground mb-4">
-                Our intuitive dashboard provides you with actionable insights into menu performance, upsell effectiveness, and customer preferences. Manage your digital menu, get help drafting marketing materials, and watch your restaurant grow.
+                Our intuitive dashboard provides you with actionable insights into menu performance, upsell effectiveness, and customer preferences. Manage your digital menu, draft marketing materials, and watch your restaurant grow.
               </p>
               <ul className="space-y-2 text-muted-foreground">
                 <li className="flex items-center"><Zap size={20} className="text-primary mr-2"/> Track trending items and popular choices.</li>
                 <li className="flex items-center"><BarChart size={20} className="text-primary mr-2"/> Monitor upsell conversion rates and optimize suggestions.</li>
-                <li className="flex items-center"><Sparkles size={20} className="text-primary mr-2"/> Draft marketing content with AI assistance.</li>
+                <li className="flex items-center"><Sparkles size={20} className="text-primary mr-2"/> Generate marketing content with AI.</li>
               </ul>
             </div>
           </div>
