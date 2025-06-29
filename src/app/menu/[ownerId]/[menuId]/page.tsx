@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -191,7 +190,7 @@ export default function MenuPage() {
 
 
   return (
-    <div className={`flex flex-col ${viewMode === 'feed' ? 'h-screen bg-black' : 'min-h-screen bg-background'}`}>
+    <div className={`flex flex-col ${viewMode === 'feed' ? 'h-screen bg-gradient-to-br from-primary to-black' : 'min-h-screen bg-background'}`}>
       <AppHeader />
       
       {viewMode === 'feed' ? (
