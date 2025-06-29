@@ -23,7 +23,7 @@ export function AppHeader() {
         <nav className="flex items-center gap-4">
           {!isAuthenticated && (
             <Button variant="ghost" asChild>
-              <Link href="/menu/demo">Demo Menu</Link>
+              <Link href="/menu/JY2NyRbbjOosr7bDzQywJG7-BhQh29g-w6NQQoyr2k8/TESTMENU0">Demo Menu</Link>
             </Button>
           )}
           {isAuthenticated ? (
