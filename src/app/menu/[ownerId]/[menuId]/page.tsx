@@ -195,7 +195,7 @@ export default function MenuPage() {
       <AppHeader />
       
       {viewMode === 'feed' ? (
-        <main className="flex-grow flex items-center justify-center overflow-hidden">
+        <main className="flex-grow overflow-hidden">
           <SwipeFeed 
             items={menuItems} 
             onUpsellClick={handleUpsellClick} 
@@ -305,5 +305,3 @@ export default function MenuPage() {
     </div>
   );
 }
-
-    

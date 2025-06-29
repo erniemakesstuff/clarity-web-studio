@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { MenuItem } from "@/lib/types";
@@ -58,24 +59,21 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick, onItemViewed }: 
 
   return (
     <div
-      className="h-full w-full max-w-sm overflow-y-auto snap-y snap-mandatory"
+      className="h-full w-full max-w-sm mx-auto overflow-y-auto snap-y snap-mandatory"
     >
       {items.map((item, index) => (
         <div
           key={item.id}
           ref={(el) => (itemRefs.current[index] = el)}
           data-item-id={item.id}
-          // Make each snap target slightly shorter than the viewport to allow peeking
           className="h-[95%] w-full snap-center flex-shrink-0 flex items-center justify-center p-4"
         >
-          <div className="h-full w-full">
-            <FeedItemDisplay 
-              item={item} 
-              allMenuItems={allMenuItems}
-              onUpsellClick={onUpsellClick}
-              onUpsellViewed={handleUpsellViewed} 
-            />
-          </div>
+          <FeedItemDisplay 
+            item={item} 
+            allMenuItems={allMenuItems}
+            onUpsellClick={onUpsellClick}
+            onUpsellViewed={handleUpsellViewed} 
+          />
         </div>
       ))}
     </div>
