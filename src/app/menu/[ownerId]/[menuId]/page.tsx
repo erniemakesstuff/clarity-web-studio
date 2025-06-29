@@ -37,6 +37,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
 
 
 export default function MenuPage({ params }: { params: { ownerId: string, menuId: string } }) {
+  const { ownerId, menuId } = params;
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -52,7 +53,7 @@ export default function MenuPage({ params }: { params: { ownerId: string, menuId
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!params.ownerId || !params.menuId) {
+    if (!ownerId || !menuId) {
       setIsLoading(false);
       setFetchError("Missing restaurant owner or menu ID.");
       return;
@@ -61,13 +62,13 @@ export default function MenuPage({ params }: { params: { ownerId: string, menuId
     setIsLoading(true);
     setFetchError(null);
 
-    fetchPublicMenuData(params.ownerId, params.menuId)
+    fetchPublicMenuData(ownerId, menuId)
       .then(result => {
         if (result.success && result.menu) {
           const fetchedMenuItems = result.menu;
           setMenuItems(fetchedMenuItems);
           setFilteredItems(fetchedMenuItems); 
-          setRestaurantName(result.restaurantName || params.menuId);
+          setRestaurantName(result.restaurantName || menuId);
           
           const uniqueCategories = Array.from(new Set(fetchedMenuItems.map(item => item.category || "Other")));
           const categorizedMenuData: MenuCategory[] = uniqueCategories
@@ -100,7 +101,7 @@ export default function MenuPage({ params }: { params: { ownerId: string, menuId
       .finally(() => {
         setIsLoading(false);
       });
-  }, [params.ownerId, params.menuId, toast]);
+  }, [ownerId, menuId, toast]);
 
   useEffect(() => {
     let itemsToFilter = menuItems; 
@@ -294,10 +295,12 @@ export default function MenuPage({ params }: { params: { ownerId: string, menuId
       {viewMode === 'category' && (
          <footer className="py-6 border-t bg-muted mt-auto">
             <div className="container mx-auto px-6 text-center text-muted-foreground text-sm">
-              Enjoy your meal at {restaurantName || `Menu for ${params.menuId}`}!
+              Enjoy your meal at {restaurantName || `Menu for ${menuId}`}!
             </div>
           </footer>
       )}
     </div>
   );
 }
+
+    
