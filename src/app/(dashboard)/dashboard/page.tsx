@@ -1,16 +1,20 @@
 
 "use client";
-import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BarChart, Utensils, TrendingUp, ShoppingBag, Users, Code2 } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
+import Image from "next/image";
+import QRCode from "qrcode";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { BarChart, Utensils, TrendingUp, ShoppingBag, Users, Code2, QrCode as QrCodeIcon, Share2, Printer, Download } from "lucide-react";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart } from "recharts"
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { subMonths, startOfWeek, format } from "date-fns";
 import type { ChartConfig as ChartConfigType } from "@/components/ui/chart";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
 const DEV_USER_RAW_ID = "admin@example.com";
 
@@ -44,8 +48,81 @@ const getSafeCategory = (catString?: string | null): string => {
 };
 
 export default function DashboardOverviewPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, rawMenuApiResponseText } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, hashedOwnerId, rawMenuApiResponseText } = useAuth();
+  const { toast } = useToast();
   const analyticsData = selectedMenuInstance?.analytics;
+
+  const [publicMenuUrl, setPublicMenuUrl] = useState("");
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
+
+  useEffect(() => {
+    if (selectedMenuInstance && hashedOwnerId && typeof window !== 'undefined') {
+      const url = `${window.location.origin}/menu/${hashedOwnerId}/${selectedMenuInstance.id}`;
+      setPublicMenuUrl(url);
+
+      QRCode.toDataURL(url, {
+        width: 256,
+        margin: 2,
+        errorCorrectionLevel: 'H'
+      })
+        .then(dataUrl => {
+          setQrCodeDataUrl(dataUrl);
+        })
+        .catch(err => {
+          console.error('Failed to generate QR code', err);
+          toast({
+            title: "QR Code Error",
+            description: "Could not generate a QR code for the menu URL.",
+            variant: "destructive",
+          });
+          setQrCodeDataUrl('');
+        });
+    } else {
+      setPublicMenuUrl("");
+      setQrCodeDataUrl("");
+    }
+  }, [selectedMenuInstance, hashedOwnerId, toast]);
+
+  const handleShare = async () => {
+    if (!publicMenuUrl || !selectedMenuInstance) return;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${selectedMenuInstance.name} Menu`,
+          text: `Check out the menu for ${selectedMenuInstance.name}`,
+          url: publicMenuUrl,
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+        toast({
+          title: "Share Canceled",
+          description: "The share action was canceled or failed.",
+          variant: "default"
+        });
+      }
+    } else {
+      await navigator.clipboard.writeText(publicMenuUrl);
+      toast({ title: 'URL Copied!', description: 'Menu URL copied to your clipboard.' });
+    }
+  };
+
+  const handlePrint = () => {
+    if (!qrCodeDataUrl) return;
+    const printWindow = window.open('', '', 'height=600,width=800');
+    if (printWindow) {
+      printWindow.document.write('<html><head><title>Print QR Code</title><style>body { display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; } img { max-width: 90%; max-height: 90%; object-fit: contain; }</style></head><body>');
+      printWindow.document.write('<img src="' + qrCodeDataUrl + '" />');
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
+  };
+
 
   const { stats, weeklyChartData, weeklyChartConfig } = useMemo(() => {
     if (!analyticsData || analyticsData.length === 0) {
@@ -260,7 +337,44 @@ export default function DashboardOverviewPage() {
           </CardContent>
         </Card>
 
-        {rawOwnerId === DEV_USER_RAW_ID && rawMenuApiResponseText && (
+        {selectedMenuInstance && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <QrCodeIcon className="h-6 w-6" />
+              Share Your Digital Menu
+            </CardTitle>
+            <CardDescription>
+              Customers can scan this QR code with their phone to view your interactive menu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center gap-4">
+            {qrCodeDataUrl ? (
+              <Image src={qrCodeDataUrl} width={200} height={200} alt="Menu QR Code" className="rounded-lg shadow-md" />
+            ) : (
+              <Skeleton className="h-[200px] w-[200px]" />
+            )}
+            <p className="text-sm text-muted-foreground break-all bg-secondary p-2 rounded-md max-w-full">
+              {publicMenuUrl || "Generating URL..."}
+            </p>
+          </CardContent>
+          <CardFooter className="flex justify-center gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleShare} disabled={!publicMenuUrl}>
+              <Share2 className="mr-2" /> Share
+            </Button>
+            <Button variant="outline" onClick={handlePrint} disabled={!qrCodeDataUrl}>
+              <Printer className="mr-2" /> Print
+            </Button>
+            <Button asChild disabled={!qrCodeDataUrl}>
+              <a href={qrCodeDataUrl} download={`${selectedMenuInstance.id}-qr-code.png`}>
+                <Download className="mr-2" /> Save
+              </a>
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
+      {rawOwnerId === DEV_USER_RAW_ID && rawMenuApiResponseText && (
           <Card className="shadow-lg mt-8">
             <CardHeader>
               <CardTitle className="flex items-center text-xl">
