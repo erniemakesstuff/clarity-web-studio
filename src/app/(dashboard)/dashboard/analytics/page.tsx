@@ -94,12 +94,23 @@ export default function AnalyticsPage() {
   const { itemPerformanceData, itemPerformanceChartConfig } = useMemo(() => {
     if (!analyticsData) return { itemPerformanceData: [], itemPerformanceChartConfig: { config: {}, payload: [] } };
     
-    const allItems = (analyticsData || [])
-        .map(item => ({
-            name: item.food_name,
-            count: item.purchase_count,
-            category: getSafeCategory(item.food_category),
-        }))
+    const itemMap = new Map<string, { name: string; count: number; category: string }>();
+
+    analyticsData.forEach(entry => {
+        const name = entry.food_name.trim();
+        const existing = itemMap.get(name);
+        if (existing) {
+            existing.count += entry.purchase_count;
+        } else {
+            itemMap.set(name, {
+                name: name,
+                count: entry.purchase_count,
+                category: getSafeCategory(entry.food_category),
+            });
+        }
+    });
+
+    const allItems = Array.from(itemMap.values())
         .sort((a, b) => {
             if (a.category < b.category) return -1;
             if (a.category > b.category) return 1;
@@ -111,16 +122,15 @@ export default function AnalyticsPage() {
     const config: ChartConfig = {};
     const payload = itemCategories.map((category, index) => {
       const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-      const sanitizedKey = category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
       config[category] = {
         label: category,
-        color: `var(--color-${sanitizedKey})`,
+        color: color,
       };
       return {
         value: category,
         type: 'square',
         id: category,
-        color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+        color: color,
       };
     });
 
@@ -363,3 +373,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
