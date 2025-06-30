@@ -1,4 +1,3 @@
-
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,15 +18,9 @@ export function AppHeader() {
     router.push("/");
   };
   
-  // Minimal header for customer-facing menu page
+  // No header for customer-facing menu page to maximize screen space
   if (isMenuPage) {
-    return (
-      <header className="sticky top-0 z-50 w-full bg-transparent">
-        <div className="container flex h-16 max-w-screen-2xl items-center">
-          <Logo className="text-primary-foreground" />
-        </div>
-      </header>
-    );
+    return null;
   }
 
   // Full header for all other pages
