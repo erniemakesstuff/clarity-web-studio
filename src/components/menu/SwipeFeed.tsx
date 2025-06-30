@@ -81,9 +81,9 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick }: SwipeFeedProps
           key={item.id}
           ref={(el) => (itemRefs.current[index] = el)}
           data-item-name={item.name}
-          className="h-full w-full snap-center flex-shrink-0 flex items-center justify-center p-4"
+          className="h-[95%] w-full snap-center flex-shrink-0 flex items-center justify-center p-4"
         >
-          <div className="h-[95%] w-full max-w-sm">
+          <div className="h-full w-full max-w-sm">
              <FeedItemDisplay 
                 item={item} 
                 allMenuItems={allMenuItems}
