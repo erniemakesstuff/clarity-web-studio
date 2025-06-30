@@ -1,7 +1,7 @@
 
 'use server';
 
-const API_BASE_URL = "https://api.bityfan.com";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface PatchMenuPayload {
   allowABTesting?: boolean;

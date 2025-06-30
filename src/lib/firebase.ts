@@ -13,6 +13,13 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Check if the API key is missing or is still the placeholder value.
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("REPLACE_WITH_YOUR")) {
+    const errorMessage = "Firebase API Key is missing or not configured. Please add NEXT_PUBLIC_FIREBASE_API_KEY to your .env file with your actual credential. The app cannot start without it.";
+    // This error will be thrown during initialization, making it very clear.
+    throw new Error(errorMessage);
+}
+
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);

@@ -5,7 +5,7 @@ import type { AuthContextType } from '@/contexts/AuthContext';
 import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult, MenuItem as FrontendMenuItem } from '@/lib/types';
 
 
-const API_BASE_URL = "https://api.bityfan.com";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface GetPresignedUrlParams {
   ownerId: string; // Hashed

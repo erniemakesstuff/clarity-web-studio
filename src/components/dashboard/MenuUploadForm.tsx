@@ -15,7 +15,6 @@ import type { ExtractedMenuItem } from "@/lib/types";
 import Image from "next/image";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { generateDeterministicIdHash } from "@/lib/hash-utils";
 
 interface QueuedItem {
   id: string;
@@ -54,9 +53,7 @@ export function MenuUploadForm() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isDeveloperUser = ADMIN_USER_RAW_IDS.includes(rawOwnerId || "");
-  const devUserHashedIdToUse = generateDeterministicIdHash("admin@example.com");
-
+  const isDeveloperUser = rawOwnerId ? ADMIN_USER_RAW_IDS.includes(rawOwnerId) : false;
 
   useEffect(() => {
     if (selectedMenuInstance && selectedMenuInstance.s3ContextImageUrls && selectedMenuInstance.s3ContextImageUrls.length > 0 && !isProcessing && workflowOutcome === null) {
@@ -413,7 +410,7 @@ export function MenuUploadForm() {
     setCurrentProgress(0);
     setProgressMessage("Manually starting workflow...");
 
-    const ownerIdToUse = devUserHashedIdToUse; // Use dev user's hashed ID for this manual action
+    const ownerIdToUse = ownerId; 
     const menuId = selectedMenuInstance.id;
 
     try {

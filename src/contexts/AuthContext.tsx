@@ -78,20 +78,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const syncUserWithBackend = useCallback(async (firebaseUser: User) => {
     if (!firebaseUser) return;
   
-    const API_BASE_URL = "https://api.bityfan.com";
+    await firebaseUser.reload();
     const token = await firebaseUser.getIdToken();
   
     const createUser = async () => {
       console.log(`Attempting to create user ${firebaseUser.uid} in backend.`);
+
+      // Explicitly check providerData for the most reliable user info
+      const googleProviderData = firebaseUser.providerData.find(p => p.providerId === 'google.com');
+
       const newUserProfile = {
         userId: firebaseUser.uid,
         menuGrants: [],
         subscriptionStatus: "active",
-        contactInfoEmail: firebaseUser.email || "",
-        contactInfoPhone: firebaseUser.phoneNumber || "",
-        name: firebaseUser.displayName || firebaseUser.email || "New User",
+        contactInfoEmail: firebaseUser.email || googleProviderData?.email || "",
+        contactInfoPhone: firebaseUser.phoneNumber || googleProviderData?.phoneNumber || "",
+        name: firebaseUser.displayName || googleProviderData?.displayName || firebaseUser.email || "New User",
       };
-      const createResponse = await fetch(`${API_BASE_URL}/ris/v1/user`, {
+
+      const createResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -102,6 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
+        // This specific error will be caught and logged by the caller
         throw new Error(`Backend user creation failed. Status: ${createResponse.status}. Response: ${errorText}`);
       }
       
@@ -111,7 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Check if user exists. If this fails for any reason (network, 404, etc.),
     // we will proceed to attempt to create the user.
     try {
-      const response = await fetch(`${API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,8 +129,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log(`User ${firebaseUser.uid} already exists in backend.`);
         return; // User exists, we are done.
       }
-      // Any other status (404, 500, etc.) means we should try to create.
+      
+      // Any non-OK status (like 404) means we should try to create the user.
+      // We will fall through to the createUser call below.
+      console.log(`User ${firebaseUser.uid} not found (Status: ${response.status}). Attempting to create.`);
+
     } catch (getErr: any) {
+      // This catches network errors etc. where no response was received.
       console.warn(`Could not check for user, proceeding with creation attempt. Error: ${getErr.message}`);
     }
 
@@ -132,39 +143,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await createUser();
     } catch (createError: any) {
-      console.error("Critical: Failed to create user in backend.", createError.message);
+      // If the create user call also fails, log its message but do not show a blocking toast to the user.
+      // This allows the app to function even if the backend is unavailable during sign-up.
+      console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
     }
   }, []);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true);
-      if (firebaseUser) {
-        await firebaseUser.reload();
-        const currentUser = auth.currentUser; // Use the refreshed currentUser
-
-        if (currentUser) {
-            const token = await currentUser.getIdToken();
-            setUser(currentUser);
-            setJwtToken(token);
-            setIsAuthenticated(true);
-            await syncUserWithBackend(currentUser);
-        } else {
-            setUser(null);
-            setJwtToken(null);
-            setIsAuthenticated(false);
-            clearMenuData();
-        }
-      } else {
-        setUser(null);
-        setJwtToken(null);
-        setIsAuthenticated(false);
-        clearMenuData();
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [syncUserWithBackend]);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated || !ownerId) {
@@ -222,7 +205,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
       }
     } else {
-       if (result.message && !(user?.email === "admin@example.com" && result.rawResponseText)) {
+       if (result.message && !((user?.email && ADMIN_USER_RAW_IDS.includes(user.email)) && result.rawResponseText)) {
          toast({
             title: "Error Fetching Menus",
             description: result.message,
@@ -236,13 +219,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoadingMenuInstances(false);
   }, [isAuthenticated, user, ownerId, toast, selectedMenuInstance?.id]);
 
-
   useEffect(() => {
     if (isAuthenticated) {
       loadMenuData();
     }
   }, [isAuthenticated, loadMenuData]);
 
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        await firebaseUser.reload();
+        const currentUser = auth.currentUser; // Use the refreshed currentUser
+
+        if (currentUser) {
+            const token = await currentUser.getIdToken();
+            setUser(currentUser);
+            setJwtToken(token);
+            setIsAuthenticated(true);
+            await syncUserWithBackend(currentUser);
+        } else {
+            setUser(null);
+            setJwtToken(null);
+            setIsAuthenticated(false);
+            clearMenuData();
+        }
+      } else {
+        setUser(null);
+        setJwtToken(null);
+        setIsAuthenticated(false);
+        clearMenuData();
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [syncUserWithBackend]);
 
   const signUpWithEmail = async (email: string, pass: string) => {
     return createUserWithEmailAndPassword(auth, email, pass);
