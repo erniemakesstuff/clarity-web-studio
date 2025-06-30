@@ -82,8 +82,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = await firebaseUser.getIdToken();
   
     const createUser = async () => {
-      console.log(`Attempting to create user ${firebaseUser.uid} in backend.`);
-
       const googleProviderData = firebaseUser.providerData.find(p => p.providerId === 'google.com');
 
       const newUserProfile = {
@@ -94,6 +92,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         contactInfoPhone: googleProviderData?.phoneNumber || firebaseUser.phoneNumber || "",
         name: googleProviderData?.displayName || firebaseUser.displayName || firebaseUser.email || "New User",
       };
+      
+      console.log("Attempting to create user in backend with payload:", JSON.stringify(newUserProfile, null, 2));
 
       const createResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user`, {
         method: "POST",
