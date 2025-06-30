@@ -3,35 +3,30 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-interface PatchMenuPayload {
-  // Keyphrase removed
+interface GrantAccessParams {
+    targetUserId: string;
+    grantToAdd: string; // e.g., "owner123:menuABC"
+    jwtToken: string | null;
 }
 
-interface PatchMenuParams {
-  ownerId: string;
-  menuId: string;
-  payload: PatchMenuPayload;
-  jwtToken: string | null;
+interface GrantAccessResult {
+    success: boolean;
+    message?: string;
 }
 
-interface PatchMenuResult {
-  success: boolean;
-  message?: string;
-}
-
-export async function patchMenuSettings(params: PatchMenuParams): Promise<PatchMenuResult> {
-    const { ownerId, menuId, payload, jwtToken } = params;
+export async function grantMenuAccessToUser(params: GrantAccessParams): Promise<GrantAccessResult> {
+    const { targetUserId, grantToAdd, jwtToken } = params;
 
     try {
         const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
         
+        // The backend is expected to handle appending this grant to the user's existing grants.
         const requestBody = {
-            ownerId,
-            menuId,
-            ...payload,
+            userId: targetUserId,
+            menuGrants: [grantToAdd],
         };
 
-        const response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
+        const response = await fetch(`${API_BASE_URL}/ris/v1/user`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -41,7 +36,7 @@ export async function patchMenuSettings(params: PatchMenuParams): Promise<PatchM
         });
 
         if (response.ok) {
-            return { success: true, message: 'Menu settings updated successfully.' };
+            return { success: true, message: 'Menu access granted successfully.' };
         } else {
             let errorMessage = `Backend error: ${response.status}`;
             try {
@@ -53,7 +48,7 @@ export async function patchMenuSettings(params: PatchMenuParams): Promise<PatchM
             return { success: false, message: errorMessage };
         }
     } catch (error: any) {
-        let detailedErrorMessage = 'Failed to update settings.';
+        let detailedErrorMessage = `Failed to grant access.`;
         if (error.message.toLowerCase().includes('fetch failed')) {
             detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL}.`;
         } else {
