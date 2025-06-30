@@ -102,6 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
+        console.error(`Backend user creation failed. Status: ${createResponse.status}. Response: ${errorText}`);
         throw new Error(`Failed to create user in backend: ${createResponse.status} ${errorText}`);
       }
       console.log(`Successfully created user ${firebaseUser.uid} in backend.`);
