@@ -80,22 +80,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
     await firebaseUser.reload();
     const token = await firebaseUser.getIdToken();
-  
-    const createUser = async () => {
-      const googleProviderData = firebaseUser.providerData.find(p => p.providerId === 'google.com');
+    const googleProviderData = firebaseUser.providerData.find(p => p.providerId === 'google.com');
 
-      const newUserProfile = {
-        userId: firebaseUser.uid,
-        menuGrants: [],
-        subscriptionStatus: "active",
-        contactInfoEmail: googleProviderData?.email || firebaseUser.email || "",
-        contactInfoPhone: googleProviderData?.phoneNumber || firebaseUser.phoneNumber || "",
-        name: googleProviderData?.displayName || firebaseUser.displayName || firebaseUser.email || "New User",
-      };
-      
-      console.log("Attempting to create user in backend with payload:", JSON.stringify(newUserProfile, null, 2));
+    const newUserProfile = {
+      userId: firebaseUser.uid,
+      menuGrants: [],
+      subscriptionStatus: "active",
+      contactInfoEmail: googleProviderData?.email || firebaseUser.email || "",
+      contactInfoPhone: googleProviderData?.phoneNumber || firebaseUser.phoneNumber || "",
+      name: googleProviderData?.displayName || firebaseUser.displayName || firebaseUser.email || "New User",
+    };
+    
+    console.log("Synchronizing user with backend. Payload:", JSON.stringify(newUserProfile, null, 2));
 
-      const createResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user`, {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user`, {
         method: "POST",
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -104,38 +103,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(newUserProfile),
       });
   
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text();
-        throw new Error(`Backend user creation failed. Status: ${createResponse.status}. Response: ${errorText}`);
+      if (!response.ok) {
+        // The backend should handle existing users gracefully (e.g., return 200 or 409).
+        // We log non-2xx responses as a warning but don't treat it as a critical failure.
+        const errorText = await response.text();
+        console.warn(`Backend user sync issue. Status: ${response.status}. Response: ${errorText.substring(0, 500)}`);
+      } else {
+        console.log(`Successfully synchronized user ${firebaseUser.uid} with backend.`);
       }
-      
-      console.log(`Successfully created user ${firebaseUser.uid} in backend.`);
-    };
-  
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-  
-      if (response.ok) {
-        console.log(`User ${firebaseUser.uid} already exists in backend.`);
-        return;
-      }
-      
-      console.log(`User ${firebaseUser.uid} not found (Status: ${response.status}). Attempting to create.`);
-
-    } catch (getErr: any) {
-      console.warn(`Could not check for user, proceeding with creation attempt. Error: ${getErr.message}`);
-    }
-
-    try {
-      await createUser();
-    } catch (createError: any) {
-      console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
+    } catch (error: any) {
+       console.error("Critical: Failed to synchronize user with backend. The user will be logged in on the frontend but may face issues with backend-dependent features.", error.message);
     }
   }, []);
 
