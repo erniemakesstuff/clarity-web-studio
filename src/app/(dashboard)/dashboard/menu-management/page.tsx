@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -34,18 +35,11 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"]; 
 
 export default function MenuManagementPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem, rawOwnerId } = useAuth(); // Use rawOwnerId from AuthContext for consistency
+  const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem, rawOwnerId, ownerId } = useAuth();
   const { toast } = useToast();
   const [menuCategories, setMenuCategories] = useState<MenuCategoryType[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<MenuItem | null>(null);
-  const [hashedOwnerIdForLink, setHashedOwnerIdForLink] = useState("");
-
-  useEffect(() => {
-    if (rawOwnerId) { // rawOwnerId from AuthContext is used here
-      setHashedOwnerIdForLink(generateDeterministicIdHash(rawOwnerId));
-    }
-  }, [rawOwnerId]);
 
   useEffect(() => {
     if (selectedMenuInstance && selectedMenuInstance.menu.length > 0) {
@@ -133,9 +127,9 @@ export default function MenuManagementPage() {
               {selectedMenuInstance ? `Items for "${selectedMenuInstance.name}"` : "No menu selected or menu is empty."}
             </CardDescription>
           </div>
-          {selectedMenuInstance && hashedOwnerIdForLink && (
+          {selectedMenuInstance && ownerId && (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/menu/${hashedOwnerIdForLink}/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
+              <Link href={`/menu/${ownerId}/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
                 <Eye className="mr-2 h-4 w-4" /> View As Customer
               </Link>
             </Button>

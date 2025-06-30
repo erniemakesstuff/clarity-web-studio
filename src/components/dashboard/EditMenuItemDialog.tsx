@@ -49,7 +49,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
   const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance, hashedOwnerId } = useAuth(); // Use hashedOwnerId from context
+  const { jwtToken, selectedMenuInstance, ownerId } = useAuth();
 
   useEffect(() => {
     if (item && isOpen) {
@@ -139,9 +139,8 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       _tempVisualDescriptionForSave: effectiveVisualDescription,
     };
     
-    // Use hashedOwnerId from AuthContext for backend call
     const backendResult = await updateMenuItemOnBackend({
-        ownerId: hashedOwnerId,
+        ownerId: ownerId,
         menuId: selectedMenuInstance.id,
         targetEntryName: item.name, 
         itemData: updatedItemFromDialog,

@@ -31,7 +31,7 @@ export interface AuthContextType {
   isLoading: boolean;
   jwtToken: string | null;
   rawOwnerId: string | null;
-  hashedOwnerId: string;
+  ownerId: string;
   signInWithEmail: (email: string, pass: string) => Promise<any>;
   signUpWithEmail: (email: string, pass: string) => Promise<any>;
   signInWithGoogle: () => Promise<void>;
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const rawOwnerId = user?.email || null;
-  const hashedOwnerId = user ? generateDeterministicIdHash(user.uid) : "";
+  const ownerId = user?.uid || "";
 
   const clearMenuData = () => {
     setMenuInstances([]);
@@ -104,6 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // If it's a 404, we just fall through and let userExists be false.
     } catch (err: any) {
       // This catches network errors (e.g., "Failed to fetch") or CORS issues
+      // It's expected to fail here for a new user if CORS is not perfectly set up yet for this path, so we warn and continue
       console.warn('Could not check for user (network error or CORS), assuming they need to be created.', err.message);
     }
     
@@ -135,13 +136,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log(`Successfully created user ${firebaseUser.uid} in backend.`);
       } catch (createError: any) {
         // This is a critical but non-blocking error, logged for dev purposes.
-        console.error("Critical: Failed to create user in backend. User may face issues.", createError.message);
+        // It's a console.error because it's important for the dev to see, but not a toast to avoid alarming the user.
+        console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
       }
     }
   }, []);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
-    if (!isAuthenticated || !hashedOwnerId) {
+    if (!isAuthenticated || !ownerId) {
       clearMenuData();
       setIsLoadingMenuInstances(false);
       return;
@@ -170,7 +172,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     
     const token = await user?.getIdToken();
-    const result = await fetchMenuInstancesFromBackend(hashedOwnerId, token || null);
+    const result = await fetchMenuInstancesFromBackend(ownerId, token || null);
     
     setRawMenuApiResponseText(result.rawResponseText || null);
     localStorage.setItem(RAW_MENU_API_RESPONSE_LS_KEY, result.rawResponseText || "");
@@ -208,7 +210,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, user, hashedOwnerId, toast, selectedMenuInstance?.id]);
+  }, [isAuthenticated, user, ownerId, toast, selectedMenuInstance?.id]);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -307,7 +310,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     const token = await user?.getIdToken();
     const result = await patchMenu({
-        ownerId: hashedOwnerId,
+        ownerId: ownerId,
         menuId,
         payload: { allowABTesting: enable },
         jwtToken: token || null,
@@ -386,7 +389,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     jwtToken,
     rawOwnerId,
-    hashedOwnerId,
+    ownerId,
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,

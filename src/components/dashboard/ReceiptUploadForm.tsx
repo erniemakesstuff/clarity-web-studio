@@ -24,7 +24,7 @@ export function ReceiptUploadForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance, hashedOwnerId } = useAuth();
+  const { jwtToken, selectedMenuInstance, ownerId } = useAuth();
 
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -155,7 +155,7 @@ export function ReceiptUploadForm() {
       // 1. Get presigned S3 URL from our backend (without sending file payload)
       const presignedUrlResult = await getReceiptPresignedUploadUrl(
         {
-          ownerId: hashedOwnerId,
+          ownerId: ownerId,
           menuId: selectedMenuInstance.id,
           mediaType: selectedFile.type,
         },
@@ -185,7 +185,7 @@ export function ReceiptUploadForm() {
       // 3. Call reconcile endpoint
       const reconcileResult = await reconcileReceiptWithBackend(
         {
-          ownerId: hashedOwnerId,
+          ownerId: ownerId,
           menuId: selectedMenuInstance.id,
           imageUrl: presignedUrlResult.finalMediaUrl,
         },

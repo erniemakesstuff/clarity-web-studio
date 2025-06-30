@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -44,7 +45,7 @@ export function MenuUploadForm() {
   const [processedImageUrls, setProcessedImageUrls] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance, refreshMenuInstances, rawOwnerId, hashedOwnerId } = useAuth();
+  const { jwtToken, selectedMenuInstance, refreshMenuInstances, rawOwnerId, ownerId } = useAuth();
 
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -264,7 +265,7 @@ export function MenuUploadForm() {
     setCurrentProgress(0);
     setProgressMessage("Starting process...");
 
-    const ownerIdToUse = hashedOwnerId; // Use hashedOwnerId from AuthContext
+    const ownerIdToUse = ownerId;
     const menuId = selectedMenuInstance.id;
     const itemsToProcess: QueuedItem[] = [];
 
