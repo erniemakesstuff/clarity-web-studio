@@ -275,6 +275,7 @@ export async function updateMenuItemOnBackend(
 
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
+    console.log("Authorization Header for PUT /ris/v1/menu/item:", authorizationValue);
     const response = await fetch(`${API_BASE_URL}/ris/v1/menu/item`, {
       method: "PUT",
       headers: {
