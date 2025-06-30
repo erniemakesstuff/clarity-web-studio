@@ -201,7 +201,7 @@ export default function MenuPage() {
             <Button
               variant="outline"
               size="lg"
-              className="rounded-full shadow-lg bg-background hover:bg-secondary"
+              className="rounded-full shadow-lg border-white/20 bg-black/40 text-white/90 backdrop-blur-sm hover:bg-black/60"
               onClick={() => setViewMode('category')}
             >
               <LayoutGrid className="mr-2 h-5 w-5" />

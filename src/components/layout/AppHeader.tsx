@@ -1,5 +1,7 @@
+
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/common/Logo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,12 +11,26 @@ import { User, LogOut, LayoutDashboard } from "lucide-react";
 export function AppHeader() {
   const { isAuthenticated, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isMenuPage = pathname.startsWith('/menu/');
 
   const handleLogout = () => {
     logout();
     router.push("/");
   };
+  
+  // Minimal header for customer-facing menu page
+  if (isMenuPage) {
+    return (
+      <header className="sticky top-0 z-50 w-full bg-transparent">
+        <div className="container flex h-16 max-w-screen-2xl items-center">
+          <Logo className="text-primary-foreground" />
+        </div>
+      </header>
+    );
+  }
 
+  // Full header for all other pages
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
