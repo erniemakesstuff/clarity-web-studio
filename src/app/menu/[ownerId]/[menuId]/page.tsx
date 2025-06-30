@@ -52,7 +52,7 @@ export default function MenuPage() {
   const [isUpsellDialogOpen, setIsUpsellDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("All");
-  const [viewMode, setViewMode] = useState<'feed' | 'category'>('category');
+  const [viewMode, setViewMode] = useState<'feed' | 'category'>('feed');
   const { toast } = useToast();
 
   useEffect(() => {
