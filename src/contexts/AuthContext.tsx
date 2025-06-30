@@ -16,6 +16,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   type User,
+  type UserCredential,
 } from "firebase/auth";
 
 const MENU_INSTANCES_LS_KEY = "clarityMenuUserMenuInstances";
@@ -119,35 +120,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
       if (response.ok) {
         console.log(`User ${firebaseUser.uid} already exists in backend.`);
-        return; // User exists, no action needed.
+        return;
       }
       
       if (response.status === 404) {
-        // User does not exist, so create them.
         console.log(`User ${firebaseUser.uid} not found. Attempting to create.`);
-        try {
-          await createUser();
-        } catch (createError: any) {
-           // If the create user call also fails, log its message but do not show a blocking toast to the user.
-           // This allows the app to function even if the backend is unavailable during sign-up.
-           console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
-        }
+        await createUser();
       } else {
-        // Handle other non-404 errors during the GET request.
         const errorText = await response.text();
         console.error(`Error checking user existence: ${response.status}. Response: ${errorText}`);
       }
   
     } catch (err: any) {
-      // This block catches network errors for the initial GET request.
-      // We assume the user is new and try to create them.
-      console.warn('Could not check for user (network error or CORS). Assuming new user and attempting to create.');
-      try {
-        await createUser();
-      } catch (createError: any) {
-         // If the create user call also fails, log its message but do not show a blocking toast to the user.
-         console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
-      }
+       console.warn('Could not check for user (network error or CORS). Assuming new user and attempting to create.');
+       try {
+         await createUser();
+       } catch (createError: any) {
+          console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
+       }
     }
   }, []);
 
@@ -263,7 +253,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     provider.addScope('profile');
     provider.addScope('email');
     try {
-      await signInWithPopup(auth, provider);
+      const result: UserCredential = await signInWithPopup(auth, provider);
+      console.log("IDP Response User Object:", {
+        uid: result.user.uid,
+        displayName: result.user.displayName,
+        email: result.user.email,
+        emailVerified: result.user.emailVerified,
+        phoneNumber: result.user.phoneNumber,
+        photoURL: result.user.photoURL,
+        providerId: result.providerId,
+        metadata: result.user.metadata,
+      });
     } catch (error: any) {
       console.error("Error during Google sign-in:", error);
       let description = "Could not sign in with Google. Please try again.";
