@@ -14,7 +14,7 @@ import { useState, useEffect } from "react";
 import { patchMenuSettings } from "./actions";
 
 export default function SettingsPage() {
-  const { selectedMenuInstance, ownerId, isLoadingMenuInstances, refreshMenuInstances, jwtToken } = useAuth();
+  const { selectedMenuInstance, ownerId, isLoadingMenuInstances, refreshMenuInstances, user } = useAuth();
   const { toast } = useToast();
 
   const [keyphraseInput, setKeyphraseInput] = useState("");
@@ -37,33 +37,53 @@ export default function SettingsPage() {
   };
 
   const handleSaveKeyphrase = async () => {
-    if (!selectedMenuInstance) return;
+    if (!selectedMenuInstance) {
+      toast({ title: "Error", description: "No menu selected.", variant: "destructive" });
+      return;
+    }
+    if (!user) {
+      toast({ title: "Authentication Error", description: "User not found. Please try logging in again.", variant: "destructive" });
+      return;
+    }
     
     setIsSaving(true);
-    const result = await patchMenuSettings({
-      ownerId,
-      menuId: selectedMenuInstance.id,
-      payload: { keyphrase: keyphraseInput },
-      jwtToken,
-    });
-    
-    if (result.success) {
-      toast({
-        title: "Keyphrase Updated",
-        description: "Your keyphrase has been saved successfully.",
-        variant: 'default',
-        className: 'bg-green-500 text-white',
+
+    try {
+      const token = await user.getIdToken(true); // Force refresh to get a fresh token
+      console.log("CLIENT-SIDE: Fresh JWT to be sent:", token); // Client-side log for you to see
+
+      const result = await patchMenuSettings({
+        ownerId,
+        menuId: selectedMenuInstance.id,
+        payload: { keyphrase: keyphraseInput },
+        jwtToken: token,
       });
-      await refreshMenuInstances();
-      setIsEditingKeyphrase(false);
-    } else {
-      toast({
-        title: "Update Failed",
-        description: result.message || "Could not save the keyphrase.",
-        variant: "destructive",
+      
+      if (result.success) {
+        toast({
+          title: "Keyphrase Updated",
+          description: "Your keyphrase has been saved successfully.",
+          variant: 'default',
+          className: 'bg-green-500 text-white',
+        });
+        await refreshMenuInstances();
+        setIsEditingKeyphrase(false);
+      } else {
+        toast({
+          title: "Update Failed",
+          description: result.message || "Could not save the keyphrase.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+       toast({
+          title: "Error",
+          description: `An unexpected error occurred: ${error.message}`,
+          variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   if (isLoadingMenuInstances) {
