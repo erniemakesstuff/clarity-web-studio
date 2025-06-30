@@ -4,16 +4,29 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Settings, Share2, KeyRound, Fingerprint, Store } from "lucide-react";
+import { Settings, Share2, KeyRound, Fingerprint, Store, Loader2, Edit, Save, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from "react";
+import { patchMenuSettings } from "./actions";
 
 export default function SettingsPage() {
-  const { selectedMenuInstance, ownerId, isLoadingMenuInstances } = useAuth();
+  const { selectedMenuInstance, ownerId, isLoadingMenuInstances, refreshMenuInstances, jwtToken } = useAuth();
   const { toast } = useToast();
+
+  const [keyphraseInput, setKeyphraseInput] = useState("");
+  const [isEditingKeyphrase, setIsEditingKeyphrase] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (selectedMenuInstance) {
+      setKeyphraseInput(selectedMenuInstance.keyphrase || "");
+      setIsEditingKeyphrase(false);
+    }
+  }, [selectedMenuInstance]);
 
   const handleCopy = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -21,6 +34,36 @@ export default function SettingsPage() {
       title: "Copied to Clipboard",
       description: `${fieldName} has been copied.`,
     });
+  };
+
+  const handleSaveKeyphrase = async () => {
+    if (!selectedMenuInstance) return;
+    
+    setIsSaving(true);
+    const result = await patchMenuSettings({
+      ownerId,
+      menuId: selectedMenuInstance.id,
+      payload: { keyphrase: keyphraseInput },
+      jwtToken,
+    });
+    
+    if (result.success) {
+      toast({
+        title: "Keyphrase Updated",
+        description: "Your keyphrase has been saved successfully.",
+        variant: 'default',
+        className: 'bg-green-500 text-white',
+      });
+      await refreshMenuInstances();
+      setIsEditingKeyphrase(false);
+    } else {
+      toast({
+        title: "Update Failed",
+        description: result.message || "Could not save the keyphrase.",
+        variant: "destructive",
+      });
+    }
+    setIsSaving(false);
   };
 
   if (isLoadingMenuInstances) {
@@ -72,7 +115,7 @@ export default function SettingsPage() {
   }
 
   const menuId = selectedMenuInstance.id;
-  const keyphrase = selectedMenuInstance.keyphrase || "No keyphrase set for this menu.";
+  const originalKeyphrase = selectedMenuInstance.keyphrase || "";
 
   return (
     <div className="space-y-8">
@@ -118,8 +161,32 @@ export default function SettingsPage() {
             <Label htmlFor="keyphrase">Keyphrase</Label>
             <div className="flex items-center gap-2">
               <KeyRound className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-              <Input id="keyphrase" value={keyphrase} readOnly className="font-mono bg-secondary" />
-              <Button variant="outline" size="sm" onClick={() => handleCopy(keyphrase, "Keyphrase")} disabled={!selectedMenuInstance.keyphrase}>
+              <Input 
+                id="keyphrase"
+                value={keyphraseInput} 
+                onChange={(e) => setKeyphraseInput(e.target.value)}
+                readOnly={!isEditingKeyphrase || isSaving}
+                className="font-mono bg-background read-only:bg-secondary read-only:focus-visible:ring-0" 
+                placeholder="No keyphrase set..."
+              />
+              {isEditingKeyphrase ? (
+                <>
+                  <Button onClick={handleSaveKeyphrase} disabled={isSaving || keyphraseInput === originalKeyphrase} size="icon">
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    <span className="sr-only">Save</span>
+                  </Button>
+                   <Button variant="ghost" size="icon" onClick={() => { setIsEditingKeyphrase(false); setKeyphraseInput(originalKeyphrase); }} disabled={isSaving}>
+                    <X className="h-4 w-4" />
+                     <span className="sr-only">Cancel</span>
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setIsEditingKeyphrase(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => handleCopy(keyphraseInput, "Keyphrase")} disabled={!keyphraseInput}>
                 Copy
               </Button>
             </div>
