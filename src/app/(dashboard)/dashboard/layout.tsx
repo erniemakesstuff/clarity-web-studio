@@ -1,3 +1,4 @@
+
 "use client";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -79,6 +80,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const commonNavItems: NavItem[] = [
     { href: "/dashboard/analytics", label: "Analytics", icon: <BarChart /> },
     { href: "/dashboard/experiments", label: "Experiments", icon: <FlaskConical /> },
+    { href: "/dashboard/settings", label: "Settings", icon: <Settings /> },
   ];
 
   const navItems: NavItem[] = [...baseNavItems, ...adminNavItems, ...commonNavItems];

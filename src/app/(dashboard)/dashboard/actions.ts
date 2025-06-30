@@ -32,7 +32,7 @@ function transformBackendEntriesToMenuItems(
             }
             if (dataAiHint.trim() === '') dataAiHint = 'food item';
 
-            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https'))) {
+            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
               mediaObjects.push({
                 type: 'image',
                 url: imageUrl,
@@ -162,6 +162,7 @@ export async function fetchMenuInstancesFromBackend(
           testGoal: digitalMenu.test_goal,
           testHypothesis: digitalMenu.test_hypothesis,
           testHistory: digitalMenu.test_history,
+          keyphrase: digitalMenu.keyphrase,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };
