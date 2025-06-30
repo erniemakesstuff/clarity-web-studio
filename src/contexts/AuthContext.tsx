@@ -9,7 +9,7 @@ import { patchMenu } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions"
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
 import {
-  onAuthStateChanged,
+  onIdTokenChanged,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
@@ -89,8 +89,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       name: googleProviderData?.displayName || userToSync.displayName || userToSync.email || "New User",
     };
     
-    console.log("Synchronizing user with backend. Payload:", JSON.stringify(newUserProfile, null, 2));
-
+    console.log("Attempting to synchronize user with backend.", { payload: newUserProfile });
+    
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user`, {
         method: "POST",
@@ -103,28 +103,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
       if (!response.ok) {
         const errorText = await response.text();
-        // A 409 Conflict is okay, it means the user already exists.
+        // A 409 Conflict means the user already exists, which is not an error in this context.
         if (response.status !== 409) {
           console.warn(`Backend user sync issue. Status: ${response.status}. Response: ${errorText.substring(0, 500)}`);
         }
       } else {
-        console.log(`Successfully synchronized user ${userToSync.uid} with backend.`);
+        console.log(`Successfully created user ${userToSync.uid} in backend.`);
       }
     } catch (error: any) {
-       console.error("Critical: Failed to synchronize user with backend. The user will be logged in on the frontend but may face issues with backend-dependent features.", error.message);
+       console.error("Critical: Failed to synchronize user with backend.", error.message);
     }
   }, []);
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Use onIdTokenChanged for robust token management. It fires on sign-in, sign-out, and token refreshes.
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
       if (firebaseUser) {
-        const idToken = await firebaseUser.getIdToken(true); // Force refresh
+        const idToken = await firebaseUser.getIdToken(true); // Force refresh for the latest token
         setUser(firebaseUser);
         setJwtToken(idToken);
         setIsAuthenticated(true);
-        await syncUserWithBackend(firebaseUser, idToken);
       } else {
         setUser(null);
         setJwtToken(null);
@@ -134,7 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [syncUserWithBackend]);
+  }, []);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated || !ownerId) {
@@ -216,12 +216,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated, loadMenuData]);
 
   const signUpWithEmail = async (email: string, pass: string) => {
-    return createUserWithEmailAndPassword(auth, email, pass);
-  }
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    if (userCredential.user) {
+        const token = await userCredential.user.getIdToken();
+        await syncUserWithBackend(userCredential.user, token);
+    }
+    return userCredential;
+  };
 
   const signInWithEmail = async (email: string, pass: string) => {
-    return signInWithEmailAndPassword(auth, email, pass);
-  }
+    const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+    if (userCredential.user) {
+        const token = await userCredential.user.getIdToken();
+        await syncUserWithBackend(userCredential.user, token);
+    }
+    return userCredential;
+  };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -229,6 +239,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     provider.addScope('email');
     try {
       const result: UserCredential = await signInWithPopup(auth, provider);
+      if (result.user) {
+          const token = await result.user.getIdToken();
+          await syncUserWithBackend(result.user, token);
+      }
       console.log("IDP Response User Object:", {
         uid: result.user.uid,
         displayName: result.user.displayName,
@@ -401,5 +415,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
-    
