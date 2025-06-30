@@ -7,7 +7,6 @@ import type { MenuInstance, MenuItem } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
 import { patchMenu } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
 import { useToast } from "@/hooks/use-toast";
-import { generateDeterministicIdHash } from "@/lib/hash-utils";
 import { auth } from "@/lib/firebase";
 import {
   onAuthStateChanged,
@@ -81,34 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const API_BASE_URL = "https://api.bityfan.com";
     const token = await firebaseUser.getIdToken();
     
-    let userExists = false;
-    try {
-      const response = await fetch(`${API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        console.log(`User ${firebaseUser.uid} already exists in backend.`);
-        userExists = true;
-      } else if (response.status !== 404) {
-        // This is an actual backend error, not just "not found"
-        const errorText = await response.text();
-        console.error(`Error checking user existence: ${response.status}. Response: ${errorText}`);
-        // Stop here, as something is wrong with the backend that isn't a 404
-        return;
-      }
-      // If it's a 404, we just fall through and let userExists be false.
-    } catch (err: any) {
-      // This catches network errors (e.g., "Failed to fetch") or CORS issues
-      // It's expected to fail here for a new user if CORS is not perfectly set up yet for this path, so we warn and continue
-      console.warn('Could not check for user (network error or CORS), assuming they need to be created.', err.message);
-    }
-    
-    if (!userExists) {
+    const createUser = async () => {
       try {
         console.log(`Attempting to create user ${firebaseUser.uid} in backend.`);
         const newUserProfile = {
@@ -132,12 +104,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const errorText = await createResponse.text();
           throw new Error(`Backend user creation failed. Status: ${createResponse.status}. Response: ${errorText}`);
         }
-
+        
         console.log(`Successfully created user ${firebaseUser.uid} in backend.`);
+
       } catch (createError: any) {
-        // This is a critical but non-blocking error, logged for dev purposes.
-        // It's a console.error because it's important for the dev to see, but not a toast to avoid alarming the user.
-        console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
+        // Rethrow to be caught by the caller
+        throw createError;
+      }
+    };
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        console.log(`User ${firebaseUser.uid} already exists in backend.`);
+        return;
+      }
+      
+      if (response.status === 404) {
+         console.log(`User ${firebaseUser.uid} not found. Attempting to create.`);
+         await createUser();
+      } else {
+        // This is a backend error, not just "not found"
+        const errorText = await response.text();
+        console.error(`Error checking user existence: ${response.status}. Response: ${errorText}`);
+      }
+
+    } catch (err: any) {
+      if (err.message.includes('Failed to fetch')) {
+        console.warn('Could not check for user (network error or CORS). Assuming new user and attempting to create.');
+        try {
+          await createUser();
+        } catch (createError: any) {
+           console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
+        }
+      } else {
+        console.error("An unexpected error occurred during user sync:", err.message);
       }
     }
   }, []);
@@ -217,6 +225,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
       if (firebaseUser) {
+        await firebaseUser.reload(); // Explicitly reload user profile data
         const token = await firebaseUser.getIdToken();
         setUser(firebaseUser);
         setJwtToken(token);
@@ -256,7 +265,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error during Google sign-in:", error);
       let description = "Could not sign in with Google. Please try again.";
       if (error.code === 'auth/unauthorized-domain') {
-        description = `This domain (${window.location.hostname}) is not authorized. Please add it to your Firebase project's authorized domains.`;
+        description = `This domain (${window.location.hostname}) is not authorized for Google Sign-In. Please add it to your Firebase project's authorized domains to continue.`;
       }
       toast({
         title: "Sign-in Error",
