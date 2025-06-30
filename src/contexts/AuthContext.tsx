@@ -84,16 +84,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const createUser = async () => {
       console.log(`Attempting to create user ${firebaseUser.uid} in backend.`);
 
-      // Explicitly check providerData for the most reliable user info
       const googleProviderData = firebaseUser.providerData.find(p => p.providerId === 'google.com');
 
       const newUserProfile = {
         userId: firebaseUser.uid,
         menuGrants: [],
         subscriptionStatus: "active",
-        contactInfoEmail: firebaseUser.email || googleProviderData?.email || "",
-        contactInfoPhone: firebaseUser.phoneNumber || googleProviderData?.phoneNumber || "",
-        name: firebaseUser.displayName || googleProviderData?.displayName || firebaseUser.email || "New User",
+        contactInfoEmail: googleProviderData?.email || firebaseUser.email || "",
+        contactInfoPhone: googleProviderData?.phoneNumber || firebaseUser.phoneNumber || "",
+        name: googleProviderData?.displayName || firebaseUser.displayName || firebaseUser.email || "New User",
       };
 
       const createResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user`, {
@@ -107,15 +106,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
-        // This specific error will be caught and logged by the caller
         throw new Error(`Backend user creation failed. Status: ${createResponse.status}. Response: ${errorText}`);
       }
       
       console.log(`Successfully created user ${firebaseUser.uid} in backend.`);
     };
   
-    // Check if user exists. If this fails for any reason (network, 404, etc.),
-    // we will proceed to attempt to create the user.
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
         method: 'GET',
@@ -127,24 +123,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
       if (response.ok) {
         console.log(`User ${firebaseUser.uid} already exists in backend.`);
-        return; // User exists, we are done.
+        return;
       }
       
-      // Any non-OK status (like 404) means we should try to create the user.
-      // We will fall through to the createUser call below.
       console.log(`User ${firebaseUser.uid} not found (Status: ${response.status}). Attempting to create.`);
 
     } catch (getErr: any) {
-      // This catches network errors etc. where no response was received.
       console.warn(`Could not check for user, proceeding with creation attempt. Error: ${getErr.message}`);
     }
 
-    // If the GET check above didn't return, we attempt to create the user.
     try {
       await createUser();
     } catch (createError: any) {
-      // If the create user call also fails, log its message but do not show a blocking toast to the user.
-      // This allows the app to function even if the backend is unavailable during sign-up.
       console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
     }
   }, []);
@@ -231,7 +221,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       if (firebaseUser) {
         await firebaseUser.reload();
-        const currentUser = auth.currentUser; // Use the refreshed currentUser
+        const currentUser = auth.currentUser; 
 
         if (currentUser) {
             const token = await currentUser.getIdToken();
