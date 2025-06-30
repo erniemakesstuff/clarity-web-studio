@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/layout/AppHeader";
 import Link from "next/link";
@@ -22,7 +21,7 @@ export default function HomePage() {
             </p>
             <div className="space-x-4">
               <Button size="lg" asChild>
-                <Link href="/menu/JY2NyRbbjOosr7bDzQywJG7-BhQh29g-w6NQQoyr2k8/TESTMENU0">View Demo Menu</Link>
+                <Link href="/menu/VQAQTHHZ66VFA7ETLGTJZQT5YML1/TESTMENU0">View Demo Menu</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="/signin">Menu Portal</Link>
