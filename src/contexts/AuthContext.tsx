@@ -75,20 +75,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
   };
   
-  const syncUserWithBackend = useCallback(async (firebaseUser: User) => {
-    if (!firebaseUser) return;
+  const syncUserWithBackend = useCallback(async (userToSync: User, token: string) => {
+    if (!userToSync) return;
   
-    await firebaseUser.reload();
-    const token = await firebaseUser.getIdToken();
-    const googleProviderData = firebaseUser.providerData.find(p => p.providerId === 'google.com');
+    const googleProviderData = userToSync.providerData.find(p => p.providerId === 'google.com');
 
     const newUserProfile = {
-      userId: firebaseUser.uid,
+      userId: userToSync.uid,
       menuGrants: [],
       subscriptionStatus: "active",
-      contactInfoEmail: googleProviderData?.email || firebaseUser.email || "",
-      contactInfoPhone: googleProviderData?.phoneNumber || firebaseUser.phoneNumber || "",
-      name: googleProviderData?.displayName || firebaseUser.displayName || firebaseUser.email || "New User",
+      contactInfoEmail: googleProviderData?.email || userToSync.email || "",
+      contactInfoPhone: googleProviderData?.phoneNumber || userToSync.phoneNumber || "",
+      name: googleProviderData?.displayName || userToSync.displayName || userToSync.email || "New User",
     };
     
     console.log("Synchronizing user with backend. Payload:", JSON.stringify(newUserProfile, null, 2));
@@ -104,17 +102,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
   
       if (!response.ok) {
-        // The backend should handle existing users gracefully (e.g., return 200 or 409).
-        // We log non-2xx responses as a warning but don't treat it as a critical failure.
         const errorText = await response.text();
-        console.warn(`Backend user sync issue. Status: ${response.status}. Response: ${errorText.substring(0, 500)}`);
+        // A 409 Conflict is okay, it means the user already exists.
+        if (response.status !== 409) {
+          console.warn(`Backend user sync issue. Status: ${response.status}. Response: ${errorText.substring(0, 500)}`);
+        }
       } else {
-        console.log(`Successfully synchronized user ${firebaseUser.uid} with backend.`);
+        console.log(`Successfully synchronized user ${userToSync.uid} with backend.`);
       }
     } catch (error: any) {
        console.error("Critical: Failed to synchronize user with backend. The user will be logged in on the frontend but may face issues with backend-dependent features.", error.message);
     }
   }, []);
+
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        const idToken = await firebaseUser.getIdToken(true); // Force refresh
+        setUser(firebaseUser);
+        setJwtToken(idToken);
+        setIsAuthenticated(true);
+        await syncUserWithBackend(firebaseUser, idToken);
+      } else {
+        setUser(null);
+        setJwtToken(null);
+        setIsAuthenticated(false);
+        clearMenuData();
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [syncUserWithBackend]);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated || !ownerId) {
@@ -145,83 +165,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    const token = await user?.getIdToken();
-    const result = await fetchMenuInstancesFromBackend(ownerId, token || null);
-    
-    setRawMenuApiResponseText(result.rawResponseText || null);
-    localStorage.setItem(RAW_MENU_API_RESPONSE_LS_KEY, result.rawResponseText || "");
+    if (jwtToken) {
+      const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
+      
+      setRawMenuApiResponseText(result.rawResponseText || null);
+      localStorage.setItem(RAW_MENU_API_RESPONSE_LS_KEY, result.rawResponseText || "");
 
-    if (result.success && result.menuInstances) {
-      setMenuInstances(result.menuInstances);
-      localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(result.menuInstances));
-      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
+      if (result.success && result.menuInstances) {
+        setMenuInstances(result.menuInstances);
+        localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(result.menuInstances));
+        localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
 
-      if (result.menuInstances.length > 0) {
-        const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
-        const currentSelectedStillValid = result.menuInstances.find(m => m.id === selectedMenuInstance?.id);
-        if (currentSelectedStillValid) {
-            setSelectedMenuInstance(currentSelectedStillValid);
+        if (result.menuInstances.length > 0) {
+          const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
+          const currentSelectedStillValid = result.menuInstances.find(m => m.id === selectedMenuInstance?.id);
+          if (currentSelectedStillValid) {
+              setSelectedMenuInstance(currentSelectedStillValid);
+          } else {
+              const foundMenuInstance = result.menuInstances.find(m => m.id === storedMenuInstanceId);
+              const newSelected = foundMenuInstance || result.menuInstances[0];
+              setSelectedMenuInstance(newSelected);
+              localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newSelected.id);
+          }
         } else {
-            const foundMenuInstance = result.menuInstances.find(m => m.id === storedMenuInstanceId);
-            const newSelected = foundMenuInstance || result.menuInstances[0];
-            setSelectedMenuInstance(newSelected);
-            localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newSelected.id);
+          setSelectedMenuInstance(null);
+          localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
         }
       } else {
-        setSelectedMenuInstance(null);
-        localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
+        if (result.message && !((user?.email && ADMIN_USER_RAW_IDS.includes(user.email)) && result.rawResponseText)) {
+          toast({
+              title: "Error Fetching Menus",
+              description: result.message,
+              variant: "destructive",
+          });
+        }
+        if (forceRefresh || !cachedInstancesStr) {
+          clearMenuData();
+        }
       }
     } else {
-       if (result.message && !((user?.email && ADMIN_USER_RAW_IDS.includes(user.email)) && result.rawResponseText)) {
-         toast({
-            title: "Error Fetching Menus",
-            description: result.message,
-            variant: "destructive",
-         });
-      }
-      if (forceRefresh || !cachedInstancesStr) {
-        clearMenuData();
-      }
+        console.warn("Attempted to load menu data without a JWT token.");
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, user, ownerId, toast, selectedMenuInstance?.id]);
+  }, [isAuthenticated, ownerId, jwtToken, toast, selectedMenuInstance?.id, user?.email]);
 
   useEffect(() => {
     if (isAuthenticated) {
       loadMenuData();
     }
   }, [isAuthenticated, loadMenuData]);
-
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true);
-      if (firebaseUser) {
-        await firebaseUser.reload();
-        const currentUser = auth.currentUser; 
-
-        if (currentUser) {
-            const token = await currentUser.getIdToken();
-            setUser(currentUser);
-            setJwtToken(token);
-            setIsAuthenticated(true);
-            await syncUserWithBackend(currentUser);
-        } else {
-            setUser(null);
-            setJwtToken(null);
-            setIsAuthenticated(false);
-            clearMenuData();
-        }
-      } else {
-        setUser(null);
-        setJwtToken(null);
-        setIsAuthenticated(false);
-        clearMenuData();
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [syncUserWithBackend]);
 
   const signUpWithEmail = async (email: string, pass: string) => {
     return createUserWithEmailAndPassword(auth, email, pass);
@@ -409,3 +401,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
