@@ -162,7 +162,6 @@ export async function fetchMenuInstancesFromBackend(
           testGoal: digitalMenu.test_goal,
           testHypothesis: digitalMenu.test_hypothesis,
           testHistory: digitalMenu.test_history,
-          keyphrase: digitalMenu.keyphrase,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };

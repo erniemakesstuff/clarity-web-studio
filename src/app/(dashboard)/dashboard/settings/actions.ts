@@ -4,7 +4,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 interface PatchMenuPayload {
-  keyphrase?: string;
+  // Keyphrase removed
 }
 
 interface PatchMenuParams {

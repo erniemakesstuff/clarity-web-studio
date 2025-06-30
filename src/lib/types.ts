@@ -95,7 +95,6 @@ export interface BackendDigitalMenuJson {
   test_history?: string;
   Analytics?: AnalyticsEntry[] | null; // Updated to use defined type
   State?: DigitalMenuState;
-  keyphrase?: string;
 }
 
 export interface MenuInstance {
@@ -109,7 +108,6 @@ export interface MenuInstance {
   testGoal?: string;
   testHypothesis?: string;
   testHistory?: string;
-  keyphrase?: string;
 }
 
 export const FOOD_CATEGORIES = [
