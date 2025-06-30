@@ -108,8 +108,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log(`Successfully created user ${firebaseUser.uid} in backend.`);
     };
   
+    // Check if user exists. If this fails for any reason (network, 404, etc.),
+    // we will proceed to attempt to create the user.
     try {
-      // First, check if the user exists.
       const response = await fetch(`${API_BASE_URL}/ris/v1/user?userId=${firebaseUser.uid}`, {
         method: 'GET',
         headers: {
@@ -120,26 +121,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
       if (response.ok) {
         console.log(`User ${firebaseUser.uid} already exists in backend.`);
-        return;
+        return; // User exists, we are done.
       }
-      
-      if (response.status === 404) {
-        console.log(`User ${firebaseUser.uid} not found. Attempting to create.`);
-        await createUser();
-      } else {
-        const errorText = await response.text();
-        console.error(`Error checking user existence: ${response.status}. Response: ${errorText}`);
-      }
-  
-    } catch (err: any) {
-       console.warn('Could not check for user (network error or CORS). Assuming new user and attempting to create.');
-       try {
-         await createUser();
-       } catch (createError: any) {
-          console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError.message);
-       }
+      // Any other status (404, 500, etc.) means we should try to create.
+    } catch (getErr: any) {
+      console.warn(`Could not check for user, proceeding with creation attempt. Error: ${getErr.message}`);
+    }
+
+    // If the GET check above didn't return, we attempt to create the user.
+    try {
+      await createUser();
+    } catch (createError: any) {
+      console.error("Critical: Failed to create user in backend.", createError.message);
     }
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        await firebaseUser.reload();
+        const currentUser = auth.currentUser; // Use the refreshed currentUser
+
+        if (currentUser) {
+            const token = await currentUser.getIdToken();
+            setUser(currentUser);
+            setJwtToken(token);
+            setIsAuthenticated(true);
+            await syncUserWithBackend(currentUser);
+        } else {
+            setUser(null);
+            setJwtToken(null);
+            setIsAuthenticated(false);
+            clearMenuData();
+        }
+      } else {
+        setUser(null);
+        setJwtToken(null);
+        setIsAuthenticated(false);
+        clearMenuData();
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [syncUserWithBackend]);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated || !ownerId) {
@@ -213,27 +238,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsLoading(true);
-      if (firebaseUser) {
-        await firebaseUser.reload(); // Explicitly reload user profile data
-        const token = await firebaseUser.getIdToken();
-        setUser(firebaseUser);
-        setJwtToken(token);
-        setIsAuthenticated(true);
-        await syncUserWithBackend(firebaseUser);
-      } else {
-        setUser(null);
-        setJwtToken(null);
-        setIsAuthenticated(false);
-        clearMenuData();
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [syncUserWithBackend]);
-
-  useEffect(() => {
     if (isAuthenticated) {
       loadMenuData();
     }
@@ -260,8 +264,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: result.user.email,
         emailVerified: result.user.emailVerified,
         phoneNumber: result.user.phoneNumber,
-        photoURL: result.user.photoURL,
-        providerId: result.providerId,
         metadata: result.user.metadata,
       });
     } catch (error: any) {
