@@ -83,7 +83,7 @@ export function SwipeFeed({ items, allMenuItems, onUpsellClick }: SwipeFeedProps
           data-item-name={item.name}
           className="h-[95%] w-full snap-center flex-shrink-0 flex items-center justify-center p-4"
         >
-          <div className="h-full w-full max-w-sm">
+          <div className="h-full w-full">
              <FeedItemDisplay 
                 item={item} 
                 allMenuItems={allMenuItems}
