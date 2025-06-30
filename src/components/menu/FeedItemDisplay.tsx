@@ -11,7 +11,6 @@ interface FeedItemDisplayProps {
   item: MenuItem;
   allMenuItems: MenuItem[];
   onUpsellClick: (item: MenuItem) => void;
-  onUpsellViewed: (itemId: string) => void;
 }
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
@@ -28,7 +27,7 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
   spicy: "Spicy",
 };
 
-export function FeedItemDisplay({ item, allMenuItems, onUpsellViewed }: FeedItemDisplayProps) {
+export function FeedItemDisplay({ item, allMenuItems }: FeedItemDisplayProps) {
     const upsellItems = useMemo(() => {
         if (!item.youMayAlsoLike || !allMenuItems) return [];
         const upsellMap = new Map(allMenuItems.map(i => [i.name, i]));
@@ -47,10 +46,7 @@ export function FeedItemDisplay({ item, allMenuItems, onUpsellViewed }: FeedItem
         const newIndex = Math.round(scroller.scrollLeft / slideWidth);
         
         setCurrentSlide(newIndex);
-        if(newIndex > 0) {
-            onUpsellViewed(slides[newIndex].id);
-        }
-    }, [slides, onUpsellViewed]);
+    }, []);
 
     useEffect(() => {
         const scroller = scrollRef.current;

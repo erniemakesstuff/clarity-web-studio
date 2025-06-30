@@ -138,10 +138,6 @@ export default function MenuPage() {
     return filteredItems.filter(item => (item.category || "Other") === activeTab);
   }, [viewMode, activeTab, filteredItems]);
 
-  const handleItemViewed = (itemId: string) => {
-    console.log(`Item viewed (potential skip tracking): ${itemId}`);
-  };
-
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-secondary/30">
@@ -199,7 +195,6 @@ export default function MenuPage() {
           <SwipeFeed 
             items={menuItems} 
             onUpsellClick={handleUpsellClick} 
-            onItemViewed={handleItemViewed} 
             allMenuItems={menuItems} 
           />
           <div className="fixed bottom-6 right-6 z-20">

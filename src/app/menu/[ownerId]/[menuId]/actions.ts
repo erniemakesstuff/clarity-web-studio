@@ -5,6 +5,55 @@ import type { MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, Backen
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+// New Types for Analytics Payload
+interface MenuAnalytics {
+  timestamp_day: string;
+  impressions: number;
+  engagement_sec: number[];
+  food_name: string;
+  average_engagement: number;
+  purchase_count: number;
+  purchased_with: any[]; // Kept as any[] as it's not used
+  food_category: string;
+}
+
+export interface AnalyticsPayload {
+  ownerId: string;
+  menuId: string;
+  analytics: MenuAnalytics[];
+}
+
+interface FlushAnalyticsResult {
+    success: boolean;
+    message?: string;
+}
+
+
+export async function flushMenuAnalytics(payload: AnalyticsPayload): Promise<FlushAnalyticsResult> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/ris/v1/menu/analytics`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            // Use keepalive for requests that might be sent as the page unloads
+            keepalive: true,
+        });
+
+        if (response.ok) {
+            return { success: true };
+        } else {
+            const errorText = await response.text();
+            return { success: false, message: `Backend error: ${response.status}. ${errorText.substring(0, 100)}` };
+        }
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Network error flushing analytics.' };
+    }
+}
+
+
 interface FetchPublicMenuResult {
   success: boolean;
   menu?: MenuItem[];
