@@ -118,11 +118,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (response.status === 404) {
-        // 2. User does not exist, so create them
-        await createUser();
+        // 2. User does not exist, so create them.
+        try {
+           await createUser();
+        } catch(createError: any) {
+           console.error("Failed to create new user in backend. Continuing silently.", createError.message);
+        }
       } else if (!response.ok) {
         // Handle other unexpected errors from the GET request
         const errorText = await response.text();
+        // This will be caught by the outer catch block.
         throw new Error(`Failed to check user existence: ${response.status} ${errorText}`);
       } else {
         // User exists, no action needed. Log for debugging.
@@ -135,13 +140,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         await createUser();
       } catch (createError: any) {
-        // If the create user call also fails, then we show an error.
-        console.error("Error creating user after initial check failed:", createError);
-        toast({
-          title: "Backend Sync Error",
-          description: createError.message || "Could not sync your profile with our services.",
-          variant: "destructive",
-        });
+        // If the create user call also fails, log it but do not show a blocking toast to the user.
+        // This allows the app to function even if the backend is unavailable during sign-up.
+        console.error("Critical: Failed to create user in backend after initial check failed. The user will be logged in on the frontend but may face issues with backend-dependent features.", createError);
+        // The user request is to NOT show an error here.
       }
     }
   }, [toast]);
