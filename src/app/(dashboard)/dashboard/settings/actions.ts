@@ -24,7 +24,6 @@ export async function patchMenuSettings(params: PatchMenuParams): Promise<PatchM
 
     try {
         const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-        console.log("Authorization Header for PATCH /ris/v1/menu:", authorizationValue);
         
         const requestBody = {
             ownerId,
