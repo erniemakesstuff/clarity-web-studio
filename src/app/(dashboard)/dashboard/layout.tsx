@@ -38,7 +38,7 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const ADMIN_USER_RAW_ID = "admin@example.com"; // Define admin user ID
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"]; // Define admin users
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const {
@@ -65,7 +65,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return <div className="flex h-screen items-center justify-center"><p>Loading...</p></div>;
   }
   
-  const isActualAdmin = rawOwnerId === ADMIN_USER_RAW_ID;
+  const isActualAdmin = ADMIN_USER_RAW_IDS.includes(rawOwnerId || "");
 
   const baseNavItems: NavItem[] = [
     { href: "/dashboard", label: "Overview", icon: <LayoutDashboard /> },

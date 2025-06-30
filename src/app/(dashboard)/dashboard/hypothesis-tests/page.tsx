@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -19,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ChangeExplanationDialog } from "@/components/dashboard/ChangeExplanationDialog";
 
-const ADMIN_USER_RAW_ID = "admin@example.com";
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
 export default function HypothesisTestsPage() {
   const { toast } = useToast();
@@ -27,7 +26,7 @@ export default function HypothesisTestsPage() {
 
   const allowABTesting = selectedMenuInstance?.allowABTesting;
   const existingGoal = selectedMenuInstance?.testGoal;
-  const isDeveloperUser = rawOwnerId === ADMIN_USER_RAW_ID;
+  const isDeveloperUser = ADMIN_USER_RAW_IDS.includes(rawOwnerId || "");
 
   const [goalInput, setGoalInput] = useState(existingGoal || "");
   const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);

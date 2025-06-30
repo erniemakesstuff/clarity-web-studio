@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -16,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ChartConfig } from "@/components/ui/chart";
 
-const DEV_USER_RAW_ID = "admin@example.com";
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
 const CATEGORY_COLORS = [
   "hsl(220, 85%, 60%)", "hsl(150, 75%, 45%)", "hsl(350, 85%, 65%)", "hsl(45, 95%, 55%)",
@@ -379,7 +378,7 @@ export default function AnalyticsPage() {
       <ReceiptUploadForm />
       {renderContent()}
 
-      {rawOwnerId === DEV_USER_RAW_ID && rawMenuApiResponseText && (
+      {ADMIN_USER_RAW_IDS.includes(rawOwnerId || "") && rawMenuApiResponseText && (
         <Card className="shadow-lg mt-8">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">

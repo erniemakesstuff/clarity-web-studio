@@ -1,4 +1,3 @@
-
 "use client"; // Ensure this is a client component for hooks
 
 import { ContentGeneratorForm } from "@/components/dashboard/ContentGeneratorForm";
@@ -6,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 import { AlertTriangle, Loader2 } from "lucide-react"; // For icons
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // For access denied message
 
-const ADMIN_USER_RAW_ID = "admin@example.com";
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
 export default function ContentGenerationPage() {
   const { rawOwnerId, isLoading: isAuthLoading } = useAuth(); // Get rawOwnerId and auth loading state
@@ -20,7 +19,7 @@ export default function ContentGenerationPage() {
     );
   }
 
-  const isActualAdmin = rawOwnerId === ADMIN_USER_RAW_ID;
+  const isActualAdmin = ADMIN_USER_RAW_IDS.includes(rawOwnerId || "");
 
   if (!isActualAdmin) {
     return (

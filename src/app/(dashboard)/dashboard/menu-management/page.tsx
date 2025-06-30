@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -32,7 +31,7 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
   spicy: "Spicy",
 };
 
-const DASHBOARD_RAW_OWNER_ID = "admin@example.com"; 
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"]; 
 
 export default function MenuManagementPage() {
   const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem, rawOwnerId } = useAuth(); // Use rawOwnerId from AuthContext for consistency

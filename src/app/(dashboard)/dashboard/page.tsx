@@ -1,4 +1,3 @@
-
 "use client";
 import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
@@ -16,7 +15,7 @@ import type { ChartConfig as ChartConfigType } from "@/components/ui/chart";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-const DEV_USER_RAW_ID = "admin@example.com";
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
 // Expanded, deterministic color palette for categories
 const CATEGORY_COLORS = [
@@ -374,7 +373,7 @@ export default function DashboardOverviewPage() {
         </Card>
       )}
 
-      {rawOwnerId === DEV_USER_RAW_ID && rawMenuApiResponseText && (
+      {ADMIN_USER_RAW_IDS.includes(rawOwnerId || "") && rawMenuApiResponseText && (
           <Card className="shadow-lg mt-8">
             <CardHeader>
               <CardTitle className="flex items-center text-xl">

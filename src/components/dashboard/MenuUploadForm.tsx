@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -32,8 +31,7 @@ const MAX_CONCURRENT_UPLOADS = 3;
 const POLLING_INTERVAL_MS = 10000;
 const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
 
-// Use raw ID for the developer check, and hashed ID for backend calls
-const DEV_USER_RAW_ID = "admin@example.com"; 
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
 export function MenuUploadForm() {
   const [queuedItems, setQueuedItems] = useState<QueuedItem[]>([]);
@@ -55,8 +53,8 @@ export function MenuUploadForm() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isDeveloperUser = rawOwnerId === DEV_USER_RAW_ID;
-  const devUserHashedIdToUse = generateDeterministicIdHash(DEV_USER_RAW_ID);
+  const isDeveloperUser = ADMIN_USER_RAW_IDS.includes(rawOwnerId || "");
+  const devUserHashedIdToUse = generateDeterministicIdHash("admin@example.com");
 
 
   useEffect(() => {
