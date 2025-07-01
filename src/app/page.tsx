@@ -5,6 +5,9 @@ import Image from "next/image";
 import { Zap, BarChart, UploadCloud, UtensilsCrossed, Sparkles } from "lucide-react";
 
 export default function HomePage() {
+  const imageUrl = "https://placehold.co/600x400.png";
+  const imageAlt = "Clarity Menu Dashboard Preview";
+
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader />
@@ -66,8 +69,8 @@ export default function HomePage() {
           <div className="container mx-auto px-6 flex flex-col lg:flex-row items-center gap-12">
             <div className="lg:w-1/2">
               <Image
-                src="https://placehold.co/600x400.png"
-                alt="Clarity Menu Dashboard Preview"
+                src={imageUrl}
+                alt={imageAlt}
                 width={600}
                 height={400}
                 className="rounded-lg shadow-xl"
