@@ -25,6 +25,8 @@ const SELECTED_MENU_INSTANCE_LS_KEY = "clarityMenuSelectedMenuInstance";
 const RAW_MENU_API_RESPONSE_LS_KEY = "clarityMenuRawApiResponse";
 const MENU_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
+const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
+
 export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
