@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription as AlertDescriptionUI, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import type { MenuItem } from "@/lib/types";
+import ReactMarkdown from "react-markdown";
 
 type ContentType = "blog post" | "social media update" | "recipe";
 
@@ -63,14 +64,17 @@ export function ContentGeneratorForm() {
     setIsGenerating(true);
     setGeneratedContent(null);
 
-    const menuText = menu
+    const selectedMenuItems = menu
       .filter(item => selectedItemIds.includes(item.id))
-      .map(item => `${item.name}: ${item.description || "A delicious menu item."}`)
-      .join("\n");
+      .map(item => ({
+        name: item.name,
+        description: item.description || "A delicious menu item.",
+        imageUrl: item.media?.[0]?.url,
+      }));
 
     try {
       const input: GenerateMarketingContentInput = {
-        menuText,
+        menuItems: selectedMenuItems,
         contentType,
         tone: tone || undefined,
       };
@@ -206,8 +210,8 @@ export function ContentGeneratorForm() {
             <FileText className="h-6 w-6 mr-2 text-primary" />
             Generated Content Draft
           </h3>
-          <div className="prose prose-sm sm:prose-base max-w-none p-4 border rounded-md bg-secondary/30 max-h-[500px] overflow-y-auto whitespace-pre-wrap">
-            {generatedContent}
+          <div className="prose prose-sm sm:prose-base max-w-none p-4 border rounded-md bg-secondary/30 max-h-[500px] overflow-y-auto">
+            <ReactMarkdown>{generatedContent}</ReactMarkdown>
           </div>
            <Button className="mt-4 w-full sm:w-auto" onClick={() => navigator.clipboard.writeText(generatedContent).then(() => toast({ title: "Copied to clipboard!"}))}>
             Copy Content

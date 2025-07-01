@@ -11,8 +11,14 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+const MenuItemSchema = z.object({
+  name: z.string().describe('The name of the menu item.'),
+  description: z.string().describe('The description of the menu item.'),
+  imageUrl: z.string().optional().describe('An optional image URL for the menu item.'),
+});
+
 const GenerateMarketingContentInputSchema = z.object({
-  menuText: z.string().describe('The text content of the restaurant menu.'),
+  menuItems: z.array(MenuItemSchema).describe("The list of selected menu items to feature."),
   contentType: z
     .enum(['blog post', 'social media update', 'recipe'])
     .describe('The type of marketing content to generate.'),
@@ -24,7 +30,7 @@ const GenerateMarketingContentInputSchema = z.object({
 export type GenerateMarketingContentInput = z.infer<typeof GenerateMarketingContentInputSchema>;
 
 const GenerateMarketingContentOutputSchema = z.object({
-  content: z.string().describe('The generated marketing content.'),
+  content: z.string().describe('The generated marketing content in Markdown format.'),
 });
 export type GenerateMarketingContentOutput = z.infer<typeof GenerateMarketingContentOutputSchema>;
 
@@ -38,16 +44,21 @@ const generateMarketingContentPrompt = ai.definePrompt({
   name: 'generateMarketingContentPrompt',
   input: {schema: GenerateMarketingContentInputSchema},
   output: {schema: GenerateMarketingContentOutputSchema},
-  prompt: `You are a marketing expert for restaurants. Given a menu and a content type, generate engaging content to promote the restaurant.
+  prompt: `You are a marketing expert for restaurants. Your task is to generate an engaging {{contentType}} based on a selection of menu items.
+The output should be in Markdown format. If images are provided, incorporate them into the content naturally.
 
-Menu:
-{{menuText}}
+**Tone:** {{#if tone}}{{tone}}{{else}}Engaging and friendly{{/if}}
 
-Content Type: {{contentType}}
+**Featured Menu Items:**
+{{#each menuItems}}
+- **{{name}}**: {{description}}
+  {{#if imageUrl}}
+  Image: {{media url=imageUrl}}
+  {{/if}}
+{{/each}}
 
-Tone: {{tone}}
-
-Content:`,
+Now, generate the {{contentType}} in Markdown.
+`,
 });
 
 const generateMarketingContentFlow = ai.defineFlow(
