@@ -47,7 +47,7 @@ const getSafeCategory = (catString?: string | null): string => {
 };
 
 export default function DashboardOverviewPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, hashedOwnerId, rawMenuApiResponseText } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, ownerId, rawMenuApiResponseText } = useAuth();
   const { toast } = useToast();
   const analyticsData = selectedMenuInstance?.analytics;
 
@@ -55,8 +55,8 @@ export default function DashboardOverviewPage() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
 
   useEffect(() => {
-    if (selectedMenuInstance && hashedOwnerId && typeof window !== 'undefined') {
-      const url = `${window.location.origin}/menu/${hashedOwnerId}/${selectedMenuInstance.id}`;
+    if (selectedMenuInstance && ownerId && typeof window !== 'undefined') {
+      const url = `${window.location.origin}/menu/${ownerId}/${selectedMenuInstance.id}`;
       setPublicMenuUrl(url);
 
       QRCode.toDataURL(url, {
@@ -80,7 +80,7 @@ export default function DashboardOverviewPage() {
       setPublicMenuUrl("");
       setQrCodeDataUrl("");
     }
-  }, [selectedMenuInstance, hashedOwnerId, toast]);
+  }, [selectedMenuInstance, ownerId, toast]);
 
   const handleShare = async () => {
     if (!publicMenuUrl || !selectedMenuInstance) return;
