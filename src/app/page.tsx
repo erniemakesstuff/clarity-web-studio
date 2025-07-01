@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Zap, BarChart, UploadCloud, UtensilsCrossed, Sparkles } from "lucide-react";
 
 export default function HomePage() {
-  const imageUrl = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/public-assets/clarity-menu-dashboard-v2.png";
+  const imageUrl = "https://placehold.co/600x400.png";
   const imageAlt = "A preview of the Clarity Menu dashboard showing analytics and menu management features.";
 
   return (
