@@ -68,22 +68,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   
   const isActualAdmin = ADMIN_USER_RAW_IDS.includes(rawOwnerId || "");
 
-  const baseNavItems: NavItem[] = [
+  const navItems: NavItem[] = [
     { href: "/dashboard", label: "Overview", icon: <LayoutDashboard /> },
     { href: "/dashboard/menu-management", label: "Menu Management", icon: <Utensils /> },
-  ];
-
-  const adminNavItems: NavItem[] = isActualAdmin ? [
-    { href: "/dashboard/content-generation", label: "Marketing Assistant", icon: <Sparkles /> },
-  ] : [];
-
-  const commonNavItems: NavItem[] = [
     { href: "/dashboard/analytics", label: "Analytics", icon: <BarChart /> },
     { href: "/dashboard/experiments", label: "Experiments", icon: <FlaskConical /> },
+    { href: "/dashboard/content-generation", label: "Marketing Assistant", icon: <Sparkles /> },
     { href: "/dashboard/settings", label: "Settings", icon: <Settings /> },
   ];
-
-  const navItems: NavItem[] = [...baseNavItems, ...adminNavItems, ...commonNavItems];
 
 
   const pageTitle = navItems.find(item => pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href)))?.label || "Dashboard";
