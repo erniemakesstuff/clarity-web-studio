@@ -67,8 +67,42 @@ const generateMarketingContentFlow = ai.defineFlow(
     inputSchema: GenerateMarketingContentInputSchema,
     outputSchema: GenerateMarketingContentOutputSchema,
   },
-  async input => {
-    const {output} = await generateMarketingContentPrompt(input);
+  async (input) => {
+    const menuItemsWithDataUris = await Promise.all(
+      input.menuItems.map(async (item) => {
+        if (!item.imageUrl) {
+          return item;
+        }
+        try {
+          const response = await fetch(item.imageUrl);
+          if (!response.ok) {
+            console.warn(`Failed to fetch image for ${item.name}: ${response.statusText}`);
+            return { ...item, imageUrl: undefined };
+          }
+
+          // Determine MIME type from response headers, fallback to guessing from URL
+          let mimeType = response.headers.get('content-type');
+          if (!mimeType || mimeType === 'binary/octet-stream') {
+              if (item.imageUrl?.endsWith('.png')) mimeType = 'image/png';
+              else if (item.imageUrl?.endsWith('.jpg') || item.imageUrl?.endsWith('.jpeg')) mimeType = 'image/jpeg';
+              else if (item.imageUrl?.endsWith('.webp')) mimeType = 'image/webp';
+              else mimeType = 'image/jpeg'; // Default fallback
+          }
+          
+          const buffer = await response.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          const dataUri = `data:${mimeType};base64,${base64}`;
+
+          return { ...item, imageUrl: dataUri };
+        } catch (error: any) {
+          console.error(`Error processing image for ${item.name}:`, error.message);
+          return { ...item, imageUrl: undefined }; // Return item without image on any error
+        }
+      })
+    );
+
+    const processedInput = { ...input, menuItems: menuItemsWithDataUris };
+    const { output } = await generateMarketingContentPrompt(processedInput);
     return output!;
   }
 );
