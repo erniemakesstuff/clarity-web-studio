@@ -45,7 +45,9 @@ const generateMarketingContentPrompt = ai.definePrompt({
   input: {schema: GenerateMarketingContentInputSchema},
   output: {schema: GenerateMarketingContentOutputSchema},
   prompt: `You are a marketing expert for restaurants. Your task is to generate an engaging {{contentType}} based on a selection of menu items.
-The output should be in Markdown format. If images are provided, incorporate them into the content naturally.
+The output must be in Markdown format.
+If an image is provided for an item, you MUST include it in your response. Use Markdown format for the image: ![alt text](url).
+For the alt text, use the item's name. For the url, you MUST use the full data URI string provided in the context for that item's image. Do NOT generate your own image URLs.
 
 **Tone:** {{#if tone}}{{tone}}{{else}}Engaging and friendly{{/if}}
 
@@ -53,11 +55,12 @@ The output should be in Markdown format. If images are provided, incorporate the
 {{#each menuItems}}
 - **{{name}}**: {{description}}
   {{#if imageUrl}}
-  Image: {{media url=imageUrl}}
+  Image for context: {{media url=imageUrl}}
+  Data URI to use for this image in your output: {{{imageUrl}}}
   {{/if}}
 {{/each}}
 
-Now, generate the {{contentType}} in Markdown.
+Now, generate the {{contentType}} in valid Markdown.
 `,
 });
 
