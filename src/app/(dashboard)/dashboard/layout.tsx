@@ -180,9 +180,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>Admin User</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem><UserCircle className="mr-2 h-4 w-4" /> Profile</DropdownMenuItem>
-                  <DropdownMenuItem><Settings className="mr-2 h-4 w-4" /> Settings</DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {isActualAdmin && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/settings">
+                          <UserCircle className="mr-2 h-4 w-4" /> Profile
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/settings">
+                          <Settings className="mr-2 h-4 w-4" /> Settings
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                       <LogOut className="mr-2 h-4 w-4" /> Logout
                   </DropdownMenuItem>
