@@ -34,6 +34,15 @@ const GenerateMarketingContentOutputSchema = z.object({
 });
 export type GenerateMarketingContentOutput = z.infer<typeof GenerateMarketingContentOutputSchema>;
 
+// New schema for prompt input, includes placeholder
+const PromptMenuItemSchema = MenuItemSchema.extend({
+    imagePlaceholder: z.string().optional().describe('A unique placeholder for the image URL.'),
+});
+const PromptInputSchema = GenerateMarketingContentInputSchema.extend({
+    menuItems: z.array(PromptMenuItemSchema),
+});
+
+
 export async function generateMarketingContent(
   input: GenerateMarketingContentInput
 ): Promise<GenerateMarketingContentOutput> {
@@ -42,12 +51,13 @@ export async function generateMarketingContent(
 
 const generateMarketingContentPrompt = ai.definePrompt({
   name: 'generateMarketingContentPrompt',
-  input: {schema: GenerateMarketingContentInputSchema},
+  input: {schema: PromptInputSchema},
   output: {schema: GenerateMarketingContentOutputSchema},
   prompt: `You are a marketing expert for restaurants. Your task is to generate an engaging {{contentType}} based on a selection of menu items.
 The output must be in Markdown format.
+
 If an image is provided for an item, you MUST include it in your response. Use Markdown format for the image: ![alt text](url).
-For the alt text, use the item's name. For the url, you MUST use the full data URI string provided in the context for that item's image. Do NOT generate your own image URLs.
+For the alt text, use the item's name. For the url, you MUST use the exact placeholder value provided for that item. Do NOT generate your own URLs.
 
 **Tone:** {{#if tone}}{{tone}}{{else}}Engaging and friendly{{/if}}
 
@@ -56,7 +66,7 @@ For the alt text, use the item's name. For the url, you MUST use the full data U
 - **{{name}}**: {{description}}
   {{#if imageUrl}}
   Image for context: {{media url=imageUrl}}
-  Data URI to use for this image in your output: {{{imageUrl}}}
+  Use this placeholder for the image URL in your output: \`{{{imagePlaceholder}}}\`
   {{/if}}
 {{/each}}
 
@@ -71,8 +81,10 @@ const generateMarketingContentFlow = ai.defineFlow(
     outputSchema: GenerateMarketingContentOutputSchema,
   },
   async (input) => {
-    const menuItemsWithDataUris = await Promise.all(
-      input.menuItems.map(async (item) => {
+    const placeholderMap = new Map<string, string>();
+    
+    const menuItemsForPrompt = await Promise.all(
+      input.menuItems.map(async (item, index) => {
         if (!item.imageUrl) {
           return item;
         }
@@ -83,29 +95,43 @@ const generateMarketingContentFlow = ai.defineFlow(
             return { ...item, imageUrl: undefined };
           }
 
-          // Determine MIME type from response headers, fallback to guessing from URL
           let mimeType = response.headers.get('content-type');
           if (!mimeType || mimeType === 'binary/octet-stream') {
               if (item.imageUrl?.endsWith('.png')) mimeType = 'image/png';
               else if (item.imageUrl?.endsWith('.jpg') || item.imageUrl?.endsWith('.jpeg')) mimeType = 'image/jpeg';
               else if (item.imageUrl?.endsWith('.webp')) mimeType = 'image/webp';
-              else mimeType = 'image/jpeg'; // Default fallback
+              else mimeType = 'image/jpeg';
           }
           
           const buffer = await response.arrayBuffer();
           const base64 = Buffer.from(buffer).toString('base64');
           const dataUri = `data:${mimeType};base64,${base64}`;
+          const placeholder = `__IMAGE_PLACEHOLDER_${index}__`;
 
-          return { ...item, imageUrl: dataUri };
+          placeholderMap.set(placeholder, dataUri);
+
+          return { ...item, imageUrl: dataUri, imagePlaceholder: placeholder };
         } catch (error: any) {
           console.error(`Error processing image for ${item.name}:`, error.message);
-          return { ...item, imageUrl: undefined }; // Return item without image on any error
+          return { ...item, imageUrl: undefined }; 
         }
       })
     );
 
-    const processedInput = { ...input, menuItems: menuItemsWithDataUris };
+    const processedInput = { ...input, menuItems: menuItemsForPrompt };
     const { output } = await generateMarketingContentPrompt(processedInput);
-    return output!;
+
+    if (!output || !output.content) {
+        throw new Error('AI failed to generate content.');
+    }
+
+    let finalContent = output.content;
+    placeholderMap.forEach((dataUri, placeholder) => {
+        // Use a regex to replace all occurrences of the placeholder
+        const regex = new RegExp(placeholder, 'g');
+        finalContent = finalContent.replace(regex, dataUri);
+    });
+
+    return { content: finalContent };
   }
 );
