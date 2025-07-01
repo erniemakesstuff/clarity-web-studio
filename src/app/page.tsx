@@ -5,8 +5,8 @@ import Image from "next/image";
 import { Zap, BarChart, UploadCloud, UtensilsCrossed, Sparkles } from "lucide-react";
 
 export default function HomePage() {
-  const imageUrl = "https://placehold.co/600x400.png";
-  const imageAlt = "Clarity Menu Dashboard Preview";
+  const imageUrl = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/public-assets/clarity-menu-dashboard-v2.png";
+  const imageAlt = "A preview of the Clarity Menu dashboard showing analytics and menu management features.";
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -74,7 +74,7 @@ export default function HomePage() {
                 width={600}
                 height={400}
                 className="rounded-lg shadow-xl"
-                data-ai-hint="dashboard interface"
+                data-ai-hint="dashboard analytics"
               />
             </div>
             <div className="lg:w-1/2">
