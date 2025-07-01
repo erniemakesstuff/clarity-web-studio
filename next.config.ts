@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'truevine-media-storage.s3.us-west-2.amazonaws.com',
         port: '',
-        pathname: '/public-assets/**',
+        pathname: '/**',
       },
     ],
   },

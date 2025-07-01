@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/layout/AppHeader";
 import Link from "next/link";
@@ -5,7 +6,7 @@ import Image from "next/image";
 import { Zap, BarChart, UploadCloud, UtensilsCrossed, Sparkles } from "lucide-react";
 
 export default function HomePage() {
-  const imageUrl = "https://placehold.co/600x400.png";
+  const imageUrl = "https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-landing-project-clarity-highlights.png";
   const imageAlt = "A preview of the Clarity Menu dashboard showing analytics and menu management features.";
 
   return (
