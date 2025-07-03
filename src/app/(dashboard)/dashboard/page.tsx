@@ -135,7 +135,9 @@ export default function DashboardOverviewPage() {
 
     analyticsData.forEach(entry => {
       totalItemsSold += entry.purchase_count;
-      totalCoPurchases += entry.purchased_with.reduce((sum, pw) => sum + pw.purchase_count, 0);
+      if (Array.isArray(entry.purchased_with)) {
+        totalCoPurchases += entry.purchased_with.reduce((sum, pw) => sum + pw.purchase_count, 0);
+      }
 
       if (entry.purchase_count > trendingItem.purchase_count) {
         trendingItem = { name: entry.food_name, purchase_count: entry.purchase_count, category: entry.food_category };

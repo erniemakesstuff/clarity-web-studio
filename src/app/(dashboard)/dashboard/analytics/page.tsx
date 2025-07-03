@@ -48,16 +48,18 @@ export default function AnalyticsPage() {
       const itemA = entry.food_name.trim();
       allItems.add(itemA);
 
-      entry.purchased_with.forEach(relatedEntry => {
-        const itemB = relatedEntry.food_name.trim();
-        allItems.add(itemB);
-        
-        const pairKey = [itemA, itemB].sort().join("||");
-        
-        if (itemA !== itemB) {
-            coOccurrence[pairKey] = (coOccurrence[pairKey] || 0) + relatedEntry.purchase_count;
-        }
-      });
+      if (Array.isArray(entry.purchased_with)) {
+        entry.purchased_with.forEach(relatedEntry => {
+          const itemB = relatedEntry.food_name.trim();
+          allItems.add(itemB);
+          
+          const pairKey = [itemA, itemB].sort().join("||");
+          
+          if (itemA !== itemB) {
+              coOccurrence[pairKey] = (coOccurrence[pairKey] || 0) + relatedEntry.purchase_count;
+          }
+        });
+      }
     });
 
     const sortedPairs = Object.entries(coOccurrence)
@@ -76,7 +78,7 @@ export default function AnalyticsPage() {
       return [];
     }
     const selectedItemData = analyticsData.find(entry => entry.food_name.trim() === selectedItemForExplorer);
-    if (!selectedItemData) {
+    if (!selectedItemData || !Array.isArray(selectedItemData.purchased_with)) {
         return [];
     }
     
