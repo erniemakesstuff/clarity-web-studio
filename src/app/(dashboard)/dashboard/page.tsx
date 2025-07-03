@@ -1,3 +1,4 @@
+
 "use client";
 import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
@@ -156,7 +157,7 @@ export default function DashboardOverviewPage() {
         return { stats: { totalItemsSold, totalCoPurchases, trendingItem }, weeklyChartData: [], weeklyChartConfig: {} };
     }
     
-    const maxDate = new Date(Math.max.apply(null, allDates.map(d => d.getTime())));
+    const maxDate = new Date(); // Use today as the anchor for the look-back window
     const dataWindowStart = subMonths(maxDate, 2);
 
     const categories = new Set<string>();
@@ -320,6 +321,7 @@ export default function DashboardOverviewPage() {
                            <Bar
                              key={category}
                              dataKey={category}
+                             stackId="a"
                              fill={`var(--color-${category.replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase()})`}
                              radius={[4, 4, 0, 0]}
                            />
@@ -400,4 +402,5 @@ export default function DashboardOverviewPage() {
   );
 
   return renderDashboardContent();
-}
+
+    
