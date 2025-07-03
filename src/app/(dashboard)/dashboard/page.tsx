@@ -148,35 +148,24 @@ export default function DashboardOverviewPage() {
     });
 
     // --- Logic for Weekly Sales Chart ---
-    const allDates = analyticsData.map(entry => {
-        const parts = entry.timestamp_day.split('/');
-        if (parts.length !== 3) return null;
-        const d = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
-        return isNaN(d.getTime()) ? null : d;
-    }).filter((d): d is Date => d !== null);
-    
-    if (allDates.length === 0) {
-        return { stats: { totalItemsSold, totalCoPurchases, trendingItem }, weeklyChartData: [], weeklyChartConfig: {} };
-    }
-    
-    const maxDate = new Date(Math.max.apply(null, allDates.map(d => d.getTime())));
+    const now = new Date();
     
     let dataWindowStart;
     switch (timeRange) {
       case '1m':
-        dataWindowStart = subMonths(maxDate, 1);
+        dataWindowStart = subMonths(now, 1);
         break;
       case '3m':
-        dataWindowStart = subMonths(maxDate, 3);
+        dataWindowStart = subMonths(now, 3);
         break;
       case '1y':
-        dataWindowStart = subYears(maxDate, 1);
+        dataWindowStart = subYears(now, 1);
         break;
       case '2y':
-        dataWindowStart = subYears(maxDate, 2);
+        dataWindowStart = subYears(now, 2);
         break;
       default:
-        dataWindowStart = subYears(maxDate, 1); // Default to 1 year
+        dataWindowStart = subYears(now, 1); // Default to 1 year
     }
 
 
@@ -188,7 +177,8 @@ export default function DashboardOverviewPage() {
         if (parts.length !== 3) return;
         
         const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
-        if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart || !entry.purchase_count || entry.purchase_count <= 0) return;
+        
+        if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart || entryDate > now || !entry.purchase_count || entry.purchase_count <= 0) return;
 
         const category = getSafeCategory(entry.food_category);
         categories.add(category);
@@ -273,7 +263,7 @@ export default function DashboardOverviewPage() {
      );
   }
 
-  const renderDashboardContent = () => (
+  return (
       <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -433,6 +423,4 @@ export default function DashboardOverviewPage() {
       )}
       </div>
   );
-
-  return renderDashboardContent();
 }
