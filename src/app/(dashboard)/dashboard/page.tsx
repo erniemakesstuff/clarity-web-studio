@@ -157,8 +157,8 @@ export default function DashboardOverviewPage() {
         return { stats: { totalItemsSold, totalCoPurchases, trendingItem }, weeklyChartData: [], weeklyChartConfig: {} };
     }
     
-    const maxDate = new Date(); // Use today as the anchor for the look-back window
-    const dataWindowStart = subMonths(maxDate, 2);
+    const maxDate = new Date(Math.max.apply(null, allDates.map(d => d.getTime())));
+    const dataWindowStart = subMonths(maxDate, 14);
 
     const categories = new Set<string>();
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
@@ -168,7 +168,7 @@ export default function DashboardOverviewPage() {
         if (parts.length !== 3) return;
         
         const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
-        if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart) return;
+        if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart || !entry.purchase_count || entry.purchase_count <= 0) return;
 
         const category = getSafeCategory(entry.food_category);
         categories.add(category);
@@ -301,7 +301,7 @@ export default function DashboardOverviewPage() {
         <Card>
           <CardHeader>
             <CardTitle>Weekly Sales by Category</CardTitle>
-            <CardDescription>Sales performance by food category over the last two months of available data.</CardDescription>
+            <CardDescription>Sales performance by food category over the last 14 months of available data.</CardDescription>
           </CardHeader>
           <CardContent>
             {weeklyChartData.length > 0 ? (
@@ -402,5 +402,7 @@ export default function DashboardOverviewPage() {
   );
 
   return renderDashboardContent();
+
+    
 
     
