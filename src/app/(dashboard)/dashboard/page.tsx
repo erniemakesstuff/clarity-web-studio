@@ -11,10 +11,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { subMonths, startOfWeek, format } from "date-fns";
+import { subMonths, subYears, startOfWeek, format } from "date-fns";
 import type { ChartConfig as ChartConfigType } from "@/components/ui/chart";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
@@ -54,6 +55,7 @@ export default function DashboardOverviewPage() {
 
   const [publicMenuUrl, setPublicMenuUrl] = useState("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
+  const [timeRange, setTimeRange] = useState("1y");
 
   useEffect(() => {
     if (selectedMenuInstance && ownerId && typeof window !== 'undefined') {
@@ -158,7 +160,25 @@ export default function DashboardOverviewPage() {
     }
     
     const maxDate = new Date(Math.max.apply(null, allDates.map(d => d.getTime())));
-    const dataWindowStart = subMonths(maxDate, 14);
+    
+    let dataWindowStart;
+    switch (timeRange) {
+      case '1m':
+        dataWindowStart = subMonths(maxDate, 1);
+        break;
+      case '3m':
+        dataWindowStart = subMonths(maxDate, 3);
+        break;
+      case '1y':
+        dataWindowStart = subYears(maxDate, 1);
+        break;
+      case '2y':
+        dataWindowStart = subYears(maxDate, 2);
+        break;
+      default:
+        dataWindowStart = subYears(maxDate, 1); // Default to 1 year
+    }
+
 
     const categories = new Set<string>();
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
@@ -207,7 +227,7 @@ export default function DashboardOverviewPage() {
       weeklyChartData: calculatedChartData,
       weeklyChartConfig: wConfig,
     };
-  }, [analyticsData]);
+  }, [analyticsData, timeRange]);
 
   const totalMenuItems = selectedMenuInstance?.menu?.length ?? 0;
 
@@ -299,9 +319,22 @@ export default function DashboardOverviewPage() {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Weekly Sales by Category</CardTitle>
-            <CardDescription>Sales performance by food category over the last 14 months of available data.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+             <div>
+                <CardTitle>Weekly Sales by Category</CardTitle>
+                <CardDescription>Sales performance by food category.</CardDescription>
+             </div>
+             <Select value={timeRange} onValueChange={setTimeRange}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select a time range" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="1m">Past Month</SelectItem>
+                    <SelectItem value="3m">Past 3 Months</SelectItem>
+                    <SelectItem value="1y">Past Year</SelectItem>
+                    <SelectItem value="2y">Past 2 Years</SelectItem>
+                </SelectContent>
+             </Select>
           </CardHeader>
           <CardContent>
             {weeklyChartData.length > 0 ? (
@@ -333,7 +366,7 @@ export default function DashboardOverviewPage() {
                     <BarChart className="h-5 w-5" />
                     <AlertTitle>No Analytics Data Available</AlertTitle>
                     <AlertDescription>
-                        No sales data found in the required format. Once you upload receipts for "{selectedMenuInstance.name}", your performance data will appear here.
+                        No sales data found for the selected time range. Once you upload receipts for "{selectedMenuInstance.name}", your performance data will appear here.
                     </AlertDescription>
                 </Alert>
             )}
@@ -402,7 +435,4 @@ export default function DashboardOverviewPage() {
   );
 
   return renderDashboardContent();
-
-    
-
-    
+}
