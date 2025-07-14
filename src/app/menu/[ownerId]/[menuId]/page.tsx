@@ -38,42 +38,44 @@ const categoryIcons: Record<string, React.ReactNode> = {
 
 const getSortedMenu = (
   menuItemsToSort: MenuItem[],
-  schedules?: OverrideSchedule[]
+  schedules: OverrideSchedule[] | undefined
 ): MenuItem[] => {
-  if (!schedules || schedules.length === 0) {
-    return [...menuItemsToSort].sort(
-      (a, b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity) || a.name.localeCompare(b.name)
-    );
-  }
-
+  // Create a copy to avoid mutating the original array
+  const sorted = [...menuItemsToSort];
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes();
-
+  
   const activeOverrides = new Map<string, number>();
 
-  schedules.forEach(schedule => {
-    const [startH, startM] = schedule.start_time.split(':').map(Number);
-    const [endH, endM] = schedule.end_time.split(':').map(Number);
-    const startTime = startH * 60 + startM;
-    const endTime = endH * 60 + endM;
-    
-    const isActive = (startTime <= endTime)
-      ? (currentTime >= startTime && currentTime < endTime)
-      : (currentTime >= startTime || currentTime < endTime); // Handles overnight schedules
+  if (schedules && schedules.length > 0) {
+    schedules.forEach(schedule => {
+      const [startH, startM] = schedule.start_time.split(':').map(Number);
+      const [endH, endM] = schedule.end_time.split(':').map(Number);
+      const startTime = startH * 60 + startM;
+      const endTime = endH * 60 + endM;
 
-    if (isActive) {
-      activeOverrides.set(schedule.food_name, schedule.display_order_override);
-    }
-  });
+      const isActive = (startTime <= endTime)
+        ? (currentTime >= startTime && currentTime < endTime)
+        : (currentTime >= startTime || currentTime < endTime); // Handles overnight schedules
 
-  return [...menuItemsToSort].sort((a, b) => {
+      if (isActive) {
+        activeOverrides.set(schedule.food_name, schedule.display_order_override);
+      }
+    });
+  }
+
+  sorted.sort((a, b) => {
     const orderA = activeOverrides.get(a.name) ?? a.displayOrder ?? Infinity;
     const orderB = activeOverrides.get(b.name) ?? b.displayOrder ?? Infinity;
+
     if (orderA !== orderB) {
       return orderA - orderB;
     }
+    // Fallback to alphabetical sorting if displayOrder is the same or not present
     return a.name.localeCompare(b.name);
   });
+
+  return sorted;
 };
 
 
