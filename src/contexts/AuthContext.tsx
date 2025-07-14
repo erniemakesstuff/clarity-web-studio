@@ -285,7 +285,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const addMenuInstance = (name: string): MenuInstance => {
     const newMenuInstance: MenuInstance = {
-      id: name.toLowerCase().replace(/\s+/g, '-') + '-menu-' + Date.now(),
+      id: name, // Use the provided name as the ID
       name: name,
       menu: [],
       analytics: [],
