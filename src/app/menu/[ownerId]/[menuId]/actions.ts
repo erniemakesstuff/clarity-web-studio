@@ -1,7 +1,7 @@
 
 "use server";
 
-import type { MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, BackendFoodServiceEntryJson } from '@/lib/types';
+import type { MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, BackendFoodServiceEntryJson, OverrideSchedule } from '@/lib/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -58,6 +58,7 @@ interface FetchPublicMenuResult {
   success: boolean;
   menu?: MenuItem[];
   restaurantName?: string;
+  overrideSchedules?: OverrideSchedule[];
   message?: string;
 }
 
@@ -153,8 +154,15 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
             return null; 
           }
         }).filter((item): item is MenuItem => item !== null);
+      
+      const overrideSchedules: OverrideSchedule[] = Array.isArray(digitalMenu.override_schedules) ? digitalMenu.override_schedules.filter(s =>
+            typeof s.food_name === 'string' &&
+            typeof s.start_time === 'string' &&
+            typeof s.end_time === 'string' &&
+            typeof s.display_order_override === 'number'
+        ) : [];
 
-      return { success: true, menu: menuItems, restaurantName: currentMenuIdActual };
+      return { success: true, menu: menuItems, restaurantName: currentMenuIdActual, overrideSchedules };
     } else {
       let errorMessage = `Backend API Error fetching public menu: ${response.status} ${response.statusText}.`;
       if (responseBodyText) {

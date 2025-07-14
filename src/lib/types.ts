@@ -69,6 +69,14 @@ export interface AnalyticsEntry {
   timestamp_day: string; // "MM/DD/YYYY"
 }
 
+export interface OverrideSchedule {
+  food_name: string;
+  start_time: string; // HH:MM
+  end_time: string;   // HH:MM
+  display_order_override: number;
+}
+
+
 export interface BackendFoodServiceEntryJson {
   food_category: string;
   name: string;
@@ -93,8 +101,9 @@ export interface BackendDigitalMenuJson {
   test_goal?: string;
   test_hypothesis?: string;
   test_history?: string;
-  Analytics?: AnalyticsEntry[] | null; // Updated to use defined type
+  Analytics?: AnalyticsEntry[] | null; 
   State?: DigitalMenuState;
+  override_schedules?: OverrideSchedule[] | null;
 }
 
 export interface MenuInstance {
@@ -108,6 +117,7 @@ export interface MenuInstance {
   testGoal?: string;
   testHypothesis?: string;
   testHistory?: string;
+  overrideSchedules?: OverrideSchedule[];
 }
 
 export const FOOD_CATEGORIES = [

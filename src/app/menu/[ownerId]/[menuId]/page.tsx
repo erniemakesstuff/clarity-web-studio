@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams } from 'next/navigation';
-import type { MenuItem, MenuCategory } from "@/lib/types";
+import type { MenuItem, MenuCategory, OverrideSchedule } from "@/lib/types";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { UpsellDialog } from "@/components/menu/UpsellDialog";
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -36,12 +36,54 @@ const categoryIcons: Record<string, React.ReactNode> = {
   "Sandwiches": <Utensils className="mr-2 h-5 w-5" />
 };
 
+const getSortedMenu = (
+  menuItemsToSort: MenuItem[],
+  schedules?: OverrideSchedule[]
+): MenuItem[] => {
+  if (!schedules || schedules.length === 0) {
+    return [...menuItemsToSort].sort(
+      (a, b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity) || a.name.localeCompare(b.name)
+    );
+  }
+
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+
+  const activeOverrides = new Map<string, number>();
+
+  schedules.forEach(schedule => {
+    const [startH, startM] = schedule.start_time.split(':').map(Number);
+    const [endH, endM] = schedule.end_time.split(':').map(Number);
+    const startTime = startH * 60 + startM;
+    const endTime = endH * 60 + endM;
+    
+    const isActive = (startTime <= endTime)
+      ? (currentTime >= startTime && currentTime < endTime)
+      : (currentTime >= startTime || currentTime < endTime); // Handles overnight schedules
+
+    if (isActive) {
+      activeOverrides.set(schedule.food_name, schedule.display_order_override);
+    }
+  });
+
+  return [...menuItemsToSort].sort((a, b) => {
+    const orderA = activeOverrides.get(a.name) ?? a.displayOrder ?? Infinity;
+    const orderB = activeOverrides.get(b.name) ?? b.displayOrder ?? Infinity;
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    return a.name.localeCompare(b.name);
+  });
+};
+
 
 export default function MenuPage() {
   const params = useParams();
   const ownerId = params.ownerId as string;
   const menuId = params.menuId as string;
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [overrideSchedules, setOverrideSchedules] = useState<OverrideSchedule[]>([]);
+  const [sortedMenuItems, setSortedMenuItems] = useState<MenuItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,21 +113,9 @@ export default function MenuPage() {
     fetchPublicMenuData(ownerId, menuId, asExperiment)
       .then(result => {
         if (result.success && result.menu) {
-          const fetchedMenuItems = result.menu;
-          setMenuItems(fetchedMenuItems);
-          setFilteredItems(fetchedMenuItems); 
+          setMenuItems(result.menu);
+          setOverrideSchedules(result.overrideSchedules || []);
           setRestaurantName(result.restaurantName || menuId);
-          
-          const uniqueCategories = Array.from(new Set(fetchedMenuItems.map(item => item.category || "Other")));
-          const categorizedMenuData: MenuCategory[] = uniqueCategories
-            .sort()
-            .map(catName => ({
-              name: catName,
-              items: fetchedMenuItems.filter(item => (item.category || "Other") === catName)
-                                    .sort((a,b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity) || a.name.localeCompare(b.name))
-          }));
-          setCategories([{ name: "All", items: fetchedMenuItems.sort((a,b) => (a.displayOrder ?? Infinity) - (b.displayOrder ?? Infinity) || a.name.localeCompare(b.name)) }, ...categorizedMenuData]);
-          setActiveTab("All");
         } else {
           setFetchError(result.message || "Failed to load menu data.");
           toast({
@@ -110,14 +140,20 @@ export default function MenuPage() {
   }, [ownerId, menuId, toast]);
 
   useEffect(() => {
-    let itemsToFilter = menuItems; 
+    const newlySortedItems = getSortedMenu(menuItems, overrideSchedules);
+    setSortedMenuItems(newlySortedItems);
+  }, [menuItems, overrideSchedules]);
+
+
+  useEffect(() => {
+    let itemsToFilter = sortedMenuItems; 
     
     if (viewMode === 'category') {
         itemsToFilter = activeTab === "All" 
-            ? menuItems 
+            ? sortedMenuItems 
             : categories.find(c => c.name === activeTab)?.items || [];
     } else { 
-        itemsToFilter = menuItems; 
+        itemsToFilter = sortedMenuItems; 
     }
     
     const lowercasedSearchTerm = searchTerm.toLowerCase();
@@ -126,7 +162,21 @@ export default function MenuPage() {
       (item.description && item.description.toLowerCase().includes(lowercasedSearchTerm))
     ) : [];
     setFilteredItems(results);
-  }, [searchTerm, menuItems, activeTab, categories, viewMode]);
+  }, [searchTerm, sortedMenuItems, activeTab, categories, viewMode]);
+
+   useEffect(() => {
+    if (sortedMenuItems.length > 0) {
+      const uniqueCategories = Array.from(new Set(sortedMenuItems.map(item => item.category || "Other")));
+      const categorizedMenuData: MenuCategory[] = uniqueCategories
+        .sort()
+        .map(catName => ({
+          name: catName,
+          items: sortedMenuItems.filter(item => (item.category || "Other") === catName)
+        }));
+      setCategories([{ name: "All", items: sortedMenuItems }, ...categorizedMenuData]);
+      setActiveTab("All");
+    }
+  }, [sortedMenuItems]);
 
 
   const handleUpsellClick = (item: MenuItem) => {
@@ -196,9 +246,9 @@ export default function MenuPage() {
       {viewMode === 'feed' ? (
         <main className="flex-1 relative overflow-hidden flex items-center justify-center">
           <SwipeFeed 
-            items={menuItems} 
+            items={sortedMenuItems} 
             onUpsellClick={handleUpsellClick} 
-            allMenuItems={menuItems} 
+            allMenuItems={sortedMenuItems} 
           />
           <div className="fixed bottom-6 right-6 z-20">
             <Button
@@ -255,7 +305,7 @@ export default function MenuPage() {
                     className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
                   >
                     {categoryIcons[category.name] || <Utensils className="mr-2 h-5 w-5" />}
-                    {category.name} ({category.name === "All" ? menuItems.length : category.items.length})
+                    {category.name} ({category.name === "All" ? sortedMenuItems.length : category.items.length})
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -291,7 +341,7 @@ export default function MenuPage() {
           isOpen={isUpsellDialogOpen}
           onOpenChange={setIsUpsellDialogOpen}
           selectedItem={selectedItemForUpsell}
-          menuItems={menuItems} 
+          menuItems={sortedMenuItems} 
         />
       )}
 

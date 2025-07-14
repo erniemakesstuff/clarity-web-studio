@@ -2,7 +2,7 @@
 'use server';
 
 import type { AuthContextType } from '@/contexts/AuthContext'; 
-import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult, MenuItem as FrontendMenuItem } from '@/lib/types';
+import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult, MenuItem as FrontendMenuItem, OverrideSchedule } from '@/lib/types';
 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -275,7 +275,6 @@ export async function updateMenuItemOnBackend(
 
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    console.log("Authorization Header for PUT /ris/v1/menu/item:", authorizationValue);
     const response = await fetch(`${API_BASE_URL}/ris/v1/menu/item`, {
       method: "PUT",
       headers: {
@@ -310,6 +309,55 @@ export async function updateMenuItemOnBackend(
         detailedErrorMessage = `Connection Refused: The backend service at ${API_BASE_URL} is not responding for item update.`;
     } else if (error.message) {
         detailedErrorMessage = `An unexpected error occurred (updating item): ${error.message}`;
+    }
+    return { success: false, message: detailedErrorMessage };
+  }
+}
+
+
+interface PatchDigitalMenuRequest {
+  ownerId: string;
+  menuId: string;
+  overrideSchedules?: OverrideSchedule[];
+}
+
+interface PatchDigitalMenuResult {
+  success: boolean;
+  message?: string;
+}
+
+export async function patchDigitalMenu(
+  params: PatchDigitalMenuRequest,
+  jwtToken: string | null
+): Promise<PatchDigitalMenuResult> {
+  try {
+    const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
+    const response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authorizationValue,
+      },
+      body: JSON.stringify(params),
+    });
+
+    if (response.ok) {
+      return { success: true, message: "Menu override schedules updated successfully." };
+    } else {
+      const errorText = await response.text();
+      let errorMessage = `Backend error updating schedules: ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage += ` Raw response: ${errorText.substring(0, 200)}`;
+      }
+      return { success: false, message: errorMessage };
+    }
+  } catch (error: any) {
+    let detailedErrorMessage = `Failed to communicate with backend to update schedules.`;
+    if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
+      detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for schedule update.`;
     }
     return { success: false, message: detailedErrorMessage };
   }

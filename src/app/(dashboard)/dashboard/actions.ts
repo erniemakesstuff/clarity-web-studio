@@ -1,7 +1,7 @@
 
 'use server';
 
-import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, AnalyticsEntry, BackendFoodServiceEntryJson } from '@/lib/types';
+import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, AnalyticsEntry, BackendFoodServiceEntryJson, OverrideSchedule } from '@/lib/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -134,6 +134,7 @@ export async function fetchMenuInstancesFromBackend(
                 s3ContextImageUrls: [],
                 analytics: [],
                 allowABTesting: false,
+                overrideSchedules: [],
             };
         }
 
@@ -150,6 +151,14 @@ export async function fetchMenuInstancesFromBackend(
         }
 
         const allowAB = digitalMenu.AllowABTesting === true;
+        
+        const overrideSchedules: OverrideSchedule[] = Array.isArray(digitalMenu.override_schedules) ? digitalMenu.override_schedules.filter(s => 
+            typeof s.food_name === 'string' &&
+            typeof s.start_time === 'string' &&
+            typeof s.end_time === 'string' &&
+            typeof s.display_order_override === 'number'
+        ) : [];
+
 
         return {
           id: menuIdToUse,
@@ -162,6 +171,7 @@ export async function fetchMenuInstancesFromBackend(
           testGoal: digitalMenu.test_goal,
           testHypothesis: digitalMenu.test_hypothesis,
           testHistory: digitalMenu.test_history,
+          overrideSchedules: overrideSchedules,
         };
       });
       return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };

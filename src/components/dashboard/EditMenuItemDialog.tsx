@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import type { MenuItem, MediaObject } from "@/lib/types";
+import type { MenuItem, MediaObject, OverrideSchedule } from "@/lib/types";
 import { FOOD_CATEGORIES, COMMON_ALLERGENS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,11 +22,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, Loader2 } from "lucide-react";
+import { Info, Loader2, PlusCircle, Trash2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMenuItemOnBackend } from "@/app/(dashboard)/dashboard/menu-management/actions";
 import { cn } from "@/lib/utils";
+import { patchDigitalMenu } from "@/app/(dashboard)/dashboard/menu-management/actions";
 
 interface EditMenuItemDialogProps {
   item: MenuItem | null;
@@ -46,13 +47,14 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
   const [ingredients, setIngredients] = useState("");
   const [youMayAlsoLike, setYouMayAlsoLike] = useState<string[]>([]);
   const [allergenTags, setAllergenTags] = useState<string[]>([]);
+  const [schedules, setSchedules] = useState<Omit<OverrideSchedule, 'food_name'>[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance, ownerId } = useAuth();
+  const { jwtToken, selectedMenuInstance, ownerId, updateMenuSchedules } = useAuth();
 
   useEffect(() => {
-    if (item && isOpen) {
+    if (item && isOpen && selectedMenuInstance) {
       setName(item.name);
       setDescription(item.description || "");
       setPrice(item.price);
@@ -62,7 +64,14 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       setIngredients(item.ingredients || "");
       setYouMayAlsoLike(item.youMayAlsoLike || []);
       setAllergenTags(item.allergenTags || []);
+      
+      const itemSchedules = (selectedMenuInstance.overrideSchedules || [])
+        .filter(s => s.food_name === item.name)
+        .map(({ food_name, ...rest }) => rest);
+      setSchedules(itemSchedules);
+
     } else if (!isOpen) {
+      // Reset state when dialog closes
       setName("");
       setDescription("");
       setPrice("");
@@ -72,44 +81,37 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       setIngredients("");
       setYouMayAlsoLike([]);
       setAllergenTags([]);
+      setSchedules([]);
       setIsSaving(false);
     }
-  }, [item, isOpen]);
+  }, [item, isOpen, selectedMenuInstance]);
 
   const handleSave = async () => {
     if (!item || !selectedMenuInstance) {
-        toast({
-            title: "Error",
-            description: "Required item or menu context is missing.",
-            variant: "destructive",
-        });
+        toast({ title: "Error", description: "Required item or menu context is missing.", variant: "destructive" });
         return;
     }
     if (!name.trim() || !price.trim() || !category.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Name, price, and category cannot be empty.",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "Name, price, and category cannot be empty.", variant: "destructive" });
       return;
     }
     if (!price.startsWith("$") || isNaN(parseFloat(price.substring(1)))) {
-        toast({
-            title: "Validation Error",
-            description: "Price must be in a valid format (e.g., $10.99).",
-            variant: "destructive",
-        });
+        toast({ title: "Validation Error", description: "Price must be in a valid format (e.g., $10.99).", variant: "destructive" });
         return;
     }
     const parsedDisplayOrder = displayOrder === "" ? undefined : parseInt(String(displayOrder), 10);
     if (displayOrder !== "" && (isNaN(parsedDisplayOrder) || parsedDisplayOrder < 0)) {
-         toast({
-            title: "Validation Error",
-            description: "Display Order must be a non-negative number.",
-            variant: "destructive",
-        });
+         toast({ title: "Validation Error", description: "Display Order must be a non-negative number.", variant: "destructive" });
         return;
     }
+    
+    for (const schedule of schedules) {
+        if (!/^\d{2}:\d{2}$/.test(schedule.start_time) || !/^\d{2}:\d{2}$/.test(schedule.end_time)) {
+             toast({ title: "Validation Error", description: "Schedule times must be in HH:MM format.", variant: "destructive" });
+            return;
+        }
+    }
+
 
     setIsSaving(true);
 
@@ -118,11 +120,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
 
     const updatedMediaObjects: MediaObject[] = [];
     if (primaryImageUrl.trim()) {
-      updatedMediaObjects.push({
-        type: 'image',
-        url: primaryImageUrl.trim(),
-        dataAiHint: effectiveVisualDescription, 
-      });
+      updatedMediaObjects.push({ type: 'image', url: primaryImageUrl.trim(), dataAiHint: effectiveVisualDescription });
     }
 
     const updatedItemFromDialog: MenuItem = {
@@ -138,28 +136,39 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       allergenTags: allergenTags,
       _tempVisualDescriptionForSave: effectiveVisualDescription,
     };
-    
-    const backendResult = await updateMenuItemOnBackend({
-        ownerId: ownerId,
-        menuId: selectedMenuInstance.id,
-        targetEntryName: item.name, 
-        itemData: updatedItemFromDialog,
-        jwtToken: jwtToken,
-    });
 
-    if (backendResult.success) {
+    // Prepare full list of schedules for the PATCH request
+    const otherSchedules = (selectedMenuInstance.overrideSchedules || []).filter(s => s.food_name !== item.name);
+    const newSchedulesForPatch = schedules.map(s => ({ ...s, food_name: name.trim() }));
+    const finalSchedules = [...otherSchedules, ...newSchedulesForPatch];
+
+    const [itemUpdateResult, scheduleUpdateResult] = await Promise.all([
+        updateMenuItemOnBackend({
+            ownerId, menuId: selectedMenuInstance.id, targetEntryName: item.name, itemData: updatedItemFromDialog, jwtToken
+        }),
+        patchDigitalMenu({
+            ownerId, menuId: selectedMenuInstance.id, overrideSchedules: finalSchedules
+        }, jwtToken)
+    ]);
+
+
+    if (itemUpdateResult.success && scheduleUpdateResult.success) {
       onSave(updatedItemFromDialog); 
+      updateMenuSchedules(selectedMenuInstance.id, finalSchedules);
       toast({
         title: "Item Updated",
-        description: backendResult.message || `"${updatedItemFromDialog.name}" updated successfully on the backend.`,
+        description: `"${updatedItemFromDialog.name}" and its schedules updated successfully.`,
         variant: "default",
         className: "bg-green-500 text-white",
       });
       onOpenChange(false);
     } else {
+      let errors = [];
+      if (!itemUpdateResult.success) errors.push(`Item Details: ${itemUpdateResult.message}`);
+      if (!scheduleUpdateResult.success) errors.push(`Schedules: ${scheduleUpdateResult.message}`);
       toast({
-        title: "Backend Update Failed",
-        description: backendResult.message || `Could not update "${updatedItemFromDialog.name}" on the backend.`,
+        title: "Update Failed",
+        description: `Could not save all changes. Errors: ${errors.join(', ')}`,
         variant: "destructive",
       });
     }
@@ -178,6 +187,27 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
         ? prev.filter(name => name !== itemName)
         : [...prev, itemName]
     );
+  };
+
+  const handleAddSchedule = () => {
+    setSchedules(prev => [...prev, { start_time: '00:00', end_time: '00:00', display_order_override: 0 }]);
+  };
+
+  const handleRemoveSchedule = (index: number) => {
+    setSchedules(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleScheduleChange = <K extends keyof Omit<OverrideSchedule, 'food_name'>>(
+    index: number,
+    field: K,
+    value: Omit<OverrideSchedule, 'food_name'>[K]
+  ) => {
+    setSchedules(prev => {
+        const newSchedules = [...prev];
+        const schedule = { ...newSchedules[index], [field]: value };
+        newSchedules[index] = schedule;
+        return newSchedules;
+    });
   };
 
   const availableRecommendations = allMenuItems.filter(menuItem => menuItem.id !== item?.id);
@@ -240,13 +270,13 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <div className="flex items-center justify-end col-span-1">
-                <Label htmlFor="edit-display-order" className="text-right mr-1">Display Order</Label>
+                <Label htmlFor="edit-display-order" className="text-right mr-1">Base Display Order</Label>
                  <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Determines the order in which food items are shown to the user, e.g., in lists or carousels. Lower numbers usually appear first.</p>
+                    <p className="max-w-xs">Default order for this item. Lower numbers appear first. Can be overridden by schedules.</p>
                   </TooltipContent>
                 </Tooltip>
             </div>
@@ -321,6 +351,36 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+           <div className="grid grid-cols-4 items-start gap-4">
+             <div className="flex items-center justify-end col-span-1 pt-2">
+                <Label className="text-right mr-1 flex items-center gap-1.5"><Clock size={14}/> Overrides</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">Set a different display order for this item during specific times (e.g., make it appear first during lunch hours).</p>
+                  </TooltipContent>
+                </Tooltip>
+            </div>
+            <div className="col-span-3 space-y-3">
+              {schedules.map((schedule, index) => (
+                <div key={index} className="flex items-center gap-2 p-2 border rounded-md bg-secondary/30">
+                  <Input type="time" value={schedule.start_time} onChange={(e) => handleScheduleChange(index, 'start_time', e.target.value)} className="w-24" disabled={isBusy}/>
+                  <span className="text-muted-foreground">-</span>
+                  <Input type="time" value={schedule.end_time} onChange={(e) => handleScheduleChange(index, 'end_time', e.target.value)} className="w-24" disabled={isBusy}/>
+                  <Input type="number" placeholder="Order" value={schedule.display_order_override} onChange={(e) => handleScheduleChange(index, 'display_order_override', parseInt(e.target.value, 10) || 0)} className="w-20" disabled={isBusy}/>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveSchedule(index)} disabled={isBusy}>
+                    <Trash2 className="h-4 w-4 text-destructive"/>
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={handleAddSchedule} disabled={isBusy}>
+                <PlusCircle className="mr-2 h-4 w-4"/> Add Schedule
+              </Button>
             </div>
           </div>
 

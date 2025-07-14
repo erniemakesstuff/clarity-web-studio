@@ -3,7 +3,7 @@
 
 import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { MenuInstance, MenuItem } from "@/lib/types";
+import type { MenuInstance, MenuItem, OverrideSchedule } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
 import { patchMenu } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,7 @@ export interface AuthContextType {
   addMenuInstance: (name: string) => MenuInstance;
   renameMenuInstance: (menuId: string, newName: string) => boolean;
   updateMenuItem: (menuInstanceId: string, updatedItem: MenuItem) => boolean;
+  updateMenuSchedules: (menuInstanceId: string, schedules: OverrideSchedule[]) => boolean;
   isLoadingMenuInstances: boolean;
   refreshMenuInstances: () => Promise<void>;
   rawMenuApiResponseText: string | null;
@@ -250,6 +251,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       menu: [],
       analytics: [],
       allowABTesting: false,
+      overrideSchedules: [],
     };
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
@@ -337,6 +339,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return success;
   };
 
+  const updateMenuSchedules = (menuInstanceId: string, schedules: OverrideSchedule[]): boolean => {
+    let success = false;
+    const updatedMenuInstances = menuInstances.map(instance => {
+      if (instance.id === menuInstanceId) {
+        if (JSON.stringify(instance.overrideSchedules) !== JSON.stringify(schedules)) {
+          success = true;
+        }
+        return { ...instance, overrideSchedules: schedules };
+      }
+      return instance;
+    });
+
+    if (success) {
+      setMenuInstances(updatedMenuInstances);
+      if (selectedMenuInstance?.id === menuInstanceId) {
+        setSelectedMenuInstance(prev => prev ? { ...prev, overrideSchedules: schedules } : null);
+      }
+    }
+    return success;
+  };
+
   const value = {
     user,
     isAuthenticated,
@@ -354,6 +377,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     addMenuInstance,
     renameMenuInstance,
     updateMenuItem,
+    updateMenuSchedules,
     isLoadingMenuInstances,
     refreshMenuInstances,
     rawMenuApiResponseText,
