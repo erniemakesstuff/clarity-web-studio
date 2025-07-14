@@ -19,11 +19,8 @@ import {
   type UserCredential,
 } from "firebase/auth";
 
-const MENU_INSTANCES_LS_KEY = "clarityMenuUserMenuInstances";
-const MENU_INSTANCES_TIMESTAMP_LS_KEY = "clarityMenuMenuInstancesTimestamp";
 const SELECTED_MENU_INSTANCE_LS_KEY = "clarityMenuSelectedMenuInstance";
 const RAW_MENU_API_RESPONSE_LS_KEY = "clarityMenuRawApiResponse";
-const MENU_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
@@ -72,8 +69,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSelectedMenuInstance(null);
     setRawMenuApiResponseText(null);
     localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
-    localStorage.removeItem(MENU_INSTANCES_LS_KEY);
-    localStorage.removeItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
     localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
   };
   
@@ -146,26 +141,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setIsLoadingMenuInstances(true);
-
-    const cachedTimestampStr = localStorage.getItem(MENU_INSTANCES_TIMESTAMP_LS_KEY);
-    const cachedInstancesStr = localStorage.getItem(MENU_INSTANCES_LS_KEY);
-    const cachedTimestamp = cachedTimestampStr ? parseInt(cachedTimestampStr, 10) : null;
-
-    if (!forceRefresh && cachedTimestamp && cachedInstancesStr && (Date.now() - cachedTimestamp < MENU_CACHE_TTL)) {
-      try {
-        const parsedInstances: MenuInstance[] = JSON.parse(cachedInstancesStr);
-        setMenuInstances(parsedInstances);
-        const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
-        const foundMenuInstance = parsedInstances.find(m => m.id === storedMenuInstanceId);
-        setSelectedMenuInstance(foundMenuInstance || (parsedInstances.length > 0 ? parsedInstances[0] : null));
-        const cachedRawResponse = localStorage.getItem(RAW_MENU_API_RESPONSE_LS_KEY);
-        setRawMenuApiResponseText(cachedRawResponse); 
-        setIsLoadingMenuInstances(false);
-        return;
-      } catch (e) {
-        console.error("Failed to parse cached menu instances:", e);
-      }
-    }
     
     if (jwtToken) {
       const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
@@ -175,8 +150,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (result.success && result.menuInstances) {
         setMenuInstances(result.menuInstances);
-        localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(result.menuInstances));
-        localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
 
         if (result.menuInstances.length > 0) {
           const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
@@ -201,9 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               variant: "destructive",
           });
         }
-        if (forceRefresh || !cachedInstancesStr) {
-          clearMenuData();
-        }
+        clearMenuData();
       }
     } else {
         console.warn("Attempted to load menu data without a JWT token.");
@@ -294,8 +265,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
     setSelectedMenuInstance(newMenuInstance);
-    localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-    localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
+    // Persist to local storage to keep it across reloads before backend sync
     localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newMenuInstance.id);
     return newMenuInstance;
   };
@@ -344,8 +314,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (JSON.stringify(updatedMenuInstances) !== JSON.stringify(menuInstances)) {
       setMenuInstances(updatedMenuInstances);
-      localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
       success = true;
     }
 
@@ -373,8 +341,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (success) {
       setMenuInstances(updatedMenuInstances);
-      localStorage.setItem(MENU_INSTANCES_LS_KEY, JSON.stringify(updatedMenuInstances));
-      localStorage.setItem(MENU_INSTANCES_TIMESTAMP_LS_KEY, Date.now().toString());
 
       if (selectedMenuInstance?.id === menuInstanceId) {
         const newSelectedInstance = updatedMenuInstances.find(m => m.id === menuInstanceId);
