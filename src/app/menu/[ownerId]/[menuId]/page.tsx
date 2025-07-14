@@ -107,7 +107,6 @@ export default function MenuPage() {
     setIsLoading(true);
     setFetchError(null);
 
-    // 50/50 chance to view the experimental menu
     const asExperiment = Math.random() < 0.5;
 
     fetchPublicMenuData(ownerId, menuId, asExperiment)
@@ -148,12 +147,8 @@ export default function MenuPage() {
   useEffect(() => {
     let itemsToFilter = sortedMenuItems; 
     
-    if (viewMode === 'category') {
-        itemsToFilter = activeTab === "All" 
-            ? sortedMenuItems 
-            : categories.find(c => c.name === activeTab)?.items || [];
-    } else { 
-        itemsToFilter = sortedMenuItems; 
+    if (viewMode === 'category' && activeTab !== 'All') {
+        itemsToFilter = categories.find(c => c.name === activeTab)?.items || [];
     }
     
     const lowercasedSearchTerm = searchTerm.toLowerCase();
@@ -161,6 +156,7 @@ export default function MenuPage() {
       item.name.toLowerCase().includes(lowercasedSearchTerm) ||
       (item.description && item.description.toLowerCase().includes(lowercasedSearchTerm))
     ) : [];
+
     setFilteredItems(results);
   }, [searchTerm, sortedMenuItems, activeTab, categories, viewMode]);
 
@@ -174,9 +170,16 @@ export default function MenuPage() {
           items: sortedMenuItems.filter(item => (item.category || "Other") === catName)
         }));
       setCategories([{ name: "All", items: sortedMenuItems }, ...categorizedMenuData]);
-      setActiveTab("All");
+      
+      // Only set active tab if it's not already set, to avoid resetting user selection
+      if (!activeTab || activeTab === "All") {
+        setActiveTab("All");
+      }
+
+    } else {
+      setCategories([]);
     }
-  }, [sortedMenuItems]);
+  }, [sortedMenuItems, activeTab]);
 
 
   const handleUpsellClick = (item: MenuItem) => {
@@ -185,11 +188,10 @@ export default function MenuPage() {
   };
   
   const currentCategoryItems = useMemo(() => {
-    if (viewMode === 'feed') return filteredItems; 
-
     if (activeTab === "All") return filteredItems;
     return filteredItems.filter(item => (item.category || "Other") === activeTab);
-  }, [viewMode, activeTab, filteredItems]);
+  }, [activeTab, filteredItems]);
+
 
   if (isLoading) {
     return (
