@@ -61,11 +61,12 @@ interface FetchPublicMenuResult {
   message?: string;
 }
 
-export async function fetchPublicMenuData(ownerId: string, menuId: string): Promise<FetchPublicMenuResult> {
+export async function fetchPublicMenuData(ownerId: string, menuId: string, asExperiment: boolean): Promise<FetchPublicMenuResult> {
   let response: Response | undefined = undefined;
   let responseBodyText: string = "";
   try {
-    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=true`, {
+    const url = `${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=true&asExperiment=${asExperiment}`;
+    response = await fetch(url, {
       method: "GET",
       headers: {
         "Accept": "application/json",

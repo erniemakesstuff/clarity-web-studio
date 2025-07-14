@@ -65,7 +65,10 @@ export default function MenuPage() {
     setIsLoading(true);
     setFetchError(null);
 
-    fetchPublicMenuData(ownerId, menuId)
+    // 50/50 chance to view the experimental menu
+    const asExperiment = Math.random() < 0.5;
+
+    fetchPublicMenuData(ownerId, menuId, asExperiment)
       .then(result => {
         if (result.success && result.menu) {
           const fetchedMenuItems = result.menu;
