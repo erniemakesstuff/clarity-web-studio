@@ -19,9 +19,6 @@ import {
   type UserCredential,
 } from "firebase/auth";
 
-const SELECTED_MENU_INSTANCE_LS_KEY = "clarityMenuSelectedMenuInstance";
-const RAW_MENU_API_RESPONSE_LS_KEY = "clarityMenuRawApiResponse";
-
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
 export interface AuthContextType {
@@ -68,8 +65,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setMenuInstances([]);
     setSelectedMenuInstance(null);
     setRawMenuApiResponseText(null);
-    localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
-    localStorage.removeItem(RAW_MENU_API_RESPONSE_LS_KEY);
   };
   
   const syncUserWithBackend = useCallback(async (userToSync: User, token: string) => {
@@ -146,25 +141,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
       
       setRawMenuApiResponseText(result.rawResponseText || null);
-      localStorage.setItem(RAW_MENU_API_RESPONSE_LS_KEY, result.rawResponseText || "");
 
       if (result.success && result.menuInstances) {
         setMenuInstances(result.menuInstances);
 
         if (result.menuInstances.length > 0) {
-          const storedMenuInstanceId = localStorage.getItem(SELECTED_MENU_INSTANCE_LS_KEY);
           const currentSelectedStillValid = result.menuInstances.find(m => m.id === selectedMenuInstance?.id);
           if (currentSelectedStillValid) {
               setSelectedMenuInstance(currentSelectedStillValid);
           } else {
-              const foundMenuInstance = result.menuInstances.find(m => m.id === storedMenuInstanceId);
-              const newSelected = foundMenuInstance || result.menuInstances[0];
+              const newSelected = result.menuInstances[0];
               setSelectedMenuInstance(newSelected);
-              localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newSelected.id);
           }
         } else {
           setSelectedMenuInstance(null);
-          localStorage.removeItem(SELECTED_MENU_INSTANCE_LS_KEY);
         }
       } else {
         if (result.message && !((user?.email && ADMIN_USER_RAW_IDS.includes(user.email)) && result.rawResponseText)) {
@@ -250,13 +240,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const menuInstance = menuInstances.find(m => m.id === menuId);
     if (menuInstance) {
       setSelectedMenuInstance(menuInstance);
-      localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, menuInstance.id);
     }
   };
 
   const addMenuInstance = (name: string): MenuInstance => {
     const newMenuInstance: MenuInstance = {
-      id: name, // Use the provided name as the ID
+      id: name,
       name: name,
       menu: [],
       analytics: [],
@@ -265,8 +254,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
     setSelectedMenuInstance(newMenuInstance);
-    // Persist to local storage to keep it across reloads before backend sync
-    localStorage.setItem(SELECTED_MENU_INSTANCE_LS_KEY, newMenuInstance.id);
     return newMenuInstance;
   };
   
