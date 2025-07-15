@@ -89,106 +89,99 @@ interface FetchMenuInstancesResult {
   success: boolean;
   menuInstances?: MenuInstance[];
   message?: string;
-  rawResponseText?: string;
+  rawResponseTexts?: string[];
 }
 
 export async function fetchMenuInstancesFromBackend(
-  ownerId: string,
+  menuGrants: string[],
   jwtToken: string | null
 ): Promise<FetchMenuInstancesResult> {
-  let response: Response | undefined = undefined;
-  let responseBodyText: string = "";
+  const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
+  const rawResponseTexts: string[] = [];
 
   try {
-    const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-    response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&asMini=false`, {
-      method: "GET",
-      headers: {
-        "Authorization": authorizationValue,
-        "Accept": "application/json",
-      },
+    const fetchPromises = menuGrants.map(async (grant) => {
+      const [ownerId, menuId] = grant.split(':');
+      if (!ownerId || !menuId) {
+        console.warn(`Skipping invalid menu grant: ${grant}`);
+        return null;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=false`, {
+        method: "GET",
+        headers: {
+          "Authorization": authorizationValue,
+          "Accept": "application/json",
+        },
+      });
+
+      const responseBodyText = await response.text();
+      rawResponseTexts.push(responseBodyText);
+
+      if (response.ok) {
+        const backendDigitalMenu = JSON.parse(responseBodyText) as BackendDigitalMenuJson;
+        return backendDigitalMenu;
+      } else {
+        console.error(`Failed to fetch menu ${menuId} for owner ${ownerId}. Status: ${response.status}. Body: ${responseBodyText}`);
+        return null;
+      }
     });
 
-    responseBodyText = await response.text();
-
-    if (response.ok) {
-      let backendDigitalMenus: BackendDigitalMenuJson[];
-      try {
-        backendDigitalMenus = JSON.parse(responseBodyText) as BackendDigitalMenuJson[];
-        if (!Array.isArray(backendDigitalMenus)) {
-             return { success: false, message: "Backend returned a single object, but an array of menus was expected for this owner.", menuInstances: [], rawResponseText: responseBodyText };
-        }
-
-      } catch (parseError: any) {
-        console.error(`Error parsing JSON response from backend for ownerId ${ownerId}: ${parseError.message}`, responseBodyText);
-        return { success: false, message: `Failed to parse successful JSON response from backend. Error: ${parseError.message}`, menuInstances: [], rawResponseText: responseBodyText };
+    const results = await Promise.all(fetchPromises);
+    const backendDigitalMenus = results.filter((menu): menu is BackendDigitalMenuJson => menu !== null);
+    
+    const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
+      if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
+          console.warn(`Skipping invalid menu structure at index ${menuIndex}. MenuID: ${digitalMenu?.MenuID}`);
+          return {
+              id: `invalid-menu-${menuIndex}-${Date.now()}`,
+              name: `Invalid Menu Data ${menuIndex + 1}`,
+              menu: [],
+              s3ContextImageUrls: [],
+              analytics: [],
+              allowABTesting: false,
+              overrideSchedules: [],
+          };
       }
 
-      const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
-        if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
-            console.warn(`Skipping invalid menu structure at index ${menuIndex} for owner ${ownerId}. MenuID: ${digitalMenu?.MenuID}`);
-            return {
-                id: `invalid-menu-${menuIndex}-${Date.now()}`,
-                name: `Invalid Menu Data ${menuIndex + 1}`,
-                menu: [],
-                s3ContextImageUrls: [],
-                analytics: [],
-                allowABTesting: false,
-                overrideSchedules: [],
-            };
-        }
+      const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
+      
+      const menuItems = transformBackendEntriesToMenuItems(digitalMenu.food_service_entries, menuIdToUse);
+      const testMenuItems = transformBackendEntriesToMenuItems(digitalMenu.test_food_service_entries, menuIdToUse);
 
-        const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
-
-        const menuItems = transformBackendEntriesToMenuItems(digitalMenu.food_service_entries, menuIdToUse);
-        const testMenuItems = transformBackendEntriesToMenuItems(digitalMenu.test_food_service_entries, menuIdToUse);
-
-        let s3ContextImageUrls: string[] = [];
-        if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
-          s3ContextImageUrls = digitalMenu.ContextS3MediaUrls.split(',')
-            .map(url => url.trim())
-            .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
-        }
-
-        const allowAB = digitalMenu.AllowABTesting === true;
-        
-        const overrideSchedules: OverrideSchedule[] = Array.isArray(digitalMenu.override_schedules) ? digitalMenu.override_schedules.filter(s => 
-            typeof s.food_name === 'string' &&
-            typeof s.start_time === 'string' &&
-            typeof s.end_time === 'string' &&
-            typeof s.display_order_override === 'number'
-        ) : [];
-
-
-        return {
-          id: menuIdToUse,
-          name: menuIdToUse,
-          menu: menuItems,
-          testMenu: testMenuItems.length > 0 ? testMenuItems : undefined,
-          s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
-          analytics: digitalMenu.Analytics || [],
-          allowABTesting: allowAB,
-          testGoal: digitalMenu.test_goal,
-          testHypothesis: digitalMenu.test_hypothesis,
-          testHistory: digitalMenu.test_history,
-          overrideSchedules: overrideSchedules,
-        };
-      });
-      return { success: true, menuInstances: transformedMenuInstances, rawResponseText: responseBodyText };
-    } else {
-      let errorMessage = `Backend API Error: ${response.status} ${response.statusText}.`;
-      try {
-        const errorData = JSON.parse(responseBodyText);
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) {
-        if (responseBodyText) {
-          errorMessage += ` Raw response: ${responseBodyText.substring(0, 500)}`;
-        } else {
-          errorMessage += ' Failed to read error response body.';
-        }
+      let s3ContextImageUrls: string[] = [];
+      if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
+        s3ContextImageUrls = digitalMenu.ContextS3MediaUrls.split(',')
+          .map(url => url.trim())
+          .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
       }
-      return { success: false, message: errorMessage, menuInstances: [], rawResponseText: responseBodyText };
-    }
+
+      const allowAB = digitalMenu.AllowABTesting === true;
+      
+      const overrideSchedules: OverrideSchedule[] = Array.isArray(digitalMenu.override_schedules) ? digitalMenu.override_schedules.filter(s => 
+          typeof s.food_name === 'string' &&
+          typeof s.start_time === 'string' &&
+          typeof s.end_time === 'string' &&
+          typeof s.display_order_override === 'number'
+      ) : [];
+
+      return {
+        id: menuIdToUse,
+        name: menuIdToUse,
+        menu: menuItems,
+        testMenu: testMenuItems.length > 0 ? testMenuItems : undefined,
+        s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
+        analytics: digitalMenu.Analytics || [],
+        allowABTesting: allowAB,
+        testGoal: digitalMenu.test_goal,
+        testHypothesis: digitalMenu.test_hypothesis,
+        testHistory: digitalMenu.test_history,
+        overrideSchedules: overrideSchedules,
+      };
+    });
+
+    return { success: true, menuInstances: transformedMenuInstances, rawResponseTexts };
+
   } catch (error: any) {
     let detailedErrorMessage = "Failed to communicate with the backend service while fetching menus.";
     if (error && typeof error.message === 'string') {
@@ -202,6 +195,6 @@ export async function fetchMenuInstancesFromBackend(
     } else if (error) {
         detailedErrorMessage = `An unexpected error occurred: ${String(error)}`;
     }
-    return { success: false, message: detailedErrorMessage, menuInstances: [], rawResponseText: responseBodyText || `Error occurred before response could be read: ${error.message}` };
+    return { success: false, message: detailedErrorMessage, menuInstances: [], rawResponseTexts };
   }
 }

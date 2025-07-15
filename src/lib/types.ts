@@ -120,6 +120,15 @@ export interface MenuInstance {
   overrideSchedules?: OverrideSchedule[];
 }
 
+export interface ClarityUserProfile {
+	userId:             string;
+	menuGrants:         string[];
+	subscriptionStatus: string;
+	contactInfoEmail:   string;
+	contactInfoPhone:   string;
+	name:               string;
+}
+
 export const FOOD_CATEGORIES = [
   "Appetizers", "Soups", "Salads", "Main Courses", "Entrees", "Burgers",
   "Sandwiches", "Pizzas", "Pastas", "Seafood", "Sides", "Desserts", "Drinks", "Kids Menu", "Other"

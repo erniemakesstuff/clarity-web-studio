@@ -3,7 +3,7 @@
 
 import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { MenuInstance, MenuItem, OverrideSchedule } from "@/lib/types";
+import type { MenuInstance, MenuItem, OverrideSchedule, ClarityUserProfile } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
 import { patchMenu } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,7 @@ const MENU_SELECTION_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
 export interface AuthContextType {
   user: User | null;
+  clarityUserProfile: ClarityUserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   jwtToken: string | null;
@@ -51,6 +52,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [clarityUserProfile, setClarityUserProfile] = useState<ClarityUserProfile | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [jwtToken, setJwtToken] = useState<string | null>(null);
@@ -73,6 +75,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
+  const fetchClarityUserProfile = useCallback(async (userId: string, token: string): Promise<ClarityUserProfile | null> => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ris/v1/user?userId=${userId}`, {
+        method: "GET",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`Could not fetch user profile from backend. Status: ${response.status}`);
+        return null;
+      }
+      
+      const profileData = await response.json();
+      return profileData as ClarityUserProfile;
+
+    } catch (error: any) {
+      console.error("Critical: Failed to fetch user profile from backend.", error.message);
+      return null;
+    }
+  }, []);
+  
   const syncUserWithBackend = useCallback(async (userToSync: User, token: string) => {
     if (!userToSync) return;
   
@@ -80,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const newUserProfile = {
       userId: userToSync.uid,
-      menuGrants: [],
+      menuGrants: [`${userToSync.uid}:main`], // Add a default grant for new users
       subscriptionStatus: "active",
       contactInfoEmail: googleProviderData?.email || userToSync.email || "",
       contactInfoPhone: googleProviderData?.phoneNumber || userToSync.phoneNumber || "",
@@ -115,27 +141,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
-    // Use onIdTokenChanged for robust token management. It fires on sign-in, sign-out, and token refreshes.
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
       if (firebaseUser) {
-        const idToken = await firebaseUser.getIdToken(true); // Force refresh for the latest token
+        const idToken = await firebaseUser.getIdToken(true);
         setUser(firebaseUser);
         setJwtToken(idToken);
         setIsAuthenticated(true);
+        
+        const profile = await fetchClarityUserProfile(firebaseUser.uid, idToken);
+        setClarityUserProfile(profile);
+
       } else {
         setUser(null);
         setJwtToken(null);
         setIsAuthenticated(false);
+        setClarityUserProfile(null);
         clearMenuData();
       }
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [fetchClarityUserProfile]);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
-    if (!isAuthenticated || !ownerId) {
+    if (!isAuthenticated || !clarityUserProfile) {
       clearMenuData();
       setIsLoadingMenuInstances(false);
       return;
@@ -143,10 +173,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     setIsLoadingMenuInstances(true);
     
+    const menuGrants = clarityUserProfile.menuGrants || [];
+    if (menuGrants.length === 0) {
+      clearMenuData();
+      setIsLoadingMenuInstances(false);
+      return;
+    }
+
     if (jwtToken) {
-      const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
+      const result = await fetchMenuInstancesFromBackend(menuGrants, jwtToken);
       
-      setRawMenuApiResponseText(result.rawResponseText || null);
+      setRawMenuApiResponseText(result.rawResponseTexts?.join('\n\n---\n\n') || null);
 
       if (result.success && result.menuInstances) {
         setMenuInstances(result.menuInstances);
@@ -172,7 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setSelectedMenuInstance(null);
         }
       } else {
-        if (result.message && !((user?.email && ADMIN_USER_RAW_IDS.includes(user.email)) && result.rawResponseText)) {
+        if (result.message) {
           toast({
               title: "Error Fetching Menus",
               description: result.message,
@@ -185,13 +222,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn("Attempted to load menu data without a JWT token.");
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, ownerId, jwtToken, toast, user?.email]);
+  }, [isAuthenticated, jwtToken, toast, clarityUserProfile]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && clarityUserProfile) {
       loadMenuData();
     }
-  }, [isAuthenticated, loadMenuData]);
+  }, [isAuthenticated, clarityUserProfile, loadMenuData]);
 
   const signUpWithEmail = async (email: string, pass: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
@@ -277,6 +314,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
     selectMenuInstance(newMenuInstance.id);
+
+    // Also update the user profile state locally for immediate feedback
+    setClarityUserProfile(prev => {
+        if (!prev) return null;
+        const newGrant = `${ownerId}:${name}`;
+        const existingGrants = prev.menuGrants || [];
+        return {
+            ...prev,
+            menuGrants: [...existingGrants, newGrant]
+        };
+    });
+
     return newMenuInstance;
   };
   
@@ -383,6 +432,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = {
     user,
+    clarityUserProfile,
     isAuthenticated,
     isLoading,
     jwtToken,
