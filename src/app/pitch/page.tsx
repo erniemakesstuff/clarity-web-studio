@@ -75,8 +75,21 @@ function PitchPageContent() {
   const pitchId = searchParams.get('pitchId');
 
   const data = useMemo(() => {
-    return (pitchId && pitchDecks[pitchId]) ? pitchDecks[pitchId] : defaultPitchData;
+    if (!pitchId) return defaultPitchData;
+    
+    const lowerCasePitchId = pitchId.toLowerCase();
+    const foundPitchKey = Object.keys(pitchDecks).find(key => key.toLowerCase() === lowerCasePitchId);
+    
+    return foundPitchKey ? pitchDecks[foundPitchKey] : defaultPitchData;
   }, [pitchId]);
+
+  const problemCopy = useMemo(() => {
+    const isGeneric = data.cuisineType.toLowerCase() === 'restaurant';
+    if (isGeneric) {
+        return `As the passionate owner of a restaurant, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.`;
+    }
+    return `As the passionate owner of a ${data.cuisineType.toLowerCase()} restaurant, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.`;
+  }, [data.cuisineType]);
 
   return (
      <div className="flex flex-col min-h-screen bg-background">
@@ -112,7 +125,7 @@ function PitchPageContent() {
                 <div className="text-center md:text-left">
                     <h2 className="text-3xl font-bold text-foreground mb-6">The Problem You Face Every Day (and How We Solve It)</h2>
                      <p className="text-lg text-muted-foreground mb-4">
-                      As the passionate owner of a {data.cuisineType.toLowerCase() !== 'restaurant' ? `${data.cuisineType} ` : ''}restaurant, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.
+                      {problemCopy}
                     </p>
                     <p className="text-lg text-muted-foreground font-semibold">That's exactly why we built Clarity Menu. It's designed specifically for independent restaurants like yours, empowering you with the tools of large chains, without the complexity or cost.</p>
                 </div>
