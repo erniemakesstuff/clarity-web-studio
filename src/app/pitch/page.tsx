@@ -13,6 +13,9 @@ import { Zap, BarChart, UploadCloud, Sparkles, CheckCircle, Phone, Mail } from "
 interface PitchData {
   restaurantName: string;
   restaurantLocation: string;
+  cuisineType: string;
+  headline: string;
+  subheadline: string;
   testimonial: {
     quote: string;
     author: string;
@@ -24,6 +27,9 @@ const pitchDecks: Record<string, PitchData> = {
   "the-corner-bistro": {
     restaurantName: "The Corner Bistro",
     restaurantLocation: "Manchester",
+    cuisineType: "Modern European",
+    headline: "For The Corner Bistro in Manchester: Stop Worrying About Fines, Start Growing Your Modern European Restaurant.",
+    subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: crafting incredible food.",
     testimonial: {
       quote: "Clarity Menu has saved us countless hours on menu updates and allergen checks. Plus, our average order value has already gone up by 15%!",
       author: "Chef Maria",
@@ -33,6 +39,9 @@ const pitchDecks: Record<string, PitchData> = {
   "seaside-eats": {
     restaurantName: "Seaside Eats",
     restaurantLocation: "Brighton",
+    cuisineType: "Seafood",
+    headline: "Helping Seaside Eats Turn Their Busy Seafood Kitchen into a Digital Powerhouse.",
+    subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: serving the freshest seafood in Brighton.",
     testimonial: {
       quote: "Getting set up was unbelievably simple. We just took a photo of our menu and the AI handled the rest. The peace of mind on allergen compliance is priceless.",
       author: "David Chen",
@@ -44,6 +53,9 @@ const pitchDecks: Record<string, PitchData> = {
 const defaultPitchData: PitchData = {
   restaurantName: "Your Restaurant",
   restaurantLocation: "Your Town",
+  cuisineType: "Restaurant",
+  headline: "Stop Worrying About Fines, Start Growing Your Restaurant. Effortlessly.",
+  subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: cooking incredible food.",
   testimonial: {
     quote: "Clarity Menu has been a game-changer for us. It's simple, powerful, and our customers love the digital experience.",
     author: "A Happy Restaurant Owner",
@@ -80,10 +92,10 @@ function PitchPageContent() {
         <section className="py-20 md:py-28 bg-gradient-to-br from-background via-secondary/50 to-secondary">
           <div className="container mx-auto px-6 text-center">
             <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
-              Stop Worrying About Fines, Start Growing {data.restaurantName}. Effortlessly.
+              {data.headline}
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-              Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: cooking incredible food.
+              {data.subheadline}
             </p>
             <div className="flex justify-center items-center mb-10">
                 <div className="w-full max-w-2xl aspect-video bg-gray-900 rounded-lg shadow-2xl flex items-center justify-center text-center text-white p-4">
@@ -101,7 +113,7 @@ function PitchPageContent() {
             <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
                 <div className="text-center md:text-left">
                     <h2 className="text-3xl font-bold text-foreground mb-6">The Problem You Face Every Day (and How We Solve It)</h2>
-                    <p className="text-lg text-muted-foreground mb-4">You're passionate about food, but the paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.</p>
+                    <p className="text-lg text-muted-foreground mb-4">As a passionate {data.cuisineType.toLowerCase()} chef at {data.restaurantName}, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.</p>
                     <p className="text-lg text-muted-foreground font-semibold">That's exactly why we built Clarity Menu. It's designed specifically for independent restaurants like yours, empowering you with the tools of large chains, without the complexity or cost.</p>
                 </div>
                 <div>
@@ -129,8 +141,8 @@ function PitchPageContent() {
                  <h2 className="text-4xl font-bold text-foreground mb-12">What Makes Clarity Menu Truly Different?</h2>
                  <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                     <div className="p-6 border rounded-lg">
-                        <h3 className="text-2xl font-semibold mb-2">Built for Your Business</h3>
-                        <p className="text-muted-foreground">Specifically designed for small restaurants with limited time or digital skill. We get you.</p>
+                        <h3 className="text-2xl font-semibold mb-2">Built for {data.restaurantName}'s Success</h3>
+                        <p className="text-muted-foreground">Specifically designed for independent {data.cuisineType.toLowerCase()} restaurants like yours, who need powerful tools without complex tech.</p>
                     </div>
                      <div className="p-6 border-2 border-primary rounded-lg shadow-lg">
                         <h3 className="text-2xl font-semibold mb-2">Zero Training, Pure Growth</h3>
@@ -180,7 +192,7 @@ function PitchPageContent() {
           <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-bold text-foreground mb-6">Ready to Be a Trailblazer?</h2>
-              <p className="text-lg text-muted-foreground mb-4">We're launching something truly special, and we're looking for forward-thinking restaurants like yours to be among our first partners. Our core product is live and robust, and by joining us now, you'll get:</p>
+              <p className="text-lg text-muted-foreground mb-4">We're launching something truly special, and we're looking for forward-thinking restaurants like {data.restaurantName} to be among our first partners in {data.restaurantLocation}. Our core product is live and robust, and by joining us now, you'll get:</p>
               <ul className="space-y-3 text-lg">
                 <li className="flex items-center gap-3"><CheckCircle className="h-6 w-6 text-primary flex-shrink-0" /> <div><strong>Early Influence:</strong> A direct say in future features.</div></li>
                 <li className="flex items-center gap-3"><CheckCircle className="h-6 w-6 text-primary flex-shrink-0" /> <div><strong>Pioneer Advantage:</strong> Be among the first in {data.restaurantLocation}.</div></li>
@@ -196,7 +208,7 @@ function PitchPageContent() {
         {/* Final CTA Section */}
         <section id="demo" className="py-20 bg-background">
           <div className="container mx-auto px-6 text-center">
-            <h2 className="text-4xl font-bold text-foreground mb-4">Ready to Grow {data.restaurantName}, Protect Your Business, and Simplify Your Life?</h2>
+            <h2 className="text-4xl font-bold text-foreground mb-4">Ready for {data.restaurantName} to Grow, Protect Your Business, and Simplify Your Life?</h2>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
               <Button size="lg" className="text-lg px-8 py-6">Book Your Personalized Demo</Button>
               <Button size="lg" variant="outline" className="text-lg px-8 py-6">Watch a Quick Overview Video</Button>
