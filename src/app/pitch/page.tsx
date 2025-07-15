@@ -16,6 +16,9 @@ interface PitchData {
   cuisineType: string;
   headline: string;
   subheadline: string;
+  heroImageUrl: string;
+  problemImageUrl: string;
+  trailblazerImageUrl: string;
 }
 
 const pitchDecks: Record<string, PitchData> = {
@@ -25,6 +28,9 @@ const pitchDecks: Record<string, PitchData> = {
     cuisineType: "Modern European",
     headline: "For The Corner Bistro in Manchester: Stop Worrying About Fines, Start Growing Your Modern European Restaurant.",
     subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: crafting incredible food.",
+    heroImageUrl: "https://placehold.co/1200x600.png",
+    problemImageUrl: "https://placehold.co/600x400.png",
+    trailblazerImageUrl: "https://placehold.co/600x400.png",
   },
   "seaside-eats": {
     restaurantName: "Seaside Eats",
@@ -32,6 +38,9 @@ const pitchDecks: Record<string, PitchData> = {
     cuisineType: "Seafood",
     headline: "Helping Seaside Eats Turn Their Busy Seafood Kitchen into a Digital Powerhouse.",
     subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: serving the freshest seafood in Brighton.",
+    heroImageUrl: "https://placehold.co/1200x600.png",
+    problemImageUrl: "https://placehold.co/600x400.png",
+    trailblazerImageUrl: "https://placehold.co/600x400.png",
   }
 };
 
@@ -41,6 +50,9 @@ const defaultPitchData: PitchData = {
   cuisineType: "Restaurant",
   headline: "Stop Worrying About Fines, Start Growing Your Restaurant. Effortlessly.",
   subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: cooking incredible food.",
+  heroImageUrl: "https://placehold.co/1200x600.png",
+  problemImageUrl: "https://placehold.co/600x400.png",
+  trailblazerImageUrl: "https://placehold.co/600x400.png",
 };
 // --- End Data ---
 
@@ -81,8 +93,11 @@ function PitchPageContent() {
               {data.subheadline}
             </p>
             <div className="flex justify-center items-center mb-10">
-                <div className="w-full max-w-2xl aspect-video bg-gray-900 rounded-lg shadow-2xl flex items-center justify-center text-center text-white p-4">
-                    <p className="text-lg">[Stunning 15-20s video showing a restaurant owner's journey from stress to success with Clarity Menu]</p>
+                <div className="w-full max-w-2xl aspect-video bg-gray-900 rounded-lg shadow-2xl flex items-center justify-center text-center text-white p-4 overflow-hidden relative">
+                    <Image src={data.heroImageUrl} alt="A glimpse of a restaurant's future with Clarity Menu" layout="fill" objectFit="cover" data-ai-hint="restaurant success" />
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <p className="text-lg">[Stunning 15-20s video showing a restaurant owner's journey from stress to success with Clarity Menu]</p>
+                    </div>
                 </div>
             </div>
             <Button size="lg" asChild className="text-lg px-10 py-6">
@@ -96,11 +111,13 @@ function PitchPageContent() {
             <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
                 <div className="text-center md:text-left">
                     <h2 className="text-3xl font-bold text-foreground mb-6">The Problem You Face Every Day (and How We Solve It)</h2>
-                    <p className="text-lg text-muted-foreground mb-4">As the passionate owner of a {data.cuisineType.toLowerCase() !== 'restaurant' ? `${data.cuisineType} ` : ''}restaurant, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.</p>
+                     <p className="text-lg text-muted-foreground mb-4">
+                      As the passionate owner of a {data.cuisineType.toLowerCase() !== 'restaurant' ? `${data.cuisineType} ` : ''}restaurant, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.
+                    </p>
                     <p className="text-lg text-muted-foreground font-semibold">That's exactly why we built Clarity Menu. It's designed specifically for independent restaurants like yours, empowering you with the tools of large chains, without the complexity or cost.</p>
                 </div>
                 <div>
-                     <Image src="https://placehold.co/600x400.png" alt="A distressed restaurant owner surrounded by paperwork" width={600} height={400} className="rounded-lg shadow-xl" data-ai-hint="stressed restaurant owner" />
+                     <Image src={data.problemImageUrl} alt="A distressed restaurant owner surrounded by paperwork" width={600} height={400} className="rounded-lg shadow-xl" data-ai-hint="stressed restaurant owner" />
                 </div>
             </div>
         </section>
@@ -197,7 +214,7 @@ function PitchPageContent() {
               </ul>
             </div>
             <div>
-              <Image src="https://placehold.co/600x400.png" alt="Two people shaking hands over a business deal" width={600} height={400} className="rounded-lg shadow-xl" data-ai-hint="business partnership" />
+              <Image src={data.trailblazerImageUrl} alt="Two people shaking hands over a business deal" width={600} height={400} className="rounded-lg shadow-xl" data-ai-hint="business partnership" />
             </div>
           </div>
         </section>
@@ -231,3 +248,5 @@ export default function PitchPage() {
         </Suspense>
     )
 }
+
+    
