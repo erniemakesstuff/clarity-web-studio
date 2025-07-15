@@ -238,7 +238,9 @@ function PitchPageContent() {
             <h2 className="text-4xl font-bold text-foreground mb-4">Ready for {data.restaurantName} to Grow, Protect Your Business, and Simplify Your Life?</h2>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
               <Button size="lg" className="text-lg px-8 py-6">Book Your Personalized Demo</Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6">Watch a Quick Overview Video</Button>
+              <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6">
+                <Link href="/">Learn More</Link>
+              </Button>
             </div>
           </div>
         </section>
@@ -261,5 +263,3 @@ export default function PitchPage() {
         </Suspense>
     )
 }
-
-    
