@@ -113,6 +113,7 @@ export async function fetchMenuInstancesFromBackend(
         const ownedMenus: BackendDigitalMenuJson[] = JSON.parse(ownedMenusText);
         ownedMenus.forEach(menu => {
             if (menu && menu.MenuID) {
+                // The key for the map should be unique for each menu, combining owner and menu ID
                 const grantKey = `${menu.OwnerID}:${menu.MenuID}`;
                 fetchedMenuMap.set(grantKey, menu);
             }
@@ -124,7 +125,8 @@ export async function fetchMenuInstancesFromBackend(
     // 2. Fetch menus from grants, avoiding duplicates
     const grantFetchPromises = menuGrants.map(async (grant) => {
       const grantKey = grant;
-      if (fetchedMenuMap.has(grantKey)) return null; // Already fetched as an owned menu
+      // Skip if this menu has already been loaded as an owned menu
+      if (fetchedMenuMap.has(grantKey)) return null; 
 
       const [ownerId, menuId] = grant.split(':');
       if (!ownerId || !menuId) {
