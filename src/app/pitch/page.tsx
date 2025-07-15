@@ -2,12 +2,12 @@
 "use client";
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Zap, BarChart, UploadCloud, Sparkles, CheckCircle } from "lucide-react";
+import { Zap, BarChart, UploadCloud, Sparkles, CheckCircle, Mail } from "lucide-react";
 
 // --- Data for Templating ---
 interface PitchData {
@@ -73,6 +73,7 @@ function FeatureCard({ icon, title, description, imageUrl, imageHint }: { icon: 
 function PitchPageContent() {
   const searchParams = useSearchParams();
   const pitchId = searchParams.get('pitchId');
+  const [showContactInfo, setShowContactInfo] = useState(false);
 
   const data = useMemo(() => {
     if (!pitchId) return defaultPitchData;
@@ -90,6 +91,9 @@ function PitchPageContent() {
     }
     return `As the passionate owner of a ${data.cuisineType.toLowerCase()} restaurant, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.`;
   }, [data.cuisineType]);
+
+  const emailSubject = `Demo Request for ${data.restaurantName}`;
+  const mailtoLink = `mailto:difydesign1@gmail.com?subject=${encodeURIComponent(emailSubject)}`;
 
   return (
      <div className="flex flex-col min-h-screen bg-background">
@@ -179,7 +183,7 @@ function PitchPageContent() {
                  <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                     <div className="p-6 border rounded-lg">
                         <h3 className="text-2xl font-semibold mb-2">Built for {data.restaurantName}'s Success</h3>
-                        <p className="text-muted-foreground">Specifically designed for independent {data.cuisineType.toLowerCase()} restaurants like yours, who need powerful tools without complex tech.</p>
+                        <p className="text-muted-foreground">Specifically designed for independent ${data.cuisineType.toLowerCase()} restaurants like yours, who need powerful tools without complex tech.</p>
                     </div>
                      <div className="p-6 border-2 border-primary rounded-lg shadow-lg">
                         <h3 className="text-2xl font-semibold mb-2">Zero Training, Pure Growth</h3>
@@ -237,11 +241,32 @@ function PitchPageContent() {
           <div className="container mx-auto px-6 text-center">
             <h2 className="text-4xl font-bold text-foreground mb-4">Ready for {data.restaurantName} to Grow, Protect Your Business, and Simplify Your Life?</h2>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
-              <Button size="lg" className="text-lg px-8 py-6">Book Your Personalized Demo</Button>
+               <Button asChild size="lg" className="text-lg px-8 py-6">
+                <a href={mailtoLink} onClick={() => setShowContactInfo(true)}>
+                  Book Your Personalized Demo
+                </a>
+              </Button>
               <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6">
                 <Link href="/">Learn More</Link>
               </Button>
             </div>
+             {showContactInfo && (
+              <div className="mt-8 p-6 bg-background border rounded-lg max-w-md mx-auto shadow-lg animate-in fade-in-50">
+                <h3 className="text-xl font-semibold flex items-center justify-center gap-2">
+                  <Mail className="h-6 w-6 text-primary" />
+                  Let's Connect!
+                </h3>
+                <p className="mt-2 text-muted-foreground">
+                  Your email client should have opened. If not, please send an email directly to:
+                </p>
+                <a
+                  href={mailtoLink}
+                  className="mt-2 inline-block text-lg font-bold text-primary hover:underline"
+                >
+                  difydesign1@gmail.com
+                </a>
+              </div>
+            )}
           </div>
         </section>
 
