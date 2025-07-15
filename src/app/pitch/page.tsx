@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 import { AppHeader } from '@/components/layout/AppHeader';
-import { Zap, BarChart, UploadCloud, Sparkles, CheckCircle, Phone, Mail } from "lucide-react";
+import { Zap, BarChart, UploadCloud, Sparkles, CheckCircle } from "lucide-react";
 
 // --- Data for Templating ---
 interface PitchData {
@@ -82,7 +82,7 @@ function PitchPageContent() {
             </p>
             <div className="flex justify-center items-center mb-10">
                 <div className="w-full max-w-2xl aspect-video bg-gray-900 rounded-lg shadow-2xl flex items-center justify-center text-center text-white p-4">
-                    <p className="text-lg">[Stunning 15-20s video showing a chef's journey from stress to success with Clarity Menu]</p>
+                    <p className="text-lg">[Stunning 15-20s video showing a restaurant owner's journey from stress to success with Clarity Menu]</p>
                 </div>
             </div>
             <Button size="lg" asChild className="text-lg px-10 py-6">
@@ -96,11 +96,11 @@ function PitchPageContent() {
             <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
                 <div className="text-center md:text-left">
                     <h2 className="text-3xl font-bold text-foreground mb-6">The Problem You Face Every Day (and How We Solve It)</h2>
-                    <p className="text-lg text-muted-foreground mb-4">As a passionate {data.cuisineType.toLowerCase()} chef at {data.restaurantName}, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.</p>
+                    <p className="text-lg text-muted-foreground mb-4">As a passionate {data.cuisineType.toLowerCase()} restaurant owner at {data.restaurantName}, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.</p>
                     <p className="text-lg text-muted-foreground font-semibold">That's exactly why we built Clarity Menu. It's designed specifically for independent restaurants like yours, empowering you with the tools of large chains, without the complexity or cost.</p>
                 </div>
                 <div>
-                     <Image src="https://placehold.co/600x400.png" alt="A distressed chef surrounded by paperwork" width={600} height={400} className="rounded-lg shadow-xl" data-ai-hint="stressed chef" />
+                     <Image src="https://placehold.co/600x400.png" alt="A distressed restaurant owner surrounded by paperwork" width={600} height={400} className="rounded-lg shadow-xl" data-ai-hint="stressed restaurant owner" />
                 </div>
             </div>
         </section>
