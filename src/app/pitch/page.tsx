@@ -96,7 +96,7 @@ function PitchPageContent() {
             <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
                 <div className="text-center md:text-left">
                     <h2 className="text-3xl font-bold text-foreground mb-6">The Problem You Face Every Day (and How We Solve It)</h2>
-                    <p className="text-lg text-muted-foreground mb-4">As a passionate {data.cuisineType.toLowerCase()} restaurant owner at {data.restaurantName}, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.</p>
+                    <p className="text-lg text-muted-foreground mb-4">As the passionate owner of a {data.cuisineType.toLowerCase() !== 'restaurant' ? `${data.cuisineType} ` : ''}restaurant, you pour your heart into every dish, but the endless paperwork, the fear of fines, and the constant struggle to get more diners through the door can be overwhelming. You don't have a dedicated marketing team or IT support. You need a solution that just works.</p>
                     <p className="text-lg text-muted-foreground font-semibold">That's exactly why we built Clarity Menu. It's designed specifically for independent restaurants like yours, empowering you with the tools of large chains, without the complexity or cost.</p>
                 </div>
                 <div>
