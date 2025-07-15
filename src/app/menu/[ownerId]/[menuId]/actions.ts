@@ -82,7 +82,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
       
       const currentMenuIdActual = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : menuId; 
 
-      const menuItems: MenuItem[] = (digitalMenu.food_service_entries || [])
+      const menuItems: MenuItem[] = (digitalMenu.FoodServiceEntries || [])
         .map((entry, index) => {
           try {
             const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${index + 1}`;
