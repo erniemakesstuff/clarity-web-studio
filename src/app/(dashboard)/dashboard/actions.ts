@@ -120,7 +120,7 @@ export async function fetchMenuInstancesFromBackend(
         console.error(`Failed to fetch owned menus for owner ${ownerIdForOwnedMenus}. Status: ${ownedMenusResponse.status}. Body: ${ownedMenusText}`);
     }
 
-    // 2. Fetch menus from grants (if any)
+    // 2. Fetch menus from grants, avoiding duplicates
     const grantFetchPromises = menuGrants.map(async (grant) => {
       const grantKey = grant;
       if (fetchedMenuMap.has(grantKey)) return null; // Already fetched as an owned menu
@@ -149,6 +149,8 @@ export async function fetchMenuInstancesFromBackend(
     });
 
     await Promise.all(grantFetchPromises);
+    
+    // 3. Transform all fetched menus from the map
     const backendDigitalMenus = Array.from(fetchedMenuMap.values());
     
     const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
