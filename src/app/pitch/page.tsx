@@ -204,15 +204,21 @@ function PitchPageContent() {
             <div className="grid lg:grid-cols-3 gap-8 items-start">
               <div className="space-y-4">
                  <h3 className="text-xl font-semibold">The Customer Experience</h3>
-                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white"><p>[Video 1: Customer View]</p></div>
+                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden">
+                    <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-0-claritymenu.gif" alt="Customer Experience Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="customer experience" />
+                 </div>
               </div>
                <div className="space-y-4">
                  <h3 className="text-xl font-semibold">Behind the Scenes: Menu & Allergen Magic</h3>
-                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white"><p>[Video 2: Upload & Tagging]</p></div>
+                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden">
+                    <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-1-claritymenu.gif" alt="Menu Upload and Tagging Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="menu upload" />
+                 </div>
               </div>
               <div className="space-y-4">
                  <h3 className="text-xl font-semibold">Dashboard Insights</h3>
-                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white"><p>[Video 3: Analytics]</p></div>
+                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden">
+                    <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-2-claritymenu.gif" alt="Analytics Dashboard Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="analytics dashboard" />
+                 </div>
               </div>
             </div>
           </div>
