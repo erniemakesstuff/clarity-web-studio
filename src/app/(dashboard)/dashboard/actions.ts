@@ -113,7 +113,8 @@ export async function fetchMenuInstancesFromBackend(
         const ownedMenus: BackendDigitalMenuJson[] = JSON.parse(ownedMenusText);
         ownedMenus.forEach(menu => {
             if (menu && menu.MenuID) {
-                fetchedMenuMap.set(`${menu.OwnerID}:${menu.MenuID}`, menu);
+                const grantKey = `${menu.OwnerID}:${menu.MenuID}`;
+                fetchedMenuMap.set(grantKey, menu);
             }
         });
     } else {
