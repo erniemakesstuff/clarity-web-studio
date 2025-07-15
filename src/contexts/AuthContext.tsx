@@ -149,6 +149,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setJwtToken(idToken);
         setIsAuthenticated(true);
         
+        // This profile fetch is kept for other parts of the app but is not used for menu loading in this simplified version.
         const profile = await fetchClarityUserProfile(firebaseUser.uid, idToken);
         setClarityUserProfile(profile);
 
@@ -165,20 +166,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchClarityUserProfile]);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
-    if (!isAuthenticated || !clarityUserProfile) {
+    if (!isAuthenticated || !ownerId) { // Check for ownerId instead of clarityUserProfile
       clearMenuData();
       setIsLoadingMenuInstances(false);
       return;
     }
 
     setIsLoadingMenuInstances(true);
-    
-    const menuGrants = clarityUserProfile.menuGrants || [];
 
     if (jwtToken) {
-      const result = await fetchMenuInstancesFromBackend(ownerId, menuGrants, jwtToken);
+      // Call the simplified backend fetcher with only the ownerId
+      const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
       
-      setRawMenuApiResponseText(result.rawResponseTexts?.join('\n\n---\n\n') || null);
+      setRawMenuApiResponseText(result.rawResponseTexts?.join('\\n\\n---\\n\\n') || null);
 
       if (result.success && result.menuInstances) {
         setMenuInstances(result.menuInstances);
@@ -217,13 +217,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn("Attempted to load menu data without a JWT token.");
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, jwtToken, toast, clarityUserProfile, ownerId]);
+  }, [isAuthenticated, jwtToken, toast, ownerId]);
 
   useEffect(() => {
-    if (isAuthenticated && clarityUserProfile) {
+    if (isAuthenticated && ownerId) {
       loadMenuData();
     }
-  }, [isAuthenticated, clarityUserProfile, loadMenuData]);
+  }, [isAuthenticated, ownerId, loadMenuData]);
 
   const signUpWithEmail = async (email: string, pass: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);

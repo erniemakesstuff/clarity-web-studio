@@ -93,68 +93,25 @@ interface FetchMenuInstancesResult {
 }
 
 export async function fetchMenuInstancesFromBackend(
-  ownerIdForOwnedMenus: string,
-  menuGrants: string[],
+  ownerId: string,
   jwtToken: string | null
 ): Promise<FetchMenuInstancesResult> {
   const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-  const rawResponseTexts: string[] = [];
-  const fetchedMenuMap = new Map<string, BackendDigitalMenuJson>();
-
+  
   try {
-    // 1. Fetch menus owned directly by the user
-    const ownedMenusResponse = await fetch(`${API_BASE_URL}/ris/v1/menus?ownerId=${ownerIdForOwnedMenus}`, {
+    const response = await fetch(`${API_BASE_URL}/ris/v1/menus?ownerId=${ownerId}`, {
       method: "GET",
       headers: { "Authorization": authorizationValue, "Accept": "application/json" },
     });
-    const ownedMenusText = await ownedMenusResponse.text();
-    rawResponseTexts.push(ownedMenusText);
-    if (ownedMenusResponse.ok) {
-        const ownedMenus: BackendDigitalMenuJson[] = JSON.parse(ownedMenusText);
-        ownedMenus.forEach(menu => {
-            if (menu && menu.MenuID) {
-                // The key for the map should be unique for each menu, combining owner and menu ID
-                const grantKey = `${menu.OwnerID}:${menu.MenuID}`;
-                fetchedMenuMap.set(grantKey, menu);
-            }
-        });
-    } else {
-        console.error(`Failed to fetch owned menus for owner ${ownerIdForOwnedMenus}. Status: ${ownedMenusResponse.status}. Body: ${ownedMenusText}`);
+    
+    const responseText = await response.text();
+    
+    if (!response.ok) {
+        console.error(`Failed to fetch menus for owner ${ownerId}. Status: ${response.status}. Body: ${responseText}`);
+        return { success: false, message: `Failed to fetch menus. Status: ${response.status}`, menuInstances: [], rawResponseTexts: [responseText] };
     }
 
-    // 2. Fetch menus from grants, avoiding duplicates
-    const grantFetchPromises = menuGrants.map(async (grant) => {
-      const grantKey = grant;
-      // Skip if this menu has already been loaded as an owned menu
-      if (fetchedMenuMap.has(grantKey)) return null; 
-
-      const [ownerId, menuId] = grant.split(':');
-      if (!ownerId || !menuId) {
-        console.warn(`Skipping invalid menu grant: ${grant}`);
-        return null;
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=false`, {
-        method: "GET",
-        headers: { "Authorization": authorizationValue, "Accept": "application/json" },
-      });
-
-      const responseBodyText = await response.text();
-      rawResponseTexts.push(responseBodyText);
-
-      if (response.ok) {
-        const backendDigitalMenu = JSON.parse(responseBodyText) as BackendDigitalMenuJson;
-        fetchedMenuMap.set(grantKey, backendDigitalMenu);
-      } else {
-        console.error(`Failed to fetch granted menu ${menuId} for owner ${ownerId}. Status: ${response.status}. Body: ${responseBodyText}`);
-      }
-      return null;
-    });
-
-    await Promise.all(grantFetchPromises);
-    
-    // 3. Transform all fetched menus from the map
-    const backendDigitalMenus = Array.from(fetchedMenuMap.values());
+    const backendDigitalMenus: BackendDigitalMenuJson[] = JSON.parse(responseText);
     
     const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
       if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
@@ -206,7 +163,7 @@ export async function fetchMenuInstancesFromBackend(
       };
     });
 
-    return { success: true, menuInstances: transformedMenuInstances, rawResponseTexts };
+    return { success: true, menuInstances: transformedMenuInstances, rawResponseTexts: [responseText] };
 
   } catch (error: any) {
     let detailedErrorMessage = "Failed to communicate with the backend service while fetching menus.";
@@ -221,6 +178,6 @@ export async function fetchMenuInstancesFromBackend(
     } else if (error) {
         detailedErrorMessage = `An unexpected error occurred: ${String(error)}`;
     }
-    return { success: false, message: detailedErrorMessage, menuInstances: [], rawResponseTexts };
+    return { success: false, message: detailedErrorMessage, menuInstances: [], rawResponseTexts: [] };
   }
 }
