@@ -149,7 +149,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setJwtToken(idToken);
         setIsAuthenticated(true);
         
-        // This profile fetch is kept for other parts of the app but is not used for menu loading in this simplified version.
         const profile = await fetchClarityUserProfile(firebaseUser.uid, idToken);
         setClarityUserProfile(profile);
 
@@ -175,8 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoadingMenuInstances(true);
 
     if (jwtToken) {
-      // Call the simplified backend fetcher with only the ownerId
-      const result = await fetchMenuInstancesFromBackend(ownerId, jwtToken);
+      const result = await fetchMenuInstancesFromBackend(ownerId, clarityUserProfile?.menuGrants, jwtToken);
       
       setRawMenuApiResponseText(result.rawResponseTexts?.join('\\n\\n---\\n\\n') || null);
 
@@ -217,13 +215,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn("Attempted to load menu data without a JWT token.");
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, jwtToken, toast, ownerId]);
+  }, [isAuthenticated, jwtToken, toast, ownerId, clarityUserProfile]);
 
   useEffect(() => {
-    if (isAuthenticated && ownerId) {
+    if (isAuthenticated && ownerId && clarityUserProfile !== undefined) {
       loadMenuData();
     }
-  }, [isAuthenticated, ownerId, loadMenuData]);
+  }, [isAuthenticated, ownerId, clarityUserProfile, loadMenuData]);
+
 
   const signUpWithEmail = async (email: string, pass: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);

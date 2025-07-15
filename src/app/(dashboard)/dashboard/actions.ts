@@ -92,63 +92,34 @@ interface FetchMenuInstancesResult {
   rawResponseTexts?: string[];
 }
 
-export async function fetchMenuInstancesFromBackend(
-  ownerId: string,
-  jwtToken: string | null
-): Promise<FetchMenuInstancesResult> {
-  const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
-      method: "GET",
-      headers: { "Authorization": authorizationValue, "Accept": "application/json" },
-    });
-    
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-        console.error(`Failed to fetch menus for owner ${ownerId}. Status: ${response.status}. Body: ${responseText}`);
-        return { success: false, message: `Failed to fetch menus. Status: ${response.status}`, menuInstances: [], rawResponseTexts: [responseText] };
+const transformBackendMenu = (digitalMenu: BackendDigitalMenuJson, menuIndex: number = 0): MenuInstance | null => {
+    if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
+        console.warn(`Skipping invalid menu structure at index ${menuIndex}. MenuID: ${digitalMenu?.MenuID}`);
+        return null;
     }
 
-    const backendDigitalMenus: BackendDigitalMenuJson[] = JSON.parse(responseText);
+    const menuIdToUse = digitalMenu.MenuID.trim() || `menu-${menuIndex}-${Date.now()}`;
     
-    const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
-      if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
-          console.warn(`Skipping invalid menu structure at index ${menuIndex}. MenuID: ${digitalMenu?.MenuID}`);
-          return {
-              id: `invalid-menu-${menuIndex}-${Date.now()}`,
-              name: `Invalid Menu Data ${menuIndex + 1}`,
-              menu: [],
-              s3ContextImageUrls: [],
-              analytics: [],
-              allowABTesting: false,
-              overrideSchedules: [],
-          };
-      }
+    const menuItems = transformBackendEntriesToMenuItems(digitalMenu.food_service_entries, menuIdToUse);
+    const testMenuItems = transformBackendEntriesToMenuItems(digitalMenu.test_food_service_entries, menuIdToUse);
 
-      const menuIdToUse = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : `menu-${menuIndex}-${Date.now()}`;
-      
-      const menuItems = transformBackendEntriesToMenuItems(digitalMenu.food_service_entries, menuIdToUse);
-      const testMenuItems = transformBackendEntriesToMenuItems(digitalMenu.test_food_service_entries, menuIdToUse);
-
-      let s3ContextImageUrls: string[] = [];
-      if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
+    let s3ContextImageUrls: string[] = [];
+    if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
         s3ContextImageUrls = digitalMenu.ContextS3MediaUrls.split(',')
-          .map(url => url.trim())
-          .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
-      }
+            .map(url => url.trim())
+            .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https')));
+    }
 
-      const allowAB = digitalMenu.AllowABTesting === true;
-      
-      const overrideSchedules: OverrideSchedule[] = Array.isArray(digitalMenu.override_schedules) ? digitalMenu.override_schedules.filter(s => 
-          typeof s.food_name === 'string' &&
-          typeof s.start_time === 'string' &&
-          typeof s.end_time === 'string' &&
-          typeof s.display_order_override === 'number'
-      ) : [];
+    const allowAB = digitalMenu.AllowABTesting === true;
+    
+    const overrideSchedules: OverrideSchedule[] = Array.isArray(digitalMenu.override_schedules) ? digitalMenu.override_schedules.filter(s => 
+        typeof s.food_name === 'string' &&
+        typeof s.start_time === 'string' &&
+        typeof s.end_time === 'string' &&
+        typeof s.display_order_override === 'number'
+    ) : [];
 
-      return {
+    return {
         id: menuIdToUse,
         name: menuIdToUse,
         menu: menuItems,
@@ -160,10 +131,72 @@ export async function fetchMenuInstancesFromBackend(
         testHypothesis: digitalMenu.test_hypothesis,
         testHistory: digitalMenu.test_history,
         overrideSchedules: overrideSchedules,
-      };
-    });
+    };
+};
 
-    return { success: true, menuInstances: transformedMenuInstances, rawResponseTexts: [responseText] };
+export async function fetchMenuInstancesFromBackend(
+  ownerId: string,
+  menuGrants: string[] | undefined,
+  jwtToken: string | null
+): Promise<FetchMenuInstancesResult> {
+  const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
+  const allRawResponses: string[] = [];
+  const menuMap = new Map<string, MenuInstance>();
+
+  try {
+    // 1. Fetch all menus owned by the user
+    const ownedResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
+      method: "GET",
+      headers: { "Authorization": authorizationValue, "Accept": "application/json" },
+    });
+    
+    const ownedResponseText = await ownedResponse.text();
+    allRawResponses.push(ownedResponseText);
+
+    if (ownedResponse.ok) {
+        const ownedMenus: BackendDigitalMenuJson[] = JSON.parse(ownedResponseText);
+        ownedMenus.forEach((menuJson, index) => {
+            const menuInstance = transformBackendMenu(menuJson, index);
+            if (menuInstance) {
+                const mapKey = `${menuJson.OwnerID}:${menuJson.MenuID}`;
+                menuMap.set(mapKey, menuInstance);
+            }
+        });
+    } else {
+        console.error(`Failed to fetch owned menus for ${ownerId}. Status: ${ownedResponse.status}. Body: ${ownedResponseText}`);
+        return { success: false, message: `Failed to fetch owned menus. Status: ${ownedResponse.status}` };
+    }
+
+    // 2. Fetch menus from grants, avoiding duplicates
+    if (menuGrants && menuGrants.length > 0) {
+        for (const grant of menuGrants) {
+            const [grantOwnerId, grantMenuId] = grant.split(':');
+            const mapKey = `${grantOwnerId}:${grantMenuId}`;
+
+            if (!menuMap.has(mapKey)) { // Only fetch if not already loaded
+                const grantResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${grantOwnerId}&menuId=${grantMenuId}`, {
+                    method: "GET",
+                    headers: { "Authorization": authorizationValue, "Accept": "application/json" },
+                    cache: 'no-store', // Grants might be for individual, specific menus
+                });
+                const grantResponseText = await grantResponse.text();
+                allRawResponses.push(grantResponseText);
+
+                if (grantResponse.ok) {
+                    const grantedMenuJson: BackendDigitalMenuJson = JSON.parse(grantResponseText);
+                    const menuInstance = transformBackendMenu(grantedMenuJson);
+                    if (menuInstance) {
+                        menuMap.set(mapKey, menuInstance);
+                    }
+                } else {
+                    console.warn(`Could not fetch granted menu ${grant}. Status: ${grantResponse.status}.`);
+                }
+            }
+        }
+    }
+
+    const finalMenuInstances = Array.from(menuMap.values());
+    return { success: true, menuInstances: finalMenuInstances, rawResponseTexts: allRawResponses };
 
   } catch (error: any) {
     let detailedErrorMessage = "Failed to communicate with the backend service while fetching menus.";
