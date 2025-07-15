@@ -174,14 +174,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoadingMenuInstances(true);
     
     const menuGrants = clarityUserProfile.menuGrants || [];
-    if (menuGrants.length === 0) {
-      clearMenuData();
-      setIsLoadingMenuInstances(false);
-      return;
-    }
 
     if (jwtToken) {
-      const result = await fetchMenuInstancesFromBackend(menuGrants, jwtToken);
+      const result = await fetchMenuInstancesFromBackend(ownerId, menuGrants, jwtToken);
       
       setRawMenuApiResponseText(result.rawResponseTexts?.join('\n\n---\n\n') || null);
 
@@ -222,7 +217,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn("Attempted to load menu data without a JWT token.");
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, jwtToken, toast, clarityUserProfile]);
+  }, [isAuthenticated, jwtToken, toast, clarityUserProfile, ownerId]);
 
   useEffect(() => {
     if (isAuthenticated && clarityUserProfile) {

@@ -93,14 +93,38 @@ interface FetchMenuInstancesResult {
 }
 
 export async function fetchMenuInstancesFromBackend(
+  ownerIdForOwnedMenus: string,
   menuGrants: string[],
   jwtToken: string | null
 ): Promise<FetchMenuInstancesResult> {
   const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
   const rawResponseTexts: string[] = [];
+  const fetchedMenuMap = new Map<string, BackendDigitalMenuJson>();
 
   try {
-    const fetchPromises = menuGrants.map(async (grant) => {
+    // 1. Fetch menus owned directly by the user
+    const ownedMenusResponse = await fetch(`${API_BASE_URL}/ris/v1/menus?ownerId=${ownerIdForOwnedMenus}`, {
+      method: "GET",
+      headers: { "Authorization": authorizationValue, "Accept": "application/json" },
+    });
+    const ownedMenusText = await ownedMenusResponse.text();
+    rawResponseTexts.push(ownedMenusText);
+    if (ownedMenusResponse.ok) {
+        const ownedMenus: BackendDigitalMenuJson[] = JSON.parse(ownedMenusText);
+        ownedMenus.forEach(menu => {
+            if (menu && menu.MenuID) {
+                fetchedMenuMap.set(`${menu.OwnerID}:${menu.MenuID}`, menu);
+            }
+        });
+    } else {
+        console.error(`Failed to fetch owned menus for owner ${ownerIdForOwnedMenus}. Status: ${ownedMenusResponse.status}. Body: ${ownedMenusText}`);
+    }
+
+    // 2. Fetch menus from grants (if any)
+    const grantFetchPromises = menuGrants.map(async (grant) => {
+      const grantKey = grant;
+      if (fetchedMenuMap.has(grantKey)) return null; // Already fetched as an owned menu
+
       const [ownerId, menuId] = grant.split(':');
       if (!ownerId || !menuId) {
         console.warn(`Skipping invalid menu grant: ${grant}`);
@@ -109,10 +133,7 @@ export async function fetchMenuInstancesFromBackend(
       
       const response = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=false`, {
         method: "GET",
-        headers: {
-          "Authorization": authorizationValue,
-          "Accept": "application/json",
-        },
+        headers: { "Authorization": authorizationValue, "Accept": "application/json" },
       });
 
       const responseBodyText = await response.text();
@@ -120,15 +141,15 @@ export async function fetchMenuInstancesFromBackend(
 
       if (response.ok) {
         const backendDigitalMenu = JSON.parse(responseBodyText) as BackendDigitalMenuJson;
-        return backendDigitalMenu;
+        fetchedMenuMap.set(grantKey, backendDigitalMenu);
       } else {
-        console.error(`Failed to fetch menu ${menuId} for owner ${ownerId}. Status: ${response.status}. Body: ${responseBodyText}`);
-        return null;
+        console.error(`Failed to fetch granted menu ${menuId} for owner ${ownerId}. Status: ${response.status}. Body: ${responseBodyText}`);
       }
+      return null;
     });
 
-    const results = await Promise.all(fetchPromises);
-    const backendDigitalMenus = results.filter((menu): menu is BackendDigitalMenuJson => menu !== null);
+    await Promise.all(grantFetchPromises);
+    const backendDigitalMenus = Array.from(fetchedMenuMap.values());
     
     const transformedMenuInstances: MenuInstance[] = backendDigitalMenus.map((digitalMenu, menuIndex) => {
       if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
