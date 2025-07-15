@@ -216,10 +216,6 @@ function PitchPageContent() {
       </main>
       <footer className="py-8 border-t bg-background">
         <div className="container mx-auto px-6 text-center text-muted-foreground">
-          <div className="flex justify-center items-center gap-6 mb-4">
-              <Link href="mailto:contact@claritymenu.com" className="flex items-center gap-2 hover:text-primary"><Mail className="h-5 w-5"/> contact@claritymenu.com</Link>
-              <Link href="tel:+440123456789" className="flex items-center gap-2 hover:text-primary"><Phone className="h-5 w-5"/> 0123 456 789</Link>
-          </div>
           <p>&copy; {new Date().getFullYear()} Clarity Menu. All rights reserved.</p>
         </div>
       </footer>
@@ -235,5 +231,3 @@ export default function PitchPage() {
         </Suspense>
     )
 }
-
-    
