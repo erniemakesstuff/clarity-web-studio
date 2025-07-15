@@ -20,6 +20,8 @@ import {
 } from "firebase/auth";
 
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
+const SELECTED_MENU_STORAGE_KEY = "clarityMenu_selectedMenuId";
+const MENU_SELECTION_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
 export interface AuthContextType {
   user: User | null;
@@ -66,6 +68,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setMenuInstances([]);
     setSelectedMenuInstance(null);
     setRawMenuApiResponseText(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SELECTED_MENU_STORAGE_KEY);
+    }
   };
   
   const syncUserWithBackend = useCallback(async (userToSync: User, token: string) => {
@@ -147,13 +152,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setMenuInstances(result.menuInstances);
 
         if (result.menuInstances.length > 0) {
-          const currentSelectedStillValid = result.menuInstances.find(m => m.id === selectedMenuInstance?.id);
-          if (currentSelectedStillValid) {
-              setSelectedMenuInstance(currentSelectedStillValid);
-          } else {
-              const newSelected = result.menuInstances[0];
-              setSelectedMenuInstance(newSelected);
-          }
+            let lastSelectedMenuId: string | null = null;
+            if (typeof window !== 'undefined') {
+                const storedSelection = localStorage.getItem(SELECTED_MENU_STORAGE_KEY);
+                if (storedSelection) {
+                    const { menuId, expiry } = JSON.parse(storedSelection);
+                    if (expiry > Date.now()) {
+                        lastSelectedMenuId = menuId;
+                    } else {
+                        localStorage.removeItem(SELECTED_MENU_STORAGE_KEY);
+                    }
+                }
+            }
+
+            const menuToSelect = result.menuInstances.find(m => m.id === lastSelectedMenuId) || result.menuInstances[0];
+            setSelectedMenuInstance(menuToSelect);
+            
         } else {
           setSelectedMenuInstance(null);
         }
@@ -171,7 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.warn("Attempted to load menu data without a JWT token.");
     }
     setIsLoadingMenuInstances(false);
-  }, [isAuthenticated, ownerId, jwtToken, toast, selectedMenuInstance?.id, user?.email]);
+  }, [isAuthenticated, ownerId, jwtToken, toast, user?.email]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -241,6 +255,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const menuInstance = menuInstances.find(m => m.id === menuId);
     if (menuInstance) {
       setSelectedMenuInstance(menuInstance);
+       if (typeof window !== 'undefined') {
+        const selectionData = {
+          menuId: menuId,
+          expiry: Date.now() + MENU_SELECTION_EXPIRY_MS,
+        };
+        localStorage.setItem(SELECTED_MENU_STORAGE_KEY, JSON.stringify(selectionData));
+      }
     }
   };
 
@@ -255,7 +276,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     const updatedMenuInstances = [...menuInstances, newMenuInstance];
     setMenuInstances(updatedMenuInstances);
-    setSelectedMenuInstance(newMenuInstance);
+    selectMenuInstance(newMenuInstance.id);
     return newMenuInstance;
   };
   
