@@ -40,23 +40,27 @@ const getSortedMenu = (
   menuItemsToSort: MenuItem[],
   schedules: OverrideSchedule[] | undefined
 ): MenuItem[] => {
-  // Create a copy to avoid mutating the original array
   const sorted = [...menuItemsToSort];
   const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
-  
+  const currentUtcHours = now.getUTCHours();
+  const currentUtcMinutes = now.getUTCMinutes();
+  const currentTimeInMinutes = currentUtcHours * 60 + currentUtcMinutes;
+
   const activeOverrides = new Map<string, number>();
 
   if (schedules && schedules.length > 0) {
     schedules.forEach(schedule => {
+      if (!/^\d{2}:\d{2}$/.test(schedule.start_time) || !/^\d{2}:\d{2}$/.test(schedule.end_time)) {
+        return; // Skip invalid time formats
+      }
       const [startH, startM] = schedule.start_time.split(':').map(Number);
       const [endH, endM] = schedule.end_time.split(':').map(Number);
       const startTime = startH * 60 + startM;
       const endTime = endH * 60 + endM;
 
       const isActive = (startTime <= endTime)
-        ? (currentTime >= startTime && currentTime < endTime)
-        : (currentTime >= startTime || currentTime < endTime); // Handles overnight schedules
+        ? (currentTimeInMinutes >= startTime && currentTimeInMinutes < endTime)
+        : (currentTimeInMinutes >= startTime || currentTimeInMinutes < endTime);
 
       if (isActive) {
         activeOverrides.set(schedule.food_name, schedule.display_order_override);
@@ -71,7 +75,6 @@ const getSortedMenu = (
     if (orderA !== orderB) {
       return orderA - orderB;
     }
-    // Fallback to alphabetical sorting if displayOrder is the same or not present
     return a.name.localeCompare(b.name);
   });
 
@@ -191,8 +194,16 @@ export default function MenuPage() {
   
   const currentCategoryItems = useMemo(() => {
     if (activeTab === "All") return filteredItems;
-    return filteredItems.filter(item => (item.category || "Other") === activeTab);
-  }, [activeTab, filteredItems]);
+    const category = categories.find(c => c.name === activeTab);
+    const categoryItems = category ? category.items : [];
+    
+    const lowercasedSearchTerm = searchTerm.toLowerCase();
+    return categoryItems.filter(item =>
+      item.name.toLowerCase().includes(lowercasedSearchTerm) ||
+      (item.description && item.description.toLowerCase().includes(lowercasedSearchTerm))
+    );
+
+  }, [activeTab, categories, searchTerm, filteredItems]);
 
 
   if (isLoading) {
@@ -313,22 +324,20 @@ export default function MenuPage() {
                   </TabsTrigger>
                 ))}
               </TabsList>
-
-              {categories.map(category => (
-                <TabsContent key={category.name} value={category.name}>
-                  {currentCategoryItems.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {currentCategoryItems.map(item => (
-                        <MenuItemCard key={item.id} item={item} onUpsellClick={handleUpsellClick} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-10 text-lg">
-                      No items found in this category{searchTerm && ' for your search criteria'}.
-                    </p>
-                  )}
-                </TabsContent>
-              ))}
+              
+               <TabsContent key={activeTab} value={activeTab} forceMount>
+                {currentCategoryItems.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {currentCategoryItems.map(item => (
+                      <MenuItemCard key={item.id} item={item} onUpsellClick={handleUpsellClick} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground py-10 text-lg">
+                    No items found in this category{searchTerm && ' for your search criteria'}.
+                  </p>
+                )}
+              </TabsContent>
             </Tabs>
           ) : (
              <div className="text-center py-20 text-muted-foreground">

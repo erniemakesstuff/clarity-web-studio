@@ -37,6 +37,27 @@ interface EditMenuItemDialogProps {
   onSave: (updatedItem: MenuItem) => void;
 }
 
+const formatTimeToUTC = (localTime: string): string => {
+  if (!localTime) return "00:00";
+  const [hours, minutes] = localTime.split(':').map(Number);
+  const now = new Date();
+  now.setHours(hours, minutes, 0, 0);
+  const utcHours = String(now.getUTCHours()).padStart(2, '0');
+  const utcMinutes = String(now.getUTCMinutes()).padStart(2, '0');
+  return `${utcHours}:${utcMinutes}`;
+};
+
+const formatUtcToLocal = (utcTime: string): string => {
+  if (!utcTime) return "00:00";
+  const [utcHours, utcMinutes] = utcTime.split(':').map(Number);
+  const now = new Date();
+  now.setUTCHours(utcHours, utcMinutes, 0, 0);
+  const localHours = String(now.getHours()).padStart(2, '0');
+  const localMinutes = String(now.getMinutes()).padStart(2, '0');
+  return `${localHours}:${localMinutes}`;
+};
+
+
 export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, onSave }: EditMenuItemDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -67,7 +88,12 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       
       const itemSchedules = (selectedMenuInstance.overrideSchedules || [])
         .filter(s => s.food_name === item.name)
-        .map(({ food_name, ...rest }) => rest);
+        .map(({ food_name, ...rest }) => ({
+            ...rest,
+            start_time: formatUtcToLocal(rest.start_time),
+            end_time: formatUtcToLocal(rest.end_time),
+        }));
+
       setSchedules(itemSchedules);
 
     } else if (!isOpen) {
@@ -137,10 +163,17 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       _tempVisualDescriptionForSave: effectiveVisualDescription,
     };
 
-    // Prepare full list of schedules for the PATCH request
     const otherSchedules = (selectedMenuInstance.overrideSchedules || []).filter(s => s.food_name !== item.name);
-    const newSchedulesForPatch = schedules.map(s => ({ ...s, food_name: name.trim() }));
+    
+    const newSchedulesForPatch = schedules.map(s => ({
+        food_name: name.trim(),
+        start_time: formatTimeToUTC(s.start_time),
+        end_time: formatTimeToUTC(s.end_time),
+        display_order_override: s.display_order_override
+    }));
+
     const finalSchedules = [...otherSchedules, ...newSchedulesForPatch];
+
 
     const [itemUpdateResult, scheduleUpdateResult] = await Promise.all([
         updateMenuItemOnBackend({
@@ -356,13 +389,13 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
 
            <div className="grid grid-cols-4 items-start gap-4">
              <div className="flex items-center justify-end col-span-1 pt-2">
-                <Label className="text-right mr-1 flex items-center gap-1.5"><Clock size={14}/> Overrides</Label>
+                <Label className="text-right mr-1 flex items-center gap-1.5"><Clock size={14}/> Overrides (Local Time)</Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="max-w-xs">Set a different display order for this item during specific times (e.g., make it appear first during lunch hours).</p>
+                    <p className="max-w-xs">Set a different display order for this item during specific times (e.g., make it appear first during lunch hours). Times are shown in your local timezone and saved in UTC.</p>
                   </TooltipContent>
                 </Tooltip>
             </div>
