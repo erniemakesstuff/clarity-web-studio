@@ -16,11 +16,6 @@ interface PitchData {
   cuisineType: string;
   headline: string;
   subheadline: string;
-  testimonial: {
-    quote: string;
-    author: string;
-    location: string;
-  }
 }
 
 const pitchDecks: Record<string, PitchData> = {
@@ -30,11 +25,6 @@ const pitchDecks: Record<string, PitchData> = {
     cuisineType: "Modern European",
     headline: "For The Corner Bistro in Manchester: Stop Worrying About Fines, Start Growing Your Modern European Restaurant.",
     subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: crafting incredible food.",
-    testimonial: {
-      quote: "Clarity Menu has saved us countless hours on menu updates and allergen checks. Plus, our average order value has already gone up by 15%!",
-      author: "Chef Maria",
-      location: "The Corner Bistro, Manchester"
-    }
   },
   "seaside-eats": {
     restaurantName: "Seaside Eats",
@@ -42,11 +32,6 @@ const pitchDecks: Record<string, PitchData> = {
     cuisineType: "Seafood",
     headline: "Helping Seaside Eats Turn Their Busy Seafood Kitchen into a Digital Powerhouse.",
     subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: serving the freshest seafood in Brighton.",
-    testimonial: {
-      quote: "Getting set up was unbelievably simple. We just took a photo of our menu and the AI handled the rest. The peace of mind on allergen compliance is priceless.",
-      author: "David Chen",
-      location: "Seaside Eats, Brighton"
-    }
   }
 };
 
@@ -56,21 +41,19 @@ const defaultPitchData: PitchData = {
   cuisineType: "Restaurant",
   headline: "Stop Worrying About Fines, Start Growing Your Restaurant. Effortlessly.",
   subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: cooking incredible food.",
-  testimonial: {
-    quote: "Clarity Menu has been a game-changer for us. It's simple, powerful, and our customers love the digital experience.",
-    author: "A Happy Restaurant Owner",
-    location: "London"
-  }
 };
 // --- End Data ---
 
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string; }) {
+function FeatureCard({ icon, title, description, imageUrl, imageHint }: { icon: React.ReactNode; title: string; description: string; imageUrl: string; imageHint: string; }) {
   return (
-    <div className="bg-card p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow border">
+    <div className="bg-card p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow border flex flex-col">
+       <div className="relative w-full h-40 mb-4 rounded-md overflow-hidden">
+         <Image src={imageUrl} alt={title} layout="fill" objectFit="cover" data-ai-hint={imageHint} />
+      </div>
       <div className="mb-4">{icon}</div>
       <h3 className="text-2xl font-semibold text-card-foreground mb-2">{title}</h3>
-      <p className="text-muted-foreground">{description}</p>
+      <p className="text-muted-foreground flex-grow">{description}</p>
     </div>
   );
 }
@@ -127,10 +110,34 @@ function PitchPageContent() {
           <div className="container mx-auto px-6">
             <h2 className="text-4xl font-bold text-center text-foreground mb-12">Clarity Menu: Your All-in-One Growth Engine</h2>
             <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-8">
-                <FeatureCard icon={<Zap className="h-10 w-10 text-primary" />} title="Turn Browsers into Buyers & Boost Your Average Spend." description="Imagine a menu that's always up-to-date, stunning on any device, and intelligently suggests additional items to your customers – increasing your revenue with every order. Our AI Upsell Suggestions learn from your sales data to recommend exactly what your customers are most likely to add."/>
-                <FeatureCard icon={<UploadCloud className="h-10 w-10 text-primary" />} title="Say Goodbye to Allergen Worries, Hello to Peace of Mind." description="No more manual data entry or sleepless nights worrying about allergen compliance. Just snap a photo of your existing menu, and our AI instantly digitizes it and tags all allergens in line with FSA guidance. You're protected, and your customers are safe."/>
-                <FeatureCard icon={<Sparkles className="h-10 w-10 text-primary" />} title="Your Personal Marketing Guru, 24/7." description="Struggling for content ideas? Our AI Marketing Assistant helps you draft compelling blog posts, social media updates, and promotions in minutes, bringing new diners to your door without you lifting a finger."/>
-                <FeatureCard icon={<BarChart className="h-10 w-10 text-primary" />} title="Understand Your Business, Make Smarter Decisions." description="Our intuitive dashboard gives you actionable insights into your menu's performance, what's selling, what's not, and how effective your upsells are. Manage everything from one place and watch your restaurant grow."/>
+                <FeatureCard 
+                    icon={<Zap className="h-10 w-10 text-primary" />} 
+                    title="Turn Browsers into Buyers & Boost Your Average Spend." 
+                    description="Imagine a menu that's always up-to-date, stunning on any device, and intelligently suggests additional items to your customers – increasing your revenue with every order. Our AI Upsell Suggestions learn from your sales data to recommend exactly what your customers are most likely to add."
+                    imageUrl="https://placehold.co/600x400.png"
+                    imageHint="digital menu"
+                />
+                <FeatureCard 
+                    icon={<UploadCloud className="h-10 w-10 text-primary" />} 
+                    title="Say Goodbye to Allergen Worries, Hello to Peace of Mind." 
+                    description="No more manual data entry or sleepless nights worrying about allergen compliance. Just snap a photo of your existing menu, and our AI instantly digitizes it and tags all allergens in line with FSA guidance. You're protected, and your customers are safe."
+                    imageUrl="https://placehold.co/600x400.png"
+                    imageHint="allergen compliance"
+                />
+                <FeatureCard 
+                    icon={<Sparkles className="h-10 w-10 text-primary" />} 
+                    title="Your Personal Marketing Guru, 24/7." 
+                    description="Struggling for content ideas? Our AI Marketing Assistant helps you draft compelling blog posts, social media updates, and promotions in minutes, bringing new diners to your door without you lifting a finger."
+                    imageUrl="https://placehold.co/600x400.png"
+                    imageHint="marketing content"
+                />
+                <FeatureCard 
+                    icon={<BarChart className="h-10 w-10 text-primary" />} 
+                    title="Understand Your Business, Make Smarter Decisions." 
+                    description="Our intuitive dashboard gives you actionable insights into your menu's performance, what's selling, what's not, and how effective your upsells are. Manage everything from one place and watch your restaurant grow."
+                    imageUrl="https://placehold.co/600x400.png"
+                    imageHint="analytics dashboard"
+                />
             </div>
           </div>
         </section>
@@ -176,19 +183,9 @@ function PitchPageContent() {
             </div>
           </div>
         </section>
-
-        {/* Testimonial Section */}
-        <section className="py-16 bg-background">
-            <div className="container mx-auto px-6 text-center max-w-3xl">
-                <Image src="https://placehold.co/100x100.png" alt={`Portrait of ${data.testimonial.author}`} width={100} height={100} className="rounded-full mx-auto mb-6" data-ai-hint="person portrait"/>
-                <blockquote className="text-2xl italic text-foreground mb-4">"{data.testimonial.quote}"</blockquote>
-                <p className="font-semibold text-lg text-primary">{data.testimonial.author}</p>
-                <p className="text-muted-foreground">{data.testimonial.location}</p>
-            </div>
-        </section>
-
+        
          {/* Early Adopter Section */}
-        <section className="py-16 bg-secondary">
+        <section className="py-16 bg-background">
           <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-bold text-foreground mb-6">Ready to Be a Trailblazer?</h2>
@@ -206,7 +203,7 @@ function PitchPageContent() {
         </section>
 
         {/* Final CTA Section */}
-        <section id="demo" className="py-20 bg-background">
+        <section id="demo" className="py-20 bg-secondary">
           <div className="container mx-auto px-6 text-center">
             <h2 className="text-4xl font-bold text-foreground mb-4">Ready for {data.restaurantName} to Grow, Protect Your Business, and Simplify Your Life?</h2>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
@@ -217,7 +214,7 @@ function PitchPageContent() {
         </section>
 
       </main>
-      <footer className="py-8 border-t bg-secondary">
+      <footer className="py-8 border-t bg-background">
         <div className="container mx-auto px-6 text-center text-muted-foreground">
           <div className="flex justify-center items-center gap-6 mb-4">
               <Link href="mailto:contact@claritymenu.com" className="flex items-center gap-2 hover:text-primary"><Mail className="h-5 w-5"/> contact@claritymenu.com</Link>
@@ -238,3 +235,5 @@ export default function PitchPage() {
         </Suspense>
     )
 }
+
+    
