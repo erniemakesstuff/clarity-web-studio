@@ -166,7 +166,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchClarityUserProfile]);
 
   const loadMenuData = useCallback(async (forceRefresh = false) => {
-    if (!isAuthenticated || !ownerId) { // Check for ownerId instead of clarityUserProfile
+    if (!isAuthenticated || !ownerId) { 
       clearMenuData();
       setIsLoadingMenuInstances(false);
       return;
