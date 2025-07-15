@@ -148,28 +148,28 @@ function PitchPageContent() {
                     icon={<Zap className="h-10 w-10 text-primary" />} 
                     title="Turn Browsers into Buyers & Boost Your Average Spend." 
                     description="Imagine a menu that's always up-to-date, stunning on any device, and intelligently suggests additional items to your customers – increasing your revenue with every order. Our AI Upsell Suggestions learn from your sales data to recommend exactly what your customers are most likely to add."
-                    imageUrl="https://placehold.co/600x400.png"
+                    imageUrl="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-pitch-f0-claritymenu.png"
                     imageHint="digital menu"
                 />
                 <FeatureCard 
                     icon={<UploadCloud className="h-10 w-10 text-primary" />} 
                     title="Say Goodbye to Allergen Worries, Hello to Peace of Mind." 
                     description="No more manual data entry or sleepless nights worrying about allergen compliance. Just snap a photo of your existing menu, and our AI instantly digitizes it and tags all allergens in line with FSA guidance. You're protected, and your customers are safe."
-                    imageUrl="https://placehold.co/600x400.png"
+                    imageUrl="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-pitch-f1-claritymenu.png"
                     imageHint="allergen compliance"
                 />
                 <FeatureCard 
                     icon={<Sparkles className="h-10 w-10 text-primary" />} 
                     title="Your Personal Marketing Guru, 24/7." 
                     description="Struggling for content ideas? Our AI Marketing Assistant helps you draft compelling blog posts, social media updates, and promotions in minutes, bringing new diners to your door without you lifting a finger."
-                    imageUrl="https://placehold.co/600x400.png"
+                    imageUrl="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-pitch-f2-claritymenu.png"
                     imageHint="marketing content"
                 />
                 <FeatureCard 
                     icon={<BarChart className="h-10 w-10 text-primary" />} 
                     title="Understand Your Business, Make Smarter Decisions." 
                     description="Our intuitive dashboard gives you actionable insights into your menu's performance, what's selling, what's not, and how effective your upsells are. Manage everything from one place and watch your restaurant grow."
-                    imageUrl="https://placehold.co/600x400.png"
+                    imageUrl="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-pitch-f3-claritymenu.png"
                     imageHint="analytics dashboard"
                 />
             </div>
