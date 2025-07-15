@@ -43,6 +43,7 @@ const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"]; // Defin
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const {
+    user,
     isAuthenticated,
     isLoading: isAuthLoading,
     logout,
@@ -77,6 +78,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     { href: "/dashboard/settings", label: "Settings", icon: <Settings /> },
   ];
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return "U";
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
 
   const pageTitle = navItems.find(item => pathname === item.href || (item.href !== "/dashboard" && pathname?.startsWith(item.href)))?.label || "Dashboard";
 
@@ -164,13 +173,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-9 w-9">
-                      <AvatarImage src="https://placehold.co/100x100.png" alt="User avatar" data-ai-hint="person avatar"/>
-                      <AvatarFallback>AD</AvatarFallback>
+                        {user?.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || "User avatar"} />}
+                        <AvatarFallback>{getInitials(user?.displayName)}</AvatarFallback>
                       </Avatar>
                   </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Admin User</DropdownMenuLabel>
+                  <DropdownMenuLabel>{user?.displayName || "Admin User"}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {isActualAdmin && (
                     <>
