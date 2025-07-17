@@ -186,6 +186,7 @@ export async function fetchMenuInstancesFromBackend(
 
                 if (grantResponse.ok) {
                     const grantedMenuJson = JSON.parse(grantResponseText);
+                    // Handle both single object and array responses for granted menus
                     const grantedMenus: BackendDigitalMenuJson[] = Array.isArray(grantedMenuJson) ? grantedMenuJson : [grantedMenuJson];
                     grantedMenus.forEach((menuJson) => {
                        const menuInstance = transformBackendMenu(menuJson);
