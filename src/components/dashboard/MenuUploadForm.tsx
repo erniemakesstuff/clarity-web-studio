@@ -56,12 +56,20 @@ export function MenuUploadForm() {
   const isDeveloperUser = rawOwnerId ? ADMIN_USER_RAW_IDS.includes(rawOwnerId) : false;
 
   useEffect(() => {
-    if (selectedMenuInstance && selectedMenuInstance.s3ContextImageUrls && selectedMenuInstance.s3ContextImageUrls.length > 0 && !isProcessing && workflowOutcome === null) {
-      setProcessedImageUrls(selectedMenuInstance.s3ContextImageUrls);
-    } else if (!selectedMenuInstance?.s3ContextImageUrls && !isProcessing && workflowOutcome === null) {
+    // This effect now correctly handles resetting the image list when the menu changes.
+    if (selectedMenuInstance) {
+      setProcessedImageUrls(selectedMenuInstance.s3ContextImageUrls || []);
+    } else {
       setProcessedImageUrls([]);
     }
-  }, [selectedMenuInstance, isProcessing, workflowOutcome]);
+    // Also clear component state that shouldn't persist across menu selections
+    setQueuedItems([]);
+    setExtractedItems([]);
+    setProcessingError(null);
+    setWorkflowOutcome(null);
+    setCurrentProgress(0);
+    setProgressMessage("");
+  }, [selectedMenuInstance]);
 
 
   const requestCameraPermission = useCallback(async () => {

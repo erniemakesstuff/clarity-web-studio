@@ -49,7 +49,7 @@ const getSafeCategory = (catString?: string | null): string => {
 };
 
 export default function DashboardOverviewPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, ownerId, rawMenuApiResponseText } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, ownerId } = useAuth();
   const { toast } = useToast();
   const analyticsData = selectedMenuInstance?.analytics;
 
@@ -400,7 +400,7 @@ export default function DashboardOverviewPage() {
         </Card>
       )}
 
-      {ADMIN_USER_RAW_IDS.includes(rawOwnerId || "") && rawMenuApiResponseText && (
+      {ADMIN_USER_RAW_IDS.includes(rawOwnerId || "") && selectedMenuInstance && (
           <Card className="shadow-lg mt-8">
             <CardHeader>
               <CardTitle className="flex items-center text-xl">
@@ -408,13 +408,13 @@ export default function DashboardOverviewPage() {
                   Dev: Raw API Response (Menu Data)
               </CardTitle>
               <CardDescription>
-                This is the raw JSON text received from the menu fetch API for the currently selected or loaded menu(s).
+                This is the raw JSON text received from the menu fetch API for the currently selected menu.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
                 readOnly
-                value={rawMenuApiResponseText}
+                value={JSON.stringify(selectedMenuInstance, null, 2)}
                 className="h-96 font-mono text-xs bg-secondary/30 border-border"
                 placeholder="No raw API response available..."
               />
@@ -424,5 +424,3 @@ export default function DashboardOverviewPage() {
       </div>
   );
 }
-
-    
