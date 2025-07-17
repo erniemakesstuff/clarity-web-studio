@@ -120,9 +120,6 @@ function PitchPageContent() {
             <div className="flex justify-center items-center mb-10">
                 <div className="w-full max-w-2xl aspect-video bg-gray-900 rounded-lg shadow-2xl flex items-center justify-center text-center text-white p-4 overflow-hidden relative">
                     <Image src={data.heroImageUrl!} alt="A glimpse of a restaurant's future with Clarity Menu" layout="fill" objectFit="cover" data-ai-hint="restaurant success" />
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <p className="text-lg">[Stunning 15-20s video showing a restaurant owner's journey from stress to success with Clarity Menu]</p>
-                    </div>
                 </div>
             </div>
             <Button size="lg" asChild className="text-lg px-10 py-6">
