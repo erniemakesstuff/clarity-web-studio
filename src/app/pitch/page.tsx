@@ -101,7 +101,7 @@ function PitchPageContent() {
   }, [data.cuisineType]);
 
   const emailSubject = `Demo Request for ${data.restaurantName}`;
-  const mailtoLink = `mailto:difydesign1@gmail.com?subject=${encodeURIComponent(emailSubject)}`;
+  const mailtoLink = `mailto:edifydesign1@gmail.com?subject=${encodeURIComponent(emailSubject)}`;
 
   return (
      <div className="flex flex-col min-h-screen bg-background">
@@ -278,7 +278,7 @@ function PitchPageContent() {
                   href={mailtoLink}
                   className="mt-2 inline-block text-lg font-bold text-primary hover:underline"
                 >
-                  difydesign1@gmail.com
+                  edifydesign1@gmail.com
                 </a>
               </div>
             )}
@@ -303,3 +303,5 @@ export default function PitchPage() {
         </Suspense>
     )
 }
+
+    
