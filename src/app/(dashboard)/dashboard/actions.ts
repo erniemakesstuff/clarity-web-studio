@@ -145,7 +145,7 @@ export async function fetchMenuInstancesFromBackend(
 
   try {
     // 1. Fetch all menus owned by the user
-    const ownedResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}`, {
+    const ownedResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&asMini=false`, {
       method: "GET",
       headers: { "Authorization": authorizationValue, "Accept": "application/json" },
     });
@@ -175,7 +175,7 @@ export async function fetchMenuInstancesFromBackend(
             const mapKey = `${grantOwnerId}:${grantMenuId}`;
 
             if (!menuMap.has(mapKey)) { // Only fetch if not already loaded
-                const grantResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${grantOwnerId}&menuId=${grantMenuId}`, {
+                const grantResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${grantOwnerId}&menuId=${grantMenuId}&asMini=false`, {
                     method: "GET",
                     headers: { "Authorization": authorizationValue, "Accept": "application/json" },
                     cache: 'no-store', // Grants might be for individual, specific menus
