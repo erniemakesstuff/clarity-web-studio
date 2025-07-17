@@ -41,6 +41,16 @@ const pitchDecks: Record<string, PitchData> = {
     heroImageUrl: "https://placehold.co/1200x600.png",
     problemImageUrl: "https://placehold.co/600x400.png",
     trailblazerImageUrl: "https://placehold.co/600x400.png",
+  },
+  "test": {
+    restaurantName: "TEST_RESTAURANT_NAME",
+    restaurantLocation: "UK",
+    cuisineType: "Waffles",
+    headline: "We Like Waffles",
+    subheadline: "UK Waffle House",
+    heroImageUrl: "https://placehold.co/1200x600.png",
+    problemImageUrl: "https://placehold.co/600x400.png",
+    trailblazerImageUrl: "https://placehold.co/600x400.png",
   }
 };
 
