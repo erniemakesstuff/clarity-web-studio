@@ -151,9 +151,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       {menuInstances.length > 0 ? "Switch Menu" : "No Menus Available"}
                     </DropdownMenuLabel>
                     {menuInstances.length > 0 && <DropdownMenuSeparator key="separator-before-menu-items"/>}
-                    {menuInstances.map((menu) => (
+                    {menuInstances.map((menu, index) => (
                       <DropdownMenuItem
-                        key={menu.id}
+                        key={`${menu.id}-${index}`}
                         onSelect={() => selectMenuInstance(menu.id)}
                         disabled={selectedMenuInstance?.id === menu.id}
                       >
