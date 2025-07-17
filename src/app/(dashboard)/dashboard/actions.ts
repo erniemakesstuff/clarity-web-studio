@@ -124,7 +124,7 @@ const transformBackendMenu = (digitalMenu: BackendDigitalMenuJson, menuIndex: nu
         name: menuIdToUse,
         menu: menuItems,
         testMenu: testMenuItems.length > 0 ? testMenuItems : undefined,
-        s3ContextImageUrls: s3ContextImageUrls.length > 0 ? s3ContextImageUrls : undefined,
+        s3ContextImageUrls: s3ContextImageUrls,
         analytics: digitalMenu.Analytics || [],
         allowABTesting: allowAB,
         testGoal: digitalMenu.test_goal,
