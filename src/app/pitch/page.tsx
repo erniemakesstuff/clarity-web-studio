@@ -27,9 +27,9 @@ const defaultPitchData: PitchData = {
   cuisineType: "Restaurant",
   headline: "Stop Worrying About Fines, Start Growing Your Restaurant. Effortlessly.",
   subheadline: "Clarity Menu turns your paper menu into a smart digital version that handles allergen compliance, boosts upsells, and runs automated marketing, so you can focus on what you do best: cooking incredible food.",
-  heroImageUrl: "https://placehold.co/1200x600.png",
-  problemImageUrl: "https://placehold.co/600x400.png",
-  trailblazerImageUrl: "https://placehold.co/600x400.png",
+  heroImageUrl: "https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-pitch-hero.png",
+  problemImageUrl: "https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-pitch-problem.png",
+  trailblazerImageUrl: "https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-pitch-trailblazer.png",
 };
 
 const pitchDecks: Record<string, PitchData> = {
@@ -87,14 +87,8 @@ function PitchPageContent() {
 
     // Merge defaults with specific data. Any empty string in specificData will be replaced by the default.
     return {
-        restaurantName: specificData.restaurantName || defaultPitchData.restaurantName,
-        restaurantLocation: specificData.restaurantLocation || defaultPitchData.restaurantLocation,
-        cuisineType: specificData.cuisineType || defaultPitchData.cuisineType,
-        headline: specificData.headline || defaultPitchData.headline,
-        subheadline: specificData.subheadline || defaultPitchData.subheadline,
-        heroImageUrl: specificData.heroImageUrl || defaultPitchData.heroImageUrl,
-        problemImageUrl: specificData.problemImageUrl || defaultPitchData.problemImageUrl,
-        trailblazerImageUrl: specificData.trailblazerImageUrl || defaultPitchData.trailblazerImageUrl,
+        ...defaultPitchData,
+        ...Object.fromEntries(Object.entries(specificData).filter(([_, v]) => v !== '')),
     };
   }, [pitchId]);
 
