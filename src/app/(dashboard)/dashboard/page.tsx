@@ -59,7 +59,7 @@ export default function DashboardOverviewPage() {
 
   useEffect(() => {
     if (selectedMenuInstance && ownerId && typeof window !== 'undefined') {
-      const url = `${window.location.origin}/menu/${ownerId}/${selectedMenuInstance.id}`;
+      const url = `https://claritymenu.com/menu/${ownerId}/${selectedMenuInstance.id}`;
       setPublicMenuUrl(url);
 
       QRCode.toDataURL(url, {
@@ -424,3 +424,5 @@ export default function DashboardOverviewPage() {
       </div>
   );
 }
+
+    
