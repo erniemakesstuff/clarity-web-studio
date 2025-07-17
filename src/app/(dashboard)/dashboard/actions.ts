@@ -179,14 +179,13 @@ export async function fetchMenuInstancesFromBackend(
                 const grantResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${grantOwnerId}&menuId=${grantMenuId}&asMini=false`, {
                     method: "GET",
                     headers: { "Authorization": authorizationValue, "Accept": "application/json" },
-                    cache: 'no-store', // Grants might be for individual, specific menus
+                    cache: 'no-store',
                 });
                 const grantResponseText = await grantResponse.text();
                 allRawResponses.push(grantResponseText);
 
                 if (grantResponse.ok) {
                     const grantedMenuJson = JSON.parse(grantResponseText);
-                    // Handle both single object and array response for granted menus
                     const grantedMenus: BackendDigitalMenuJson[] = Array.isArray(grantedMenuJson) ? grantedMenuJson : [grantedMenuJson];
                     grantedMenus.forEach((menuJson) => {
                        const menuInstance = transformBackendMenu(menuJson);
