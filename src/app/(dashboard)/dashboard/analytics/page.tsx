@@ -1,14 +1,15 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, GitCompareArrows, AlertTriangle, Activity, HelpCircle, Code2, BarChart as BarChartIcon } from "lucide-react";
+import { TrendingUp, GitCompareArrows, Activity, HelpCircle, Code2, BarChart as BarChartIcon } from "lucide-react";
 import { ReceiptUploadForm } from "@/components/dashboard/ReceiptUploadForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle as AlertTitleUI } from "@/components/ui/alert";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, CartesianGrid, XAxis, YAxis, ResponsiveContainer, BarChart as RechartsBarChart, Cell } from "recharts";
-import type { AnalyticsEntry } from "@/lib/types";
+import type { AnalyticsEntry, MenuItem } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,8 +34,20 @@ const getSafeCategory = (catString?: string | null): string => {
 export default function AnalyticsPage() {
   const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, rawMenuApiResponseText } = useAuth();
   const [selectedItemForExplorer, setSelectedItemForExplorer] = useState<string | null>(null);
-
+  
+  const menuItems: MenuItem[] = selectedMenuInstance?.menu || [];
   const analyticsData: AnalyticsEntry[] | null | undefined = selectedMenuInstance?.analytics;
+  
+  const itemCategoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (menuItems) {
+      menuItems.forEach(item => {
+        map.set(item.name, getSafeCategory(item.category));
+      });
+    }
+    return map;
+  }, [menuItems]);
+
 
   const { topPairs, allItemsForDropdown } = useMemo(() => {
     if (!analyticsData || analyticsData.length === 0) {
@@ -88,9 +101,9 @@ export default function AnalyticsPage() {
       .map(pw => ({
         name: pw.food_name,
         count: pw.purchase_count,
-        category: getSafeCategory(pw.food_category)
+        category: itemCategoryMap.get(pw.food_name) || "Other",
       }));
-  }, [selectedItemForExplorer, analyticsData]);
+  }, [selectedItemForExplorer, analyticsData, itemCategoryMap]);
 
   const { itemPerformanceData, itemPerformanceChartConfig, dateRangeString } = useMemo(() => {
     if (!analyticsData) return { itemPerformanceData: [], itemPerformanceChartConfig: { config: {}, payload: [] }, dateRangeString: "" };
@@ -106,7 +119,7 @@ export default function AnalyticsPage() {
             itemMap.set(name, {
                 name: name,
                 count: entry.purchase_count,
-                category: getSafeCategory(entry.food_category),
+                category: itemCategoryMap.get(name) || "Other",
             });
         }
     });
@@ -136,10 +149,9 @@ export default function AnalyticsPage() {
     });
     
     const dates = analyticsData.map(entry => {
-      const parts = entry.timestamp_day.split('/');
-      if (parts.length !== 3) return null;
-      const d = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
-      return isNaN(d.getTime()) ? null : d;
+      const dateString = entry.timestamp_day; // "YYYY-MM-DD"
+      const entryDate = new Date(`${dateString}T00:00:00`);
+      return isNaN(entryDate.getTime()) ? null : entryDate;
     }).filter((d): d is Date => d !== null);
 
     let calculatedDateRangeString = '';
@@ -154,9 +166,8 @@ export default function AnalyticsPage() {
       }
     }
 
-
     return { itemPerformanceData: allItems, itemPerformanceChartConfig: { config, payload }, dateRangeString: calculatedDateRangeString };
-  }, [analyticsData]);
+  }, [analyticsData, itemCategoryMap]);
 
 
   const renderContent = () => {

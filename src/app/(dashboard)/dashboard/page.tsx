@@ -16,6 +16,7 @@ import type { ChartConfig as ChartConfigType } from "@/components/ui/chart";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { MenuItem } from "@/lib/types";
 
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
@@ -52,6 +53,7 @@ export default function DashboardOverviewPage() {
   const { selectedMenuInstance, isLoadingMenuInstances, rawOwnerId, ownerId } = useAuth();
   const { toast } = useToast();
   const analyticsData = selectedMenuInstance?.analytics;
+  const menuItems: MenuItem[] = selectedMenuInstance?.menu || [];
 
   const [publicMenuUrl, setPublicMenuUrl] = useState("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
@@ -125,6 +127,16 @@ export default function DashboardOverviewPage() {
     }
   };
 
+  const itemCategoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (menuItems) {
+      menuItems.forEach(item => {
+        map.set(item.name, getSafeCategory(item.category));
+      });
+    }
+    return map;
+  }, [menuItems]);
+
 
   const { stats, weeklyChartData, weeklyChartConfig } = useMemo(() => {
     if (!analyticsData || analyticsData.length === 0) {
@@ -143,7 +155,7 @@ export default function DashboardOverviewPage() {
       }
 
       if (entry.purchase_count > trendingItem.purchase_count) {
-        trendingItem = { name: entry.food_name, purchase_count: entry.purchase_count, category: getSafeCategory(entry.food_category) };
+        trendingItem = { name: entry.food_name, purchase_count: entry.purchase_count, category: itemCategoryMap.get(entry.food_name) || "Other" };
       }
     });
 
@@ -173,14 +185,12 @@ export default function DashboardOverviewPage() {
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
 
     analyticsData.forEach(entry => {
-        // FIX: Handle YYYY-MM-DD format from backend
-        const dateString = entry.timestamp_day;
-        const entryDate = new Date(`${dateString}T00:00:00`); // Assume UTC by providing T00:00:00
+        const dateString = entry.timestamp_day; // "YYYY-MM-DD"
+        const entryDate = new Date(`${dateString}T00:00:00`); 
         
         if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart || entryDate > now || !entry.purchase_count || entry.purchase_count <= 0) return;
 
-        // FIX: Ensure empty category string falls back to "Other"
-        const category = getSafeCategory(entry.food_category);
+        const category = itemCategoryMap.get(entry.food_name) || "Other";
         categories.add(category);
         
         const weekStartDate = startOfWeek(entryDate, { weekStartsOn: 1 });
@@ -217,7 +227,7 @@ export default function DashboardOverviewPage() {
       weeklyChartData: calculatedChartData,
       weeklyChartConfig: wConfig,
     };
-  }, [analyticsData, timeRange]);
+  }, [analyticsData, timeRange, itemCategoryMap]);
 
   const totalMenuItems = selectedMenuInstance?.menu?.length ?? 0;
 
