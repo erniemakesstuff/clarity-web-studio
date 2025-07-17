@@ -109,6 +109,7 @@ export interface BackendDigitalMenuJson {
 export interface MenuInstance {
   id: string;
   name: string;
+  ownerId: string;
   menu: MenuItem[];
   testMenu?: MenuItem[];
   s3ContextImageUrls?: string[];

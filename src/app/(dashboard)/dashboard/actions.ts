@@ -93,8 +93,8 @@ interface FetchMenuInstancesResult {
 }
 
 const transformBackendMenu = (digitalMenu: BackendDigitalMenuJson, menuIndex: number = 0): MenuInstance | null => {
-    if (!digitalMenu || typeof digitalMenu.MenuID !== 'string') {
-        console.warn(`Skipping invalid menu structure at index ${menuIndex}. MenuID: ${digitalMenu?.MenuID}`);
+    if (!digitalMenu || typeof digitalMenu.MenuID !== 'string' || !digitalMenu.OwnerID) {
+        console.warn(`Skipping invalid menu structure at index ${menuIndex}. MenuID: ${digitalMenu?.MenuID}, OwnerID: ${digitalMenu?.OwnerID}`);
         return null;
     }
 
@@ -122,6 +122,7 @@ const transformBackendMenu = (digitalMenu: BackendDigitalMenuJson, menuIndex: nu
     return {
         id: menuIdToUse,
         name: menuIdToUse,
+        ownerId: digitalMenu.OwnerID,
         menu: menuItems,
         testMenu: testMenuItems.length > 0 ? testMenuItems : undefined,
         s3ContextImageUrls: s3ContextImageUrls,

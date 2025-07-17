@@ -44,7 +44,7 @@ export function MenuUploadForm() {
   const [processedImageUrls, setProcessedImageUrls] = useState<string[]>([]);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance, refreshMenuInstances, rawOwnerId, ownerId } = useAuth();
+  const { jwtToken, selectedMenuInstance, refreshMenuInstances, rawOwnerId, selectedMenuOwnerId } = useAuth();
 
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -270,7 +270,7 @@ export function MenuUploadForm() {
     setCurrentProgress(0);
     setProgressMessage("Starting process...");
 
-    const ownerIdToUse = ownerId;
+    const ownerIdToUse = selectedMenuOwnerId;
     const menuId = selectedMenuInstance.id;
     const itemsToProcess: QueuedItem[] = [];
 
@@ -418,7 +418,7 @@ export function MenuUploadForm() {
     setCurrentProgress(0);
     setProgressMessage("Manually starting workflow...");
 
-    const ownerIdToUse = ownerId;
+    const ownerIdToUse = selectedMenuOwnerId;
     const menuId = selectedMenuInstance.id;
 
     try {

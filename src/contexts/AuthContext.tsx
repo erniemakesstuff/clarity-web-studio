@@ -31,6 +31,7 @@ export interface AuthContextType {
   jwtToken: string | null;
   rawOwnerId: string | null;
   ownerId: string;
+  selectedMenuOwnerId: string; // ID of the owner of the currently selected menu
   signInWithEmail: (email: string, pass: string) => Promise<any>;
   signUpWithEmail: (email: string, pass: string) => Promise<any>;
   signInWithGoogle: () => Promise<void>;
@@ -65,6 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const rawOwnerId = user?.email || null;
   const ownerId = user?.uid || "";
+  const selectedMenuOwnerId = selectedMenuInstance?.ownerId || ownerId;
 
   const clearMenuData = () => {
     setMenuInstances([]);
@@ -300,6 +302,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const newMenuInstance: MenuInstance = {
       id: name,
       name: name,
+      ownerId: ownerId, // New menus are owned by the current user
       menu: [],
       analytics: [],
       allowABTesting: false,
@@ -334,7 +337,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     const token = await user?.getIdToken();
     const result = await patchMenu({
-        ownerId: ownerId,
+        ownerId: selectedMenuOwnerId, // Use the correct ownerId for the menu
         menuId,
         payload: { allowABTesting: enable },
         jwtToken: token || null,
@@ -432,6 +435,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     jwtToken,
     rawOwnerId,
     ownerId,
+    selectedMenuOwnerId,
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,
