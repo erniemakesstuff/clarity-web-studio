@@ -148,6 +148,7 @@ export async function fetchMenuInstancesFromBackend(
     const ownedResponse = await fetch(`${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&asMini=false`, {
       method: "GET",
       headers: { "Authorization": authorizationValue, "Accept": "application/json" },
+      cache: 'no-store',
     });
     
     const ownedResponseText = await ownedResponse.text();
