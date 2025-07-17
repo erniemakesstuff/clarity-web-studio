@@ -143,7 +143,7 @@ export default function DashboardOverviewPage() {
       }
 
       if (entry.purchase_count > trendingItem.purchase_count) {
-        trendingItem = { name: entry.food_name, purchase_count: entry.purchase_count, category: entry.food_category };
+        trendingItem = { name: entry.food_name, purchase_count: entry.purchase_count, category: getSafeCategory(entry.food_category) };
       }
     });
 
@@ -173,13 +173,13 @@ export default function DashboardOverviewPage() {
     const weeklyAggregates: { [weekStart: string]: { week: string; date: Date } & { [category: string]: number } } = {};
 
     analyticsData.forEach(entry => {
-        const parts = entry.timestamp_day.split('/');
-        if (parts.length !== 3) return;
-        
-        const entryDate = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+        // FIX: Handle YYYY-MM-DD format from backend
+        const dateString = entry.timestamp_day;
+        const entryDate = new Date(`${dateString}T00:00:00`); // Assume UTC by providing T00:00:00
         
         if (isNaN(entryDate.getTime()) || entryDate < dataWindowStart || entryDate > now || !entry.purchase_count || entry.purchase_count <= 0) return;
 
+        // FIX: Ensure empty category string falls back to "Other"
         const category = getSafeCategory(entry.food_category);
         categories.add(category);
         
