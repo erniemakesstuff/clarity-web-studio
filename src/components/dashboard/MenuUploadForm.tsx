@@ -29,7 +29,7 @@ interface QueuedItem {
 
 const MAX_CONCURRENT_UPLOADS = 3;
 const POLLING_INTERVAL_MS = 10000;
-const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
+const POLLING_TIMEOUT_MS = 30 * 60 * 1000;
 
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
