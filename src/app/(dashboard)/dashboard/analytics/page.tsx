@@ -69,7 +69,8 @@ export default function AnalyticsPage() {
           const pairKey = [itemA, itemB].sort().join("||");
           
           if (itemA !== itemB) {
-              coOccurrence[pairKey] = (coOccurrence[pairKey] || 0) + relatedEntry.purchase_count;
+              // Correct logic: Increment by 1 for each co-occurrence.
+              coOccurrence[pairKey] = (coOccurrence[pairKey] || 0) + 1;
           }
         });
       }
