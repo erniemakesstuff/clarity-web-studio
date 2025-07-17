@@ -418,7 +418,7 @@ export function MenuUploadForm() {
     setCurrentProgress(0);
     setProgressMessage("Manually starting workflow...");
 
-    const ownerIdToUse = ownerId; 
+    const ownerIdToUse = ownerId;
     const menuId = selectedMenuInstance.id;
 
     try {
