@@ -192,7 +192,7 @@ function PitchPageContent() {
                  <h2 className="text-4xl font-bold text-foreground mb-12">What Makes Clarity Menu Truly Different?</h2>
                  <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                     <div className="p-6 border rounded-lg">
-                        <h3 className="text-2xl font-semibold mb-2">Built for {data.restaurantName}'s Success</h3>
+                        <h3 className="text-2xl font-semibold mb-2 break-words">Built for {data.restaurantName}'s Success</h3>
                         <p className="text-muted-foreground">{`Specifically designed for independent ${data.cuisineType.toLowerCase()} restaurants like yours, who need powerful tools without complex tech.`}</p>
                     </div>
                      <div className="p-6 border-2 border-primary rounded-lg shadow-lg">
