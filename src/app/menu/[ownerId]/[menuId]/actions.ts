@@ -83,7 +83,9 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
       
       const currentMenuIdActual = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : menuId; 
 
-      const menuEntries = asExperiment ? digitalMenu.test_food_service_entries : digitalMenu.food_service_entries;
+      const menuEntries = asExperiment 
+          ? digitalMenu.test_food_service_entries || digitalMenu.food_service_entries
+          : digitalMenu.food_service_entries;
 
       const menuItems: MenuItem[] = (menuEntries || [])
         .map((entry, index) => {
