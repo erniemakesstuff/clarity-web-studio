@@ -191,7 +191,9 @@ export async function fetchMenuInstancesFromBackend(
                     grantedMenus.forEach((menuJson) => {
                        const menuInstance = transformBackendMenu(menuJson);
                        if (menuInstance) {
-                           menuMap.set(mapKey, menuInstance);
+                           // Use the correct, unique key for the map
+                           const grantedMapKey = `${menuJson.OwnerID}:${menuJson.MenuID}`;
+                           menuMap.set(grantedMapKey, menuInstance);
                        }
                     });
                 } else {
