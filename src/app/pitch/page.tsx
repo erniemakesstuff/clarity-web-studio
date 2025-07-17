@@ -201,24 +201,28 @@ function PitchPageContent() {
         <section className="py-16 bg-secondary">
           <div className="container mx-auto px-6">
             <h2 className="text-4xl font-bold text-center text-foreground mb-12">See Clarity Menu in Action: A Sneak Peek</h2>
-            <div className="grid lg:grid-cols-3 gap-8 items-start justify-center">
-              <div className="space-y-4 lg:col-span-1 flex flex-col items-center">
-                 <h3 className="text-xl font-semibold">The Customer Experience</h3>
-                 <div className="aspect-[9/16] bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden w-full max-w-xs mx-auto">
-                    <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-0-claritymenu.gif" alt="Customer Experience Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="customer experience" />
+            <div className="grid lg:grid-cols-2 gap-8 items-center justify-center">
+              <div className="flex justify-center items-center lg:col-span-1">
+                 <div className="space-y-4 w-full max-w-xs mx-auto">
+                   <h3 className="text-xl font-semibold text-center">The Customer Experience</h3>
+                   <div className="aspect-[9/16] bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden">
+                      <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-0-claritymenu.gif" alt="Customer Experience Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="customer experience" />
+                   </div>
                  </div>
               </div>
-               <div className="space-y-4 lg:col-span-1 flex flex-col items-center">
-                 <h3 className="text-xl font-semibold">Behind the Scenes: Menu & Allergen Magic</h3>
-                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden w-full">
-                    <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-1-claritymenu.gif" alt="Menu Upload and Tagging Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="menu upload" />
-                 </div>
-              </div>
-              <div className="space-y-4 lg:col-span-1 flex flex-col items-center">
-                 <h3 className="text-xl font-semibold">Dashboard Insights</h3>
-                 <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden w-full">
-                    <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-2-claritymenu.gif" alt="Analytics Dashboard Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="analytics dashboard" />
-                 </div>
+              <div className="lg:col-span-1 space-y-8">
+                 <div className="space-y-4">
+                   <h3 className="text-xl font-semibold text-center">Behind the Scenes: Menu & Allergen Magic</h3>
+                   <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden">
+                      <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-1-claritymenu.gif" alt="Menu Upload and Tagging Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="menu upload" />
+                   </div>
+                </div>
+                <div className="space-y-4">
+                   <h3 className="text-xl font-semibold text-center">Dashboard Insights</h3>
+                   <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center text-white relative overflow-hidden">
+                      <Image src="https://truevine-media-storage.s3.us-west-2.amazonaws.com/Image-demo-2-claritymenu.gif" alt="Analytics Dashboard Demo" layout="fill" objectFit="cover" unoptimized data-ai-hint="analytics dashboard" />
+                   </div>
+                </div>
               </div>
             </div>
           </div>
