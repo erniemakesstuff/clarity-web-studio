@@ -154,7 +154,8 @@ export async function fetchMenuInstancesFromBackend(
     allRawResponses.push(ownedResponseText);
 
     if (ownedResponse.ok) {
-        const ownedMenus: BackendDigitalMenuJson[] = JSON.parse(ownedResponseText);
+        const ownedMenusJson = JSON.parse(ownedResponseText);
+        const ownedMenus: BackendDigitalMenuJson[] = Array.isArray(ownedMenusJson) ? ownedMenusJson : [ownedMenusJson];
         ownedMenus.forEach((menuJson, index) => {
             const menuInstance = transformBackendMenu(menuJson, index);
             if (menuInstance) {
@@ -183,11 +184,15 @@ export async function fetchMenuInstancesFromBackend(
                 allRawResponses.push(grantResponseText);
 
                 if (grantResponse.ok) {
-                    const grantedMenuJson: BackendDigitalMenuJson = JSON.parse(grantResponseText);
-                    const menuInstance = transformBackendMenu(grantedMenuJson);
-                    if (menuInstance) {
-                        menuMap.set(mapKey, menuInstance);
-                    }
+                    const grantedMenuJson = JSON.parse(grantResponseText);
+                    // Handle both single object and array response for granted menus
+                    const grantedMenus: BackendDigitalMenuJson[] = Array.isArray(grantedMenuJson) ? grantedMenuJson : [grantedMenuJson];
+                    grantedMenus.forEach((menuJson) => {
+                       const menuInstance = transformBackendMenu(menuJson);
+                       if (menuInstance) {
+                           menuMap.set(mapKey, menuInstance);
+                       }
+                    });
                 } else {
                     console.warn(`Could not fetch granted menu ${grant}. Status: ${grantResponse.status}.`);
                 }
