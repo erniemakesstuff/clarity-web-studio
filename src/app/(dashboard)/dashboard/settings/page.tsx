@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { grantMenuAccessToUser } from "./actions";
 
 export default function SettingsPage() {
-  const { user, selectedMenuInstance, ownerId, jwtToken, isLoading } = useAuth();
+  const { user, selectedMenuInstance, selectedMenuOwnerId, jwtToken, isLoading } = useAuth();
   const { toast } = useToast();
   const [targetSub, setTargetSub] = useState("");
   const [isSharing, setIsSharing] = useState(false);
@@ -38,7 +38,7 @@ export default function SettingsPage() {
     }
 
     setIsSharing(true);
-    const grantToAdd = `${ownerId}:${selectedMenuInstance.id}`;
+    const grantToAdd = `${selectedMenuOwnerId}:${selectedMenuInstance.id}`;
 
     const result = await grantMenuAccessToUser({
       targetUserId: targetSub.trim(),

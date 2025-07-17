@@ -23,7 +23,7 @@ const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"];
 
 export default function HypothesisTestsPage() {
   const { toast } = useToast();
-  const { selectedMenuInstance, isLoadingMenuInstances, ownerId, jwtToken, refreshMenuInstances, rawOwnerId } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, jwtToken, refreshMenuInstances, rawOwnerId, selectedMenuOwnerId } = useAuth();
 
   const allowABTesting = selectedMenuInstance?.allowABTesting;
   const existingGoal = selectedMenuInstance?.testGoal;
@@ -63,7 +63,7 @@ export default function HypothesisTestsPage() {
       const currentStatus = selectedMenuInstance.allowABTesting ?? false;
       
       const result = await patchMenu({
-        ownerId: ownerId,
+        ownerId: selectedMenuOwnerId,
         menuId: selectedMenuInstance.id,
         payload: { allowABTesting: !currentStatus },
         jwtToken,
@@ -99,7 +99,7 @@ export default function HypothesisTestsPage() {
     }
     setIsStartingManualWorkflow(true);
     const result = await startABTestWorkflow({
-      ownerId: ownerId,
+      ownerId: selectedMenuOwnerId,
       menuId: selectedMenuInstance.id,
       jwtToken,
     });
@@ -142,7 +142,7 @@ export default function HypothesisTestsPage() {
 
     try {
       const patchResult = await patchMenu({
-        ownerId: ownerId,
+        ownerId: selectedMenuOwnerId,
         menuId: selectedMenuInstance.id,
         payload: { testGoal: goalInput },
         jwtToken: jwtToken,
@@ -160,7 +160,7 @@ export default function HypothesisTestsPage() {
       setTimeout(async () => {
         try {
           const startResult = await startABTestWorkflow({
-            ownerId: ownerId,
+            ownerId: selectedMenuOwnerId,
             menuId: selectedMenuInstance.id,
             jwtToken: jwtToken,
           });

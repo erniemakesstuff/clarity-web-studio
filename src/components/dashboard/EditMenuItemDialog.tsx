@@ -72,7 +72,7 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
   const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
-  const { jwtToken, selectedMenuInstance, ownerId, updateMenuSchedules } = useAuth();
+  const { jwtToken, selectedMenuInstance, selectedMenuOwnerId, updateMenuSchedules } = useAuth();
 
   useEffect(() => {
     if (item && isOpen && selectedMenuInstance) {
@@ -177,10 +177,10 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
 
     const [itemUpdateResult, scheduleUpdateResult] = await Promise.all([
         updateMenuItemOnBackend({
-            ownerId, menuId: selectedMenuInstance.id, targetEntryName: item.name, itemData: updatedItemFromDialog, jwtToken
+            ownerId: selectedMenuOwnerId, menuId: selectedMenuInstance.id, targetEntryName: item.name, itemData: updatedItemFromDialog, jwtToken
         }),
         patchDigitalMenu({
-            ownerId, menuId: selectedMenuInstance.id, overrideSchedules: finalSchedules
+            ownerId: selectedMenuOwnerId, menuId: selectedMenuInstance.id, overrideSchedules: finalSchedules
         }, jwtToken)
     ]);
 
