@@ -151,7 +151,8 @@ export default function DashboardOverviewPage() {
     analyticsData.forEach(entry => {
       totalItemsSold += entry.purchase_count;
       if (Array.isArray(entry.purchased_with)) {
-        totalCoPurchases += entry.purchased_with.reduce((sum, pw) => sum + pw.purchase_count, 0);
+        // Corrected Logic: Count the number of co-purchase entries, not their 'purchase_count' value
+        totalCoPurchases += entry.purchased_with.length;
       }
 
       if (entry.purchase_count > trendingItem.purchase_count) {
