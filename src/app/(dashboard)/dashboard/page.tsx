@@ -151,14 +151,19 @@ export default function DashboardOverviewPage() {
     analyticsData.forEach(entry => {
       totalItemsSold += entry.purchase_count;
       if (Array.isArray(entry.purchased_with)) {
-        // Corrected Logic: Count the number of co-purchase entries, not their 'purchase_count' value
-        totalCoPurchases += entry.purchased_with.length;
+        entry.purchased_with.forEach(relatedEntry => {
+            totalCoPurchases += relatedEntry.purchase_count || 0;
+        });
       }
 
       if (entry.purchase_count > trendingItem.purchase_count) {
         trendingItem = { name: entry.food_name, purchase_count: entry.purchase_count, category: itemCategoryMap.get(entry.food_name) || "Other" };
       }
     });
+    
+    // The data is bidirectional, so each co-purchase is counted twice. Divide by 2.
+    totalCoPurchases = Math.ceil(totalCoPurchases / 2);
+
 
     // --- Logic for Weekly Sales Chart ---
     const now = new Date();

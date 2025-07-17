@@ -67,13 +67,18 @@ export default function AnalyticsPage() {
           allItems.add(itemB);
           
           const pairKey = [itemA, itemB].sort().join("||");
-          
-          if (itemA !== itemB) {
-              // Correct logic: Increment by 1 for each co-occurrence.
-              coOccurrence[pairKey] = (coOccurrence[pairKey] || 0) + 1;
+          const count = relatedEntry.purchase_count || 0;
+
+          if (itemA !== itemB && count > 0) {
+             coOccurrence[pairKey] = (coOccurrence[pairKey] || 0) + count;
           }
         });
       }
+    });
+    
+    // Since the data is bidirectional (A->B and B->A), divide counts by 2.
+    Object.keys(coOccurrence).forEach(key => {
+        coOccurrence[key] = Math.ceil(coOccurrence[key] / 2);
     });
 
     const sortedPairs = Object.entries(coOccurrence)
