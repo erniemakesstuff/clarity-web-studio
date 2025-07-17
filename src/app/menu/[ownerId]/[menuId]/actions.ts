@@ -66,7 +66,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
   let response: Response | undefined = undefined;
   let responseBodyText: string = "";
   try {
-    const url = `${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=true&asExperiment=${asExperiment}`;
+    const url = `${API_BASE_URL}/ris/v1/menu?ownerId=${ownerId}&menuId=${menuId}&asMini=false&asExperiment=${asExperiment}`;
     response = await fetch(url, {
       method: "GET",
       headers: {
