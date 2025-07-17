@@ -83,8 +83,8 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
       
       const currentMenuIdActual = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : menuId; 
 
-      const menuEntries = asExperiment 
-          ? digitalMenu.test_food_service_entries || digitalMenu.food_service_entries
+      const menuEntries = asExperiment && digitalMenu.test_food_service_entries 
+          ? digitalMenu.test_food_service_entries
           : digitalMenu.food_service_entries;
 
       const menuItems: MenuItem[] = (menuEntries || [])
@@ -109,7 +109,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
             }
             if (dataAiHint.trim() === '') dataAiHint = 'food item'; 
 
-            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https'))) {
               mediaObjects.push({
                 type: 'image',
                 url: imageUrl,
