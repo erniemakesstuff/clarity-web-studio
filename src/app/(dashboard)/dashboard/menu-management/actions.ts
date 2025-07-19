@@ -2,7 +2,7 @@
 'use server';
 
 import type { AuthContextType } from '@/contexts/AuthContext'; 
-import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult, MenuItem as FrontendMenuItem, OverrideSchedule } from '@/lib/types';
+import type { ExtractedMenuItem, DigitalMenuState, BackendDigitalMenuPollResponse, PollWorkflowStatusResult, MenuItem as FrontendMenuItem, OverrideSchedule, CurrencyCode } from '@/lib/types';
 
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -319,7 +319,7 @@ interface PatchDigitalMenuRequest {
   ownerId: string;
   menuId: string;
   overrideSchedules?: OverrideSchedule[];
-  currency_code?: 'USD' | 'EUR' | 'GBP';
+  currencyCode?: CurrencyCode;
 }
 
 interface PatchDigitalMenuResult {
@@ -333,13 +333,26 @@ export async function patchDigitalMenu(
 ): Promise<PatchDigitalMenuResult> {
   try {
     const authorizationValue = jwtToken ? `Bearer ${jwtToken}` : "Bearer no jwt present";
+    
+    // Construct the body explicitly to ensure only intended fields are sent
+    const requestBody: { [key: string]: any } = {
+        ownerId: params.ownerId,
+        menuId: params.menuId,
+    };
+    if (params.overrideSchedules) {
+        requestBody.overrideSchedules = params.overrideSchedules;
+    }
+    if (params.currencyCode) {
+        requestBody.currencyCode = params.currencyCode;
+    }
+
     const response = await fetch(`${API_BASE_URL}/ris/v1/menu`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         "Authorization": authorizationValue,
       },
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestBody),
     });
 
     if (response.ok) {

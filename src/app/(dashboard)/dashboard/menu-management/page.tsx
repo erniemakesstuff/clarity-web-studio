@@ -124,7 +124,7 @@ export default function MenuManagementPage() {
     const result = await patchDigitalMenu({
       ownerId: selectedMenuOwnerId,
       menuId: selectedMenuInstance.id,
-      currency_code: selectedCurrency,
+      currencyCode: selectedCurrency,
     }, jwtToken);
 
     if (result.success) {
@@ -204,7 +204,7 @@ export default function MenuManagementPage() {
           </div>
           {selectedMenuInstance && ownerId && (
             <Button asChild variant="outline" size="sm">
-              <Link href={`/menu/${ownerId}/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
+              <Link href={`/menu/${selectedMenuOwnerId}/${selectedMenuInstance.id}`} target="_blank" rel="noopener noreferrer">
                 <Eye className="mr-2 h-4 w-4" /> View As Customer
               </Link>
             </Button>
