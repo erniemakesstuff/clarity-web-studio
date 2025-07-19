@@ -62,6 +62,19 @@ interface FetchPublicMenuResult {
   message?: string;
 }
 
+const getCurrencySymbol = (currencyCode?: string): string => {
+  switch (currencyCode?.toUpperCase()) {
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    default:
+      return '£'; // Default to GBP
+  }
+};
+
 export async function fetchPublicMenuData(ownerId: string, menuId: string, asExperiment: boolean): Promise<FetchPublicMenuResult> {
   let response: Response | undefined = undefined;
   let responseBodyText: string = "";
@@ -82,6 +95,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
       const digitalMenu: BackendDigitalMenuJson = JSON.parse(responseBodyText);
       
       const currentMenuIdActual = typeof digitalMenu.MenuID === 'string' && digitalMenu.MenuID.trim() !== '' ? digitalMenu.MenuID.trim() : menuId; 
+      const currencySymbol = getCurrencySymbol(digitalMenu.currency_code);
 
       const menuEntries = asExperiment && digitalMenu.test_food_service_entries 
           ? digitalMenu.test_food_service_entries
@@ -93,7 +107,7 @@ export async function fetchPublicMenuData(ownerId: string, menuId: string, asExp
             const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${index + 1}`;
             const itemDescription = typeof entry.description === 'string' ? entry.description : "";
             const itemPrice = typeof entry.price === 'number' ? entry.price : 0;
-            const formattedPrice = `$${(itemPrice / 100).toFixed(2)}`;
+            const formattedPrice = `${currencySymbol}${(itemPrice / 100).toFixed(2)}`;
 
             const mediaObjects: MediaObject[] = [];
             const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;

@@ -104,6 +104,7 @@ export interface BackendDigitalMenuJson {
   Analytics?: AnalyticsEntry[] | null; 
   State?: DigitalMenuState;
   override_schedules?: OverrideSchedule[] | null;
+  currency_code?: string;
 }
 
 export interface MenuInstance {

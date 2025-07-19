@@ -5,9 +5,23 @@ import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMe
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+const getCurrencySymbol = (currencyCode?: string): string => {
+  switch (currencyCode?.toUpperCase()) {
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    default:
+      return '£'; // Default to GBP
+  }
+};
+
 function transformBackendEntriesToMenuItems(
     entries: BackendFoodServiceEntryJson[] | null | undefined,
-    menuId: string
+    menuId: string,
+    currencySymbol: string
 ): MenuItem[] {
     if (!entries) return [];
     
@@ -16,7 +30,7 @@ function transformBackendEntriesToMenuItems(
             const itemName = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name.trim() : `Unnamed Item ${itemIndex + 1}`;
             const itemDescription = typeof entry.description === 'string' ? entry.description : "";
             const itemPrice = typeof entry.price === 'number' ? entry.price : 0;
-            const formattedPrice = `$${(itemPrice / 100).toFixed(2)}`;
+            const formattedPrice = `${currencySymbol}${(itemPrice / 100).toFixed(2)}`;
 
             const mediaObjects: MediaObject[] = [];
             const imageUrl = entry.generated_blob_media_ref || entry.source_media_blob_ref;
@@ -99,9 +113,10 @@ const transformBackendMenu = (digitalMenu: BackendDigitalMenuJson, menuIndex: nu
     }
 
     const menuIdToUse = digitalMenu.MenuID.trim() || `menu-${menuIndex}-${Date.now()}`;
+    const currencySymbol = getCurrencySymbol(digitalMenu.currency_code);
     
-    const menuItems = transformBackendEntriesToMenuItems(digitalMenu.food_service_entries, menuIdToUse);
-    const testMenuItems = transformBackendEntriesToMenuItems(digitalMenu.test_food_service_entries, menuIdToUse);
+    const menuItems = transformBackendEntriesToMenuItems(digitalMenu.food_service_entries, menuIdToUse, currencySymbol);
+    const testMenuItems = transformBackendEntriesToMenuItems(digitalMenu.test_food_service_entries, menuIdToUse, currencySymbol);
 
     let s3ContextImageUrls: string[] = [];
     if (typeof digitalMenu.ContextS3MediaUrls === 'string' && digitalMenu.ContextS3MediaUrls.trim() !== '') {
