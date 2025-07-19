@@ -52,6 +52,19 @@ export interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getCurrencySymbol = (currencyCode?: CurrencyCode): string => {
+  switch (currencyCode?.toUpperCase()) {
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    default:
+      return '£'; // Default to GBP
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [clarityUserProfile, setClarityUserProfile] = useState<ClarityUserProfile | null>(null);
@@ -430,10 +443,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateMenuCurrencyCode = (menuInstanceId: string, currencyCode: CurrencyCode): boolean => {
     let success = false;
+    const newSymbol = getCurrencySymbol(currencyCode);
     const updatedMenuInstances = menuInstances.map(instance => {
       if (instance.id === menuInstanceId) {
         success = instance.currencyCode !== currencyCode;
-        return { ...instance, currencyCode: currencyCode };
+        const updatedMenu = instance.menu.map(item => {
+            if (item._rawPriceCents !== undefined) {
+                return {
+                    ...item,
+                    price: `${newSymbol}${(item._rawPriceCents / 100).toFixed(2)}`
+                };
+            }
+            return item;
+        });
+        return { ...instance, currencyCode, menu: updatedMenu };
       }
       return instance;
     });
@@ -441,7 +464,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (success) {
       setMenuInstances(updatedMenuInstances);
       if (selectedMenuInstance?.id === menuInstanceId) {
-        setSelectedMenuInstance(prev => prev ? { ...prev, currencyCode: currencyCode } : null);
+        setSelectedMenuInstance(updatedMenuInstances.find(inst => inst.id === menuInstanceId) || null);
       }
     }
     return success;

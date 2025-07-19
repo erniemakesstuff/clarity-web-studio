@@ -82,6 +82,7 @@ function transformBackendEntriesToMenuItems(
               name: itemName,
               description: itemDescription,
               price: formattedPrice,
+              _rawPriceCents: itemPrice, // Store the raw price
               category: typeof entry.food_category === 'string' && entry.food_category.trim() !== '' ? entry.food_category : "Other",
               media: mediaObjects.length > 0 ? mediaObjects : undefined,
               dietaryIcons: uniqueDietaryIcons.length > 0 ? uniqueDietaryIcons : undefined,

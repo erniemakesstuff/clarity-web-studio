@@ -24,6 +24,7 @@ export interface MenuItem extends MenuItemCore {
   youMayAlsoLike?: string[];
   displayOrder?: number;
   _tempVisualDescriptionForSave?: string; // Internal helper for saving
+  _rawPriceCents?: number; // Store the raw price in cents for re-formatting
 }
 
 export type DietaryIcon = "vegetarian" | "vegan" | "gluten-free" | "spicy";
