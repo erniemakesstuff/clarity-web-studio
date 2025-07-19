@@ -3,7 +3,7 @@
 
 import type { ReactNode } from "react";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { MenuInstance, MenuItem, OverrideSchedule, ClarityUserProfile } from "@/lib/types";
+import type { MenuInstance, MenuItem, OverrideSchedule, ClarityUserProfile, CurrencyCode } from "@/lib/types";
 import { fetchMenuInstancesFromBackend } from "@/app/(dashboard)/dashboard/actions";
 import { patchMenu } from "@/app/(dashboard)/dashboard/hypothesis-tests/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,7 @@ export interface AuthContextType {
   renameMenuInstance: (menuId: string, newName: string) => boolean;
   updateMenuItem: (menuInstanceId: string, updatedItem: MenuItem) => boolean;
   updateMenuSchedules: (menuInstanceId: string, schedules: OverrideSchedule[]) => boolean;
+  updateMenuCurrencyCode: (menuInstanceId: string, currencyCode: CurrencyCode) => boolean;
   isLoadingMenuInstances: boolean;
   refreshMenuInstances: () => Promise<void>;
   rawMenuApiResponseText: string | null;
@@ -427,6 +428,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return success;
   };
 
+  const updateMenuCurrencyCode = (menuInstanceId: string, currencyCode: CurrencyCode): boolean => {
+    let success = false;
+    const updatedMenuInstances = menuInstances.map(instance => {
+      if (instance.id === menuInstanceId) {
+        success = instance.currencyCode !== currencyCode;
+        return { ...instance, currencyCode: currencyCode };
+      }
+      return instance;
+    });
+
+    if (success) {
+      setMenuInstances(updatedMenuInstances);
+      if (selectedMenuInstance?.id === menuInstanceId) {
+        setSelectedMenuInstance(prev => prev ? { ...prev, currencyCode: currencyCode } : null);
+      }
+    }
+    return success;
+  };
+
   const value = {
     user,
     clarityUserProfile,
@@ -447,6 +467,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     renameMenuInstance,
     updateMenuItem,
     updateMenuSchedules,
+    updateMenuCurrencyCode,
     isLoadingMenuInstances,
     refreshMenuInstances,
     rawMenuApiResponseText,

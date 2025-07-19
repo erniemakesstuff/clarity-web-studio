@@ -121,8 +121,9 @@ export function EditMenuItemDialog({ item, isOpen, allMenuItems, onOpenChange, o
       toast({ title: "Validation Error", description: "Name, price, and category cannot be empty.", variant: "destructive" });
       return;
     }
-    if (!price.startsWith("$") || isNaN(parseFloat(price.substring(1)))) {
-        toast({ title: "Validation Error", description: "Price must be in a valid format (e.g., $10.99).", variant: "destructive" });
+    // Updated regex to handle $, £, €
+    if (!/[$€£]/.test(price.charAt(0)) || isNaN(parseFloat(price.replace(/[$€£]/, '')))) {
+        toast({ title: "Validation Error", description: "Price must be in a valid format (e.g., $10.99, £10.99, €10.99).", variant: "destructive" });
         return;
     }
     const parsedDisplayOrder = displayOrder === "" ? undefined : parseInt(String(displayOrder), 10);

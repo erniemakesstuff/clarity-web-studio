@@ -245,7 +245,7 @@ export async function updateMenuItemOnBackend(
 
   let priceInCents = 0;
   if (itemData.price) {
-    const numericPrice = parseFloat(itemData.price.replace('$', ''));
+    const numericPrice = parseFloat(itemData.price.replace(/[^\d.-]/g, ''));
     if (!isNaN(numericPrice)) {
       priceInCents = Math.round(numericPrice * 100);
     }
@@ -319,6 +319,7 @@ interface PatchDigitalMenuRequest {
   ownerId: string;
   menuId: string;
   overrideSchedules?: OverrideSchedule[];
+  currency_code?: 'USD' | 'EUR' | 'GBP';
 }
 
 interface PatchDigitalMenuResult {
@@ -342,10 +343,10 @@ export async function patchDigitalMenu(
     });
 
     if (response.ok) {
-      return { success: true, message: "Menu override schedules updated successfully." };
+      return { success: true, message: "Menu settings updated successfully." };
     } else {
       const errorText = await response.text();
-      let errorMessage = `Backend error updating schedules: ${response.status}`;
+      let errorMessage = `Backend error updating menu settings: ${response.status}`;
       try {
         const errorData = JSON.parse(errorText);
         errorMessage = errorData.message || errorMessage;
@@ -355,9 +356,9 @@ export async function patchDigitalMenu(
       return { success: false, message: errorMessage };
     }
   } catch (error: any) {
-    let detailedErrorMessage = `Failed to communicate with backend to update schedules.`;
+    let detailedErrorMessage = `Failed to communicate with backend to update menu settings.`;
     if (error.message && error.message.toLowerCase().includes("failed to fetch")) {
-      detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for schedule update.`;
+      detailedErrorMessage = `Network error: Could not reach the backend service at ${API_BASE_URL} for menu settings update.`;
     }
     return { success: false, message: detailedErrorMessage };
   }

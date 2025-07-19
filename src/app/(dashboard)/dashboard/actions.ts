@@ -1,11 +1,11 @@
 
 'use server';
 
-import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, AnalyticsEntry, BackendFoodServiceEntryJson, OverrideSchedule } from '@/lib/types';
+import type { MenuInstance, MenuItem, MediaObject, DietaryIcon, BackendDigitalMenuJson, AnalyticsEntry, BackendFoodServiceEntryJson, OverrideSchedule, CurrencyCode } from '@/lib/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-const getCurrencySymbol = (currencyCode?: string): string => {
+const getCurrencySymbol = (currencyCode?: CurrencyCode): string => {
   switch (currencyCode?.toUpperCase()) {
     case 'USD':
       return '$';
@@ -46,7 +46,7 @@ function transformBackendEntriesToMenuItems(
             }
             if (dataAiHint.trim() === '') dataAiHint = 'food item';
 
-            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+            if (typeof imageUrl === 'string' && (imageUrl.startsWith('http://') || imageUrl.startsWith('https'))) {
               mediaObjects.push({
                 type: 'image',
                 url: imageUrl,
@@ -147,6 +147,7 @@ const transformBackendMenu = (digitalMenu: BackendDigitalMenuJson, menuIndex: nu
         testHypothesis: digitalMenu.test_hypothesis,
         testHistory: digitalMenu.test_history,
         overrideSchedules: overrideSchedules,
+        currencyCode: digitalMenu.currency_code,
     };
 };
 

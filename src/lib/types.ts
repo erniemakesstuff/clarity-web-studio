@@ -6,6 +6,7 @@ export interface MenuItemCore {
 }
 
 export type MediaType = 'image' | 'video';
+export type CurrencyCode = 'USD' | 'EUR' | 'GBP';
 
 export interface MediaObject {
   type: MediaType;
@@ -104,7 +105,7 @@ export interface BackendDigitalMenuJson {
   Analytics?: AnalyticsEntry[] | null; 
   State?: DigitalMenuState;
   override_schedules?: OverrideSchedule[] | null;
-  currency_code?: string;
+  currency_code?: CurrencyCode;
 }
 
 export interface MenuInstance {
@@ -120,6 +121,7 @@ export interface MenuInstance {
   testHypothesis?: string;
   testHistory?: string;
   overrideSchedules?: OverrideSchedule[];
+  currencyCode?: CurrencyCode;
 }
 
 export interface ClarityUserProfile {

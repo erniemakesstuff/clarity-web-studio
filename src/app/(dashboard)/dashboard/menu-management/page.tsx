@@ -3,11 +3,11 @@
 
 import { useState, useEffect } from "react";
 import { MenuUploadForm } from "@/components/dashboard/MenuUploadForm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff, Pencil, Eye } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { ListChecks, Utensils, Leaf, WheatOff, Flame, ImageOff, Pencil, Eye, DollarSign, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import type { MenuItem, DietaryIcon, MenuCategory as MenuCategoryType, MediaObject } from "@/lib/types";
+import type { MenuItem, DietaryIcon, MenuCategory as MenuCategoryType, MediaObject, CurrencyCode } from "@/lib/types";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { EditMenuItemDialog } from "@/components/dashboard/EditMenuItemDialog";
 import Link from "next/link";
 import { generateDeterministicIdHash } from "@/lib/hash-utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { patchDigitalMenu } from "./actions";
 
 
 const dietaryIconMap: Record<DietaryIcon, React.ReactNode> = {
@@ -35,11 +37,20 @@ const dietaryIconTooltip: Record<DietaryIcon, string> = {
 const ADMIN_USER_RAW_IDS = ["admin@example.com", "valerm09@gmail.com"]; 
 
 export default function MenuManagementPage() {
-  const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem, rawOwnerId, ownerId } = useAuth();
+  const { selectedMenuInstance, isLoadingMenuInstances, updateMenuItem, rawOwnerId, ownerId, selectedMenuOwnerId, updateMenuCurrencyCode, jwtToken } = useAuth();
   const { toast } = useToast();
   const [menuCategories, setMenuCategories] = useState<MenuCategoryType[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<MenuItem | null>(null);
+
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('GBP');
+  const [isUpdatingCurrency, setIsUpdatingCurrency] = useState(false);
+
+  useEffect(() => {
+    if (selectedMenuInstance) {
+      setSelectedCurrency(selectedMenuInstance.currencyCode || 'GBP');
+    }
+  }, [selectedMenuInstance]);
 
   useEffect(() => {
     if (selectedMenuInstance && selectedMenuInstance.menu.length > 0) {
@@ -103,6 +114,38 @@ export default function MenuManagementPage() {
     setIsEditModalOpen(false);
     setItemToEdit(null);
   };
+  
+  const handleCurrencyUpdate = async () => {
+    if (!selectedMenuInstance) {
+      toast({ title: "No menu selected", variant: "destructive" });
+      return;
+    }
+    setIsUpdatingCurrency(true);
+    const result = await patchDigitalMenu({
+      ownerId: selectedMenuOwnerId,
+      menuId: selectedMenuInstance.id,
+      currency_code: selectedCurrency,
+    }, jwtToken);
+
+    if (result.success) {
+      updateMenuCurrencyCode(selectedMenuInstance.id, selectedCurrency);
+      toast({
+        title: "Currency Updated",
+        description: `Menu currency set to ${selectedCurrency}.`,
+        variant: "default",
+        className: "bg-green-500 text-white",
+      });
+    } else {
+      toast({
+        title: "Update Failed",
+        description: result.message || "Could not update currency.",
+        variant: "destructive",
+      });
+      // Revert UI on failure
+      setSelectedCurrency(selectedMenuInstance.currencyCode || 'GBP');
+    }
+    setIsUpdatingCurrency(false);
+  };
 
 
   return (
@@ -115,6 +158,38 @@ export default function MenuManagementPage() {
       </div>
       
       <MenuUploadForm />
+      
+      {selectedMenuInstance && (
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center text-2xl">
+              <DollarSign className="mr-3 h-7 w-7 text-primary" />
+              Menu Currency
+          </CardTitle>
+          <CardDescription>
+            Set the currency that will be displayed on your public digital menu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+              <Select value={selectedCurrency} onValueChange={(v) => setSelectedCurrency(v as CurrencyCode)} disabled={isUpdatingCurrency}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                </SelectContent>
+              </Select>
+            <Button onClick={handleCurrencyUpdate} disabled={isUpdatingCurrency || selectedCurrency === (selectedMenuInstance.currencyCode || 'GBP')}>
+              {isUpdatingCurrency && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Currency
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      )}
 
       <Card className="shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between">
